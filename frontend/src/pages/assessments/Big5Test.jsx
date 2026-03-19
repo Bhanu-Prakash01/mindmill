@@ -1,0 +1,491 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { assessmentService, attemptService } from '../../services';
+import {
+ ChevronLeft,
+ ChevronRight,
+ Clock,
+ AlertCircle,
+ CheckCircle,
+ Loader2,
+ Maximize2
+} from 'lucide-react';
+
+const Big5Test = () => {
+ const { id, token, attemptId: urlAttemptId } = useParams();
+ const navigate = useNavigate();
+ 
+ const isPublicAccess = !!token;
+ const assessmentId = isPublicAccess ? undefined : id;
+ const attemptId = isPublicAccess ? urlAttemptId : null;
+
+ const [assessment, setAssessment] = useState(null);
+ const [questions, setQuestions] = useState([]);
+ const [responses, setResponses] = useState({});
+ const [currentPage, setCurrentPage] = useState(0);
+ const [loading, setLoading] = useState(true);
+ const [submitting, setSubmitting] = useState(false);
+ const [timeRemaining, setTimeRemaining] = useState(0);
+ const [currentAttemptId, setCurrentAttemptId] = useState(attemptId);
+ const [error, setError] = useState(null);
+ const [tabSwitchCount, setTabSwitchCount] = useState(0);
+ const [fullscreenExits, setFullscreenExits] = useState(0);
+
+ const QUESTIONS_PER_PAGE = 5;
+ const TOTAL_PAGES = Math.ceil(50 / QUESTIONS_PER_PAGE);
+
+ useEffect(() => {
+ if (isPublicAccess) {
+   fetchPublicAssessment();
+ } else {
+   fetchAssessment();
+ }
+ }, [id, token]);
+
+ useEffect(() => {
+ if (currentAttemptId) {
+   logProctoringEvent('test_started', {});
+ }
+ }, [currentAttemptId]);
+
+ useEffect(() => {
+ if (timeRemaining > 0) {
+ const timer = setInterval(() => {
+ setTimeRemaining(prev => {
+ if (prev <= 1) {
+ handleSubmit();
+ return 0;
+ }
+ return prev - 1;
+ });
+ }, 1000);
+ return () => clearInterval(timer);
+ }
+ }, [timeRemaining]);
+
+  const requestFullscreen = () => {
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+  elem.requestFullscreen().catch(() => {});
+  }
+  };
+
+  const logProctoringEvent = async (event, details) => {
+  if (!attemptId) return;
+  try {
+  await attemptService.logProctoringEvent(attemptId, { event, details });
+  } catch (error) {
+  console.error('Error logging proctoring event:', error);
+  }
+  };
+
+  useEffect(() => {
+  const handleVisibilityChange = () => {
+  if (document.hidden) {
+  alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
+  setTabSwitchCount(prev => prev + 1);
+  logProctoringEvent('tab_switch', { count: tabSwitchCount + 1 });
+  }
+  };
+
+  const handleFullscreenChange = () => {
+  if (!document.fullscreenElement) {
+  alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
+  setFullscreenExits(prev => prev + 1);
+  logProctoringEvent('fullscreen_exit', { count: fullscreenExits + 1 });
+  }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+  return () => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  };
+  }, [attemptId, tabSwitchCount, fullscreenExits]);
+
+  const fetchAssessment = async () => {
+  try {
+  // Get assessment details
+  const assessmentRes = await assessmentService.getAssessment(id);
+  setAssessment(assessmentRes.data?.assessment);
+
+  // Get questions
+  const questionsRes = await assessmentService.getQuestions(id);
+  const sortedQuestions = (questionsRes.data?.questions || []).sort((a, b) => a.order - b.order);
+  setQuestions(sortedQuestions);
+
+  // Start attempt
+  const attemptRes = await attemptService.startAttempt(id);
+  setCurrentAttemptId(attemptRes.data?.attempt?._id);
+
+  // Initialize timer
+  if (attemptRes.data?.attempt?.expiresAt) {
+  const expiresAt = new Date(attemptRes.data.attempt.expiresAt).getTime();
+  const now = Date.now();
+  setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+  }
+
+   // Request fullscreen
+   requestFullscreen();
+
+  setLoading(false);
+  } catch (err) {
+  setError(err.response?.data?.message || 'Failed to load assessment');
+  setLoading(false);
+  }
+  };
+
+  const fetchPublicAssessment = async () => {
+  try {
+  const attemptRes = await attemptService.getPublicAttempt(urlAttemptId);
+  const attemptData = attemptRes.data?.attempt;
+  setCurrentAttemptId(attemptData?._id);
+  setAssessment(attemptData?.assessment);
+  
+  if (attemptData?.expiresAt) {
+  const expiresAt = new Date(attemptData.expiresAt).getTime();
+  const now = Date.now();
+  setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+  }
+  
+  requestFullscreen();
+  setLoading(false);
+  } catch (err) {
+  setError(err.response?.data?.message || 'Failed to load assessment');
+  setLoading(false);
+  }
+  };
+
+ const handleResponse = (questionOrder, value) => {
+ setResponses(prev => ({
+ ...prev,
+ [questionOrder]: value
+ }));
+ };
+
+ const handleNext = () => {
+ if (currentPage < TOTAL_PAGES - 1) {
+ setCurrentPage(prev => prev + 1);
+ window.scrollTo({ top: 0, behavior: 'smooth' });
+ }
+ };
+
+ const handlePrev = () => {
+ if (currentPage > 0) {
+ setCurrentPage(prev => prev - 1);
+ window.scrollTo({ top: 0, behavior: 'smooth' });
+ }
+ };
+
+  const handleSubmit = async () => {
+  // Check all questions answered
+  const unanswered = [];
+  for (let i = 1; i <= 50; i++) {
+  if (!responses[i]) {
+  unanswered.push(i);
+  }
+  }
+
+  if (unanswered.length > 0) {
+  alert(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
+  // Navigate to first unanswered page
+  const firstUnanswered = unanswered[0];
+  setCurrentPage(Math.floor((firstUnanswered - 1) / QUESTIONS_PER_PAGE));
+  return;
+  }
+
+  setSubmitting(true);
+  try {
+  let res;
+  if (isPublicAccess) {
+  res = await fetch(`/api/attempts/${currentAttemptId}/submit`, {
+  method: 'POST',
+  headers: {
+  'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ responses })
+  });
+  } else {
+  res = await fetch(`/api/assessments/${id}/big5/submit`, {
+  method: 'POST',
+  headers: {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
+  },
+  body: JSON.stringify({ responses })
+  });
+  }
+
+  const data = await res.json();
+
+  if (data.success) {
+  if (isPublicAccess) {
+  document.exitFullscreen?.();
+  alert('Assessment submitted successfully! Thank you for completing the assessment.');
+  navigate('/');
+  } else {
+  navigate(`/reports/big5/${data.data.attempt._id}`);
+  }
+  } else {
+  throw new Error(data.message);
+  }
+  } catch (err) {
+  alert(err.message || 'Failed to submit assessment');
+  setSubmitting(false);
+  }
+  };
+
+ const formatTime = (seconds) => {
+ const mins = Math.floor(seconds / 60);
+ const secs = seconds % 60;
+ return `${mins}:${secs.toString().padStart(2, '0')}`;
+ };
+
+ const getProgress = () => {
+ const answered = Object.keys(responses).length;
+ return Math.round((answered / 50) * 100);
+ };
+
+ if (loading) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="text-center">
+ <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+ <p className="text-gray-600 ">Loading assessment...</p>
+ </div>
+ </div>
+ );
+ }
+
+ if (error) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="text-center max-w-md">
+ <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+ <p className="text-red-600 ">{error}</p>
+ </div>
+ </div>
+ );
+ }
+
+ const currentQuestions = questions.slice(
+ currentPage * QUESTIONS_PER_PAGE,
+ (currentPage + 1) * QUESTIONS_PER_PAGE
+ );
+
+ const scaleLabels = [
+ { value: 1, label: 'Disagree', size: 'w-8 h-8' },
+ { value: 2, label: 'Slightly Disagree', size: 'w-10 h-10' },
+ { value: 3, label: 'Neutral', size: 'w-12 h-12' },
+ { value: 4, label: 'Slightly Agree', size: 'w-10 h-10' },
+ { value: 5, label: 'Agree', size: 'w-8 h-8' }
+ ];
+
+ return (
+ <div className="min-h-screen bg-gray-50 ">
+ {/* Header */}
+ <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+ <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+ <div className="flex items-center justify-between h-16">
+ <div>
+ <h1 className="text-lg font-semibold text-gray-900 ">
+ {assessment?.title}
+ </h1>
+ <p className="text-sm text-gray-500 ">
+ Question {currentPage * QUESTIONS_PER_PAGE + 1} - {Math.min((currentPage + 1) * QUESTIONS_PER_PAGE, 50)} of 50
+ </p>
+ </div>
+
+ <div className="flex items-center gap-4">
+ {/* Timer */}
+ {assessment?.timeBound?.enabled && (
+ <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+ timeRemaining < 300
+ ? 'bg-red-100 text-red-700 '
+ : 'bg-gray-100 text-gray-700 '
+ }`}>
+ <Clock className="w-5 h-5" />
+ <span className="font-mono font-medium">{formatTime(timeRemaining)}</span>
+ </div>
+ )}
+
+ {/* Progress */}
+ <div className="hidden sm:block">
+ <div className="flex items-center gap-2 text-sm text-gray-600 ">
+ <span>{getProgress()}% Complete</span>
+ </div>
+ <div className="w-32 h-2 bg-gray-200 rounded-full mt-1">
+ <div
+ className="h-full bg-indigo-600 rounded-full transition-all"
+ style={{ width: `${getProgress()}%` }}
+ />
+ </div>
+ </div>
+
+ <button
+    onClick={requestFullscreen}
+    className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+    title="Return to Fullscreen"
+  >
+    <Maximize2 className="w-4 h-4" />
+    Fullscreen
+  </button>
+ </div>
+ </div>
+ </div>
+ </header>
+
+ {/* Main Content */}
+ <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+ {/* Instructions */}
+ {currentPage === 0 && (
+ <div className="mb-8 p-6 bg-blue-50 rounded-xl border border-blue-200 ">
+ <h2 className="text-lg font-semibold text-blue-900 mb-2">
+ Instructions
+ </h2>
+ <p className="text-blue-700 text-sm leading-relaxed">
+ Please respond to each statement honestly based on how you see yourself.
+ Use the scale below where 1 = Disagree and 5 = Agree.
+ There are no right or wrong answers. Answer based on your natural tendencies.
+ </p>
+ </div>
+ )}
+
+ {/* Questions */}
+ <div className="space-y-8">
+ {currentQuestions.map((question, index) => {
+ const questionNumber = currentPage * QUESTIONS_PER_PAGE + index + 1;
+ const isAnswered = responses[questionNumber] !== undefined;
+
+ return (
+ <div
+ key={question._id}
+ className={`bg-white rounded-xl p-6 border-2 transition-colors ${
+ isAnswered
+ ? 'border-green-200 '
+ : 'border-gray-200 '
+ }`}
+ >
+ <div className="flex items-start gap-4">
+ <span className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-medium">
+ {questionNumber}
+ </span>
+ <h3 className="flex-1 text-lg text-gray-900 leading-relaxed">
+ {question.questionText}
+ </h3>
+ {isAnswered && (
+ <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+ )}
+ </div>
+
+ {/* Likert Scale */}
+ <div className="mt-6">
+ <div className="flex items-center justify-center gap-2 sm:gap-4">
+ {scaleLabels.map((scale) => (
+ <button
+ key={scale.value}
+ onClick={() => handleResponse(questionNumber, scale.value)}
+ className={`flex flex-col items-center gap-2 transition-all ${
+ responses[questionNumber] === scale.value
+ ? 'scale-110'
+ : 'hover:scale-105'
+ }`}
+ >
+ <div
+ className={`${scale.size} rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+ responses[questionNumber] === scale.value
+ ? 'bg-indigo-600 text-white shadow-lg'
+ : 'bg-gray-100 text-gray-600 hover:bg-gray-200 '
+ }`}
+ >
+ {scale.value}
+ </div>
+ <span className="text-xs text-gray-500 hidden sm:block max-w-[80px] text-center">
+ {scale.label}
+ </span>
+ </button>
+ ))}
+ </div>
+ <div className="flex justify-between text-xs text-gray-400 mt-2 px-4">
+ <span>Disagree</span>
+ <span>Agree</span>
+ </div>
+ </div>
+ </div>
+ );
+ })}
+ </div>
+
+ {/* Navigation */}
+ <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 ">
+ <button
+ onClick={handlePrev}
+ disabled={currentPage === 0}
+ className="flex items-center gap-2 px-4 py-2 text-gray-600 disabled:opacity-50 hover:text-gray-900 "
+ >
+ <ChevronLeft className="w-5 h-5" />
+ Previous
+ </button>
+
+ {/* Page Indicator */}
+ <div className="flex items-center gap-2">
+ {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
+ <button
+ key={i}
+ onClick={() => setCurrentPage(i)}
+ className={`w-2 h-2 rounded-full transition-colors ${
+ i === currentPage
+ ? 'bg-indigo-600'
+ : 'bg-gray-300 hover:bg-gray-400'
+ }`}
+ />
+ ))}
+ </div>
+
+ {currentPage < TOTAL_PAGES - 1 ? (
+ <button
+ onClick={handleNext}
+ className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+ >
+ Next
+ <ChevronRight className="w-5 h-5" />
+ </button>
+ ) : (
+ <button
+ onClick={handleSubmit}
+ disabled={submitting}
+ className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+ >
+ {submitting ? (
+ <>
+ <Loader2 className="w-5 h-5 animate-spin" />
+ Submitting...
+ </>
+ ) : (
+ <>
+ <CheckCircle className="w-5 h-5" />
+ Submit
+ </>
+ )}
+ </button>
+ )}
+ </div>
+
+ {/* Warning if not all answered */}
+ {currentPage === TOTAL_PAGES - 1 && Object.keys(responses).length < 50 && (
+ <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+ <p className="text-amber-700 text-sm text-center">
+ <AlertCircle className="w-4 h-4 inline mr-2" />
+ You have answered {Object.keys(responses).length} of 50 questions.
+ Please answer all questions before submitting.
+ </p>
+ </div>
+ )}
+ </main>
+ </div>
+ );
+};
+
+export default Big5Test;

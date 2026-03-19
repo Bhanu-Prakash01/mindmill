@@ -1,0 +1,391 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+ Radar,
+ RadarChart,
+ PolarGrid,
+ PolarAngleAxis,
+ PolarRadiusAxis,
+ ResponsiveContainer,
+ BarChart,
+ Bar,
+ XAxis,
+ YAxis,
+ CartesianGrid,
+ Tooltip,
+ Cell
+} from 'recharts';
+import {
+ Download,
+ Share2,
+ ArrowLeft,
+ Loader2,
+ AlertCircle,
+ Info
+} from 'lucide-react';
+
+const Big5Report = () => {
+ const { attemptId } = useParams();
+ const navigate = useNavigate();
+ const [results, setResults] = useState(null);
+ const [traitDetails, setTraitDetails] = useState(null);
+ const [narrative, setNarrative] = useState('');
+ const [dominantTraits, setDominantTraits] = useState([]);
+ const [loading, setLoading] = useState(true);
+ const [error, setError] = useState(null);
+
+ useEffect(() => {
+ fetchResults();
+ }, [attemptId]);
+
+ const fetchResults = async () => {
+ try {
+ const response = await fetch(`/api/attempts/${attemptId}/big5/results`, {
+ headers: {
+ 'Authorization': `Bearer ${localStorage.getItem('token')}`
+ }
+ });
+ const data = await response.json();
+
+ if (data.success) {
+ setResults(data.data.results);
+ setTraitDetails(data.data.traitDetails);
+ setNarrative(data.data.narrative);
+ setDominantTraits(data.data.dominantTraits);
+ } else {
+ throw new Error(data.message);
+ }
+ } catch (err) {
+ setError(err.message || 'Failed to load results');
+ } finally {
+ setLoading(false);
+ }
+ };
+
+ const handleDownload = () => {
+ window.print();
+ };
+
+ const handleShare = async () => {
+ const shareData = {
+ title: 'My Big Five Personality Results',
+ text: `I scored ${results.O.percent}% Openness, ${results.C.percent}% Conscientiousness, ${results.E.percent}% Extraversion, ${results.A.percent}% Agreeableness, ${results.N.percent}% Neuroticism.`,
+ url: window.location.href
+ };
+
+ if (navigator.share) {
+ try {
+ await navigator.share(shareData);
+ } catch (err) {
+ console.log('Share cancelled');
+ }
+ } else {
+ // Fallback: copy to clipboard
+ navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+ alert('Results copied to clipboard!');
+ }
+ };
+
+ if (loading) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="text-center">
+ <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+ <p className="text-gray-600 ">Loading your results...</p>
+ </div>
+ </div>
+ );
+ }
+
+ if (error) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="text-center max-w-md">
+ <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+ <p className="text-red-600 ">{error}</p>
+ <button
+ onClick={() => navigate('/dashboard/user')}
+ className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg"
+ >
+ Go to Dashboard
+ </button>
+ </div>
+ </div>
+ );
+ }
+
+ if (!results) return null;
+
+ // Prepare data for radar chart
+ const radarData = [
+ { trait: 'Openness', score: results.O.percent, fullMark: 100 },
+ { trait: 'Conscientiousness', score: results.C.percent, fullMark: 100 },
+ { trait: 'Extraversion', score: results.E.percent, fullMark: 100 },
+ { trait: 'Agreeableness', score: results.A.percent, fullMark: 100 },
+ { trait: 'Neuroticism', score: results.N.percent, fullMark: 100 },
+ ];
+
+ // Prepare data for bar chart
+ const barData = [
+ { name: 'Openness', value: results.O.percent, trait: 'O' },
+ { name: 'Conscientiousness', value: results.C.percent, trait: 'C' },
+ { name: 'Extraversion', value: results.E.percent, trait: 'E' },
+ { name: 'Agreeableness', value: results.A.percent, trait: 'A' },
+ { name: 'Neuroticism', value: results.N.percent, trait: 'N' },
+ ];
+
+ const getLevelColor = (level) => {
+ switch (level) {
+ case 'High': return 'text-green-600 bg-green-100 ';
+ case 'Moderate': return 'text-yellow-600 bg-yellow-100 ';
+ case 'Low': return 'text-blue-600 bg-blue-100 ';
+ default: return 'text-gray-600 bg-gray-100 ';
+ }
+ };
+
+ const getBarColor = (trait) => {
+ const colors = {
+ O: '#8b5cf6', // Violet
+ C: '#10b981', // Emerald
+ E: '#f59e0b', // Amber
+ A: '#ec4899', // Pink
+ N: '#ef4444', // Red
+ };
+ return colors[trait];
+ };
+
+ return (
+ <div className="min-h-screen bg-gray-50 pb-12">
+ {/* Header */}
+ <header className="bg-white border-b border-gray-200 ">
+ <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+ <div className="flex items-center justify-between h-16">
+ <button
+ onClick={() => navigate('/dashboard/user')}
+ className="flex items-center gap-2 text-gray-600 hover:text-gray-900 "
+ >
+ <ArrowLeft className="w-5 h-5" />
+ Back to Dashboard
+ </button>
+
+ <div className="flex items-center gap-3">
+ <button
+ onClick={handleShare}
+ className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+ >
+ <Share2 className="w-4 h-4" />
+ Share
+ </button>
+ <button
+ onClick={handleDownload}
+ className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+ >
+ <Download className="w-4 h-4" />
+ Download PDF
+ </button>
+ </div>
+ </div>
+ </div>
+ </header>
+
+ <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+ {/* Title */}
+ <div className="text-center mb-8">
+ <h1 className="text-3xl font-bold text-gray-900 mb-2">
+ Your Big Five Personality Profile
+ </h1>
+ <p className="text-gray-600 max-w-2xl mx-auto">
+ {narrative}
+ </p>
+ </div>
+
+ {/* Charts Section */}
+ <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+ {/* Radar Chart */}
+ <div className="bg-white rounded-xl p-6 border border-gray-200 ">
+ <h2 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+ Personality Radar
+ </h2>
+ <div className="h-80">
+ <ResponsiveContainer width="100%" height="100%">
+ <RadarChart data={radarData}>
+ <PolarGrid />
+ <PolarAngleAxis
+ dataKey="trait"
+ tick={{ fill: '#6b7280', fontSize: 12 }}
+ />
+ <PolarRadiusAxis
+ angle={90}
+ domain={[0, 100]}
+ tick={{ fill: '#9ca3af', fontSize: 10 }}
+ />
+ <Radar
+ name="Your Score"
+ dataKey="score"
+ stroke="#6366f1"
+ strokeWidth={2}
+ fill="#6366f1"
+ fillOpacity={0.3}
+ />
+ <Tooltip
+ formatter={(value) => [`${value}%`, 'Score']}
+ contentStyle={{
+ backgroundColor: 'rgba(255, 255, 255, 0.95)',
+ border: '1px solid #e5e7eb',
+ borderRadius: '8px'
+ }}
+ />
+ </RadarChart>
+ </ResponsiveContainer>
+ </div>
+ </div>
+
+ {/* Bar Chart */}
+ <div className="bg-white rounded-xl p-6 border border-gray-200 ">
+ <h2 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+ Trait Percentages
+ </h2>
+ <div className="h-80">
+ <ResponsiveContainer width="100%" height="100%">
+ <BarChart data={barData} layout="vertical">
+ <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+ <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+ <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+ <Tooltip
+ formatter={(value) => [`${value}%`, 'Score']}
+ contentStyle={{
+ backgroundColor: 'rgba(255, 255, 255, 0.95)',
+ border: '1px solid #e5e7eb',
+ borderRadius: '8px'
+ }}
+ />
+ <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+ {barData.map((entry, index) => (
+ <Cell key={`cell-${index}`} fill={getBarColor(entry.trait)} />
+ ))}
+ </Bar>
+ </BarChart>
+ </ResponsiveContainer>
+ </div>
+ </div>
+ </div>
+
+ {/* Trait Cards */}
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+ {['O', 'C', 'E', 'A', 'N'].map((trait) => {
+ const data = results[trait];
+ const details = traitDetails?.[trait];
+ const isDominant = dominantTraits.includes(trait);
+
+ return (
+ <div
+ key={trait}
+ className={`bg-white rounded-xl p-4 border-2 transition-all ${
+ isDominant
+ ? 'border-indigo-300 shadow-lg'
+ : 'border-gray-200 '
+ }`}
+ >
+ <div className="flex items-center justify-between mb-2">
+ <span className="text-2xl font-bold" style={{ color: getBarColor(trait) }}>
+ {trait}
+ </span>
+ {isDominant && (
+ <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full">
+ Dominant
+ </span>
+ )}
+ </div>
+ <h3 className="font-medium text-gray-900 text-sm mb-1">
+ {details?.name}
+ </h3>
+ <div className="flex items-baseline gap-1 mb-2">
+ <span className="text-2xl font-bold text-gray-900 ">
+ {data.percent}%
+ </span>
+ </div>
+ <div className="w-full h-2 bg-gray-200 rounded-full mb-2">
+ <div
+ className="h-full rounded-full transition-all"
+ style={{
+ width: `${data.percent}%`,
+ backgroundColor: getBarColor(trait)
+ }}
+ />
+ </div>
+ <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getLevelColor(data.level)}`}>
+ {data.level}
+ </span>
+ <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+ {data.level === 'High' ? details?.high : data.level === 'Low' ? details?.low : 'Balanced trait'}
+ </p>
+ </div>
+ );
+ })}
+ </div>
+
+ {/* Detailed Analysis */}
+ <div className="bg-white rounded-xl p-6 border border-gray-200 ">
+ <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+ <Info className="w-5 h-5 text-indigo-600" />
+ Detailed Analysis
+ </h2>
+
+ <div className="space-y-6">
+ {['O', 'C', 'E', 'A', 'N'].map((trait) => {
+ const details = traitDetails?.[trait];
+ const data = results[trait];
+
+ return (
+ <div key={trait} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
+ <div className="flex items-start gap-4">
+ <div
+ className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+ style={{ backgroundColor: getBarColor(trait) }}
+ >
+ {trait}
+ </div>
+ <div className="flex-1">
+ <h3 className="text-lg font-semibold text-gray-900 ">
+ {details?.name}
+ </h3>
+ <p className="text-sm text-gray-500 mb-2">
+ {details?.fullName}
+ </p>
+ <p className="text-gray-700 text-sm leading-relaxed mb-3">
+ {details?.description}
+ </p>
+ <div className="flex items-center gap-4">
+ <div className="flex items-center gap-2">
+ <span className="text-sm text-gray-500">Score:</span>
+ <span className="font-medium text-gray-900 ">{data.score}/40</span>
+ </div>
+ <div className="flex items-center gap-2">
+ <span className="text-sm text-gray-500">Percentile:</span>
+ <span className="font-medium text-gray-900 ">{data.percent}%</span>
+ </div>
+ <span className={`px-2 py-1 rounded text-xs font-medium ${getLevelColor(data.level)}`}>
+ {data.level} Level
+ </span>
+ </div>
+ </div>
+ </div>
+ </div>
+ );
+ })}
+ </div>
+ </div>
+
+ {/* Footer Note */}
+ <div className="mt-8 text-center text-sm text-gray-500 ">
+ <p>
+ This assessment is based on the Big Five Personality Model (OCEAN),
+ a scientifically validated framework for understanding personality traits.
+ </p>
+ </div>
+ </main>
+ </div>
+ );
+};
+
+export default Big5Report;
