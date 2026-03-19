@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { assessmentService } from '../../services';
+import { assessmentService, organizationService } from '../../services';
+import { useAuth } from '../../context/AuthContext';
 import {
  ArrowLeft,
  Save,
@@ -123,45 +124,48 @@ const getBig5Direction = (questionNum, trait) => {
 const AssessmentForm = () => {
  const { id } = useParams();
  const navigate = useNavigate();
+ const { user } = useAuth();
  const isEditing = !!id;
 
- const [loading, setLoading] = useState(isEditing);
- const [saving, setSaving] = useState(false);
- const [activeTab, setActiveTab] = useState('details');
- const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(isEditing);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
+  const [questions, setQuestions] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
 
- const [formData, setFormData] = useState({
- title: '',
- description: '',
- category: 'psychometric',
- subCategory: '',
- difficulty: 'moderate',
- purpose: '',
- audience: '',
- instructions: '',
- timeBound: {
- enabled: true,
- durationMinutes: 30,
- },
- passingScore: 60,
- allowMultipleAttempts: false,
- maxAttempts: 1,
- showResultsImmediately: true,
- randomizeQuestions: false,
- randomizeOptions: false,
- isPublished: false,
- requirePasscode: false,
- passcode: '',
- reportConfig: {
- type: 'standard',
- showScores: true,
- showFullReport: true,
- showPercentile: false,
- showCorrectAnswers: false,
- includeRecommendations: true,
- },
- tags: [],
- });
+  const [formData, setFormData] = useState({
+  title: '',
+  description: '',
+  category: 'psychometric',
+  subCategory: '',
+  difficulty: 'moderate',
+  purpose: '',
+  audience: '',
+  instructions: '',
+  timeBound: {
+  enabled: true,
+  durationMinutes: 30,
+  },
+  passingScore: 60,
+  allowMultipleAttempts: false,
+  maxAttempts: 1,
+  showResultsImmediately: true,
+  randomizeQuestions: false,
+  randomizeOptions: false,
+  isPublished: false,
+  requirePasscode: false,
+  passcode: '',
+  organizationId: '',
+  reportConfig: {
+  type: 'standard',
+  showScores: true,
+  showFullReport: true,
+  showPercentile: false,
+  showCorrectAnswers: false,
+  includeRecommendations: true,
+  },
+  tags: [],
+  });
 
  const [newQuestion, setNewQuestion] = useState({
  type: 'mcq',
@@ -180,46 +184,59 @@ const AssessmentForm = () => {
  explanation: '',
  });
 
- useEffect(() => {
- if (isEditing) {
- fetchAssessment();
- }
- }, [id]);
+  useEffect(() => {
+  if (isEditing) {
+  fetchAssessment();
+  }
+  if (user?.role === 'superadmin') {
+  fetchOrganizations();
+  }
+  }, [id, user]);
+
+  const fetchOrganizations = async () => {
+  try {
+  const response = await organizationService.getOrganizations({ limit: 100 });
+  setOrganizations(response.data?.organizations || response.data || []);
+  } catch (error) {
+  console.error('Error fetching organizations:', error);
+  }
+  };
 
  const fetchAssessment = async () => {
  try {
  const response = await assessmentService.getAssessment(id);
  const assessment = response.data?.assessment;
  if (assessment) {
- setFormData({
- title: assessment.title || '',
- description: assessment.description || '',
- category: assessment.category || 'psychometric',
- subCategory: assessment.subCategory || '',
- difficulty: assessment.difficulty || 'moderate',
- purpose: assessment.purpose || '',
- audience: assessment.audience || '',
- instructions: assessment.instructions || '',
- timeBound: assessment.timeBound || { enabled: true, durationMinutes: 30 },
- passingScore: assessment.passingScore || 60,
- allowMultipleAttempts: assessment.allowMultipleAttempts || false,
- maxAttempts: assessment.maxAttempts || 1,
- showResultsImmediately: assessment.showResultsImmediately !== false,
- randomizeQuestions: assessment.randomizeQuestions || false,
- randomizeOptions: assessment.randomizeOptions || false,
- isPublished: assessment.isPublished || false,
- requirePasscode: assessment.requirePasscode || false,
- passcode: assessment.passcode || '',
- reportConfig: assessment.reportConfig || {
- type: 'standard',
- showScores: true,
- showFullReport: true,
- showPercentile: false,
- showCorrectAnswers: false,
- includeRecommendations: true,
- },
- tags: assessment.tags || [],
- });
+  setFormData({
+  title: assessment.title || '',
+  description: assessment.description || '',
+  category: assessment.category || 'psychometric',
+  subCategory: assessment.subCategory || '',
+  difficulty: assessment.difficulty || 'moderate',
+  purpose: assessment.purpose || '',
+  audience: assessment.audience || '',
+  instructions: assessment.instructions || '',
+  timeBound: assessment.timeBound || { enabled: true, durationMinutes: 30 },
+  passingScore: assessment.passingScore || 60,
+  allowMultipleAttempts: assessment.allowMultipleAttempts || false,
+  maxAttempts: assessment.maxAttempts || 1,
+  showResultsImmediately: assessment.showResultsImmediately !== false,
+  randomizeQuestions: assessment.randomizeQuestions || false,
+  randomizeOptions: assessment.randomizeOptions || false,
+  isPublished: assessment.isPublished || false,
+  requirePasscode: assessment.requirePasscode || false,
+  passcode: assessment.passcode || '',
+  organizationId: assessment.organization?._id || assessment.organization || '',
+  reportConfig: assessment.reportConfig || {
+  type: 'standard',
+  showScores: true,
+  showFullReport: true,
+  showPercentile: false,
+  showCorrectAnswers: false,
+  includeRecommendations: true,
+  },
+  tags: assessment.tags || [],
+  });
  fetchQuestions();
  }
  } catch (error) {
@@ -239,29 +256,32 @@ const AssessmentForm = () => {
  }
  };
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- setSaving(true);
- try {
- if (isEditing) {
- await assessmentService.updateAssessment(id, formData);
- } else {
-    const response = await assessmentService.createAssessment(formData);
-    const newId = response.data?.assessment?._id || response.assessment?._id;
-    if (newId) {
-      navigate(`/assessments/${newId}`, { replace: true });
-      setActiveTab("questions");
-      return;
-    }
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setSaving(true);
+  try {
+  const submitData = user?.role === 'superadmin'
+    ? { ...formData, organizationId: formData.organizationId }
+    : formData;
+  if (isEditing) {
+  await assessmentService.updateAssessment(id, submitData);
+  } else {
+     const response = await assessmentService.createAssessment(submitData);
+     const newId = response.data?.assessment?._id || response.assessment?._id;
+     if (newId) {
+       navigate(`/assessments/${newId}`, { replace: true });
+       setActiveTab("questions");
+       return;
+     }
+   }
+   navigate("/assessments");
+  } catch (error) {
+  console.error('Error saving assessment:', error);
+  alert(error.response?.data?.message || 'Failed to save assessment');
+  } finally {
+  setSaving(false);
   }
-  navigate("/assessments");
- } catch (error) {
- console.error('Error saving assessment:', error);
- alert(error.response?.data?.message || 'Failed to save assessment');
- } finally {
- setSaving(false);
- }
- };
+  };
 
  const handleAddQuestion = async () => {
  if (!newQuestion.questionText.trim()) {
@@ -707,12 +727,32 @@ const AssessmentForm = () => {
 
  {/* Content */}
  <div className="bg-white rounded-xl border border-gray-200 p-6">
- {activeTab === 'details' && (
- <div className="space-y-6 max-w-2xl">
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Title <span className="text-red-500">*</span>
- </label>
+  {activeTab === 'details' && (
+  <div className="space-y-6 max-w-2xl">
+  {user?.role === 'superadmin' && (
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Organization <span className="text-red-500">*</span>
+  </label>
+  <select
+  value={formData.organizationId}
+  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  required
+  >
+  <option value="">Select an organization</option>
+  {organizations.map((org) => (
+  <option key={org._id} value={org._id}>
+  {org.name}
+  </option>
+  ))}
+  </select>
+  </div>
+  )}
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Title <span className="text-red-500">*</span>
+  </label>
  <input
  type="text"
  value={formData.title}

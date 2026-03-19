@@ -480,15 +480,15 @@ const Assessments = () => {
  <p className="text-gray-500">
  {isAdmin ? 'No assessments found' : 'No assessments assigned to you yet'}
  </p>
- {isAdmin && (
- <Link
- to="/assessments/create"
- className="inline-flex items-center mt-4 text-indigo-600 hover:text-indigo-700"
- >
- <Plus className="w-4 h-4 mr-1" />
- Create your first assessment
- </Link>
- )}
+  {user?.role === 'superadmin' && (
+  <Link
+  to="/assessments/create"
+  className="inline-flex items-center mt-4 text-indigo-600 hover:text-indigo-700"
+  >
+  <Plus className="w-4 h-4 mr-1" />
+  Create your first assessment
+  </Link>
+  )}
  </div>
  )}
 

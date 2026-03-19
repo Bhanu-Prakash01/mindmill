@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import {
- Users,
- Building2,
- FileText,
- CheckCircle,
- TrendingUp,
- AlertCircle,
- CreditCard,
- HelpCircle,
- BookOpen
+  Users,
+  Building2,
+  FileText,
+  CheckCircle,
+  TrendingUp,
+  AlertCircle,
+  CreditCard,
+  HelpCircle
 } from 'lucide-react';
 import {
  BarChart,
@@ -96,7 +95,7 @@ const SuperAdminDashboard = () => {
  </div>
 
  {/* Stats Grid */}
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
  <StatCard
  title="Total Organizations"
  value={stats?.stats?.totalOrganizations || 0}
@@ -115,22 +114,9 @@ const SuperAdminDashboard = () => {
  icon={FileText}
  color="bg-purple-500"
  />
- <Link to="/question-banks">
- <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 shadow-sm cursor-pointer hover:shadow-md transition-all">
- <div className="flex items-start justify-between">
- <div>
- <p className="text-sm font-medium text-white/80">Question Bank</p>
- <p className="text-xs text-white/60 mt-1">Manage question sets</p>
- </div>
- <div className="p-3 bg-white/20 rounded-lg">
- <BookOpen className="w-6 h-6 text-white" />
- </div>
- </div>
- </div>
- </Link>
- </div>
+  </div>
 
- {/* Alerts */}
+  {/* Alerts */}
  {(stats?.stats?.pendingCreditRequests > 0 || stats?.stats?.openTickets > 0) && (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  {stats?.stats?.pendingCreditRequests > 0 && (

@@ -282,34 +282,36 @@ const UserManagement = () => {
  }
 
  return (
- <div className="space-y-6">
- {/* Header */}
- <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
- <div>
- <h1 className="text-2xl font-bold text-gray-900 ">Users</h1>
- <p className="text-gray-500 mt-1">Manage users and their permissions</p>
- </div>
-  <button
-  onClick={() => {
-  setEditingUser(null);
-  setFormData(EMPTY_FORM);
-  setShowAddModal(true);
-  }}
-  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-  >
-  <Plus className="w-4 h-4 mr-2" />
-  Add User
-  </button>
-  <button
-  onClick={() => {
-  setBulkUploadResult(null);
-  setBulkUploadModal(true);
-  }}
-  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-  >
-  <Upload className="w-4 h-4 mr-2" />
-  Bulk Upload
-  </button>
+<div className="space-y-6">
+  {/* Header */}
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 ">Users</h1>
+      <p className="text-gray-500 mt-1">Manage users and their permissions</p>
+    </div>
+    <div className="flex gap-3">
+      <button
+        onClick={() => {
+          setEditingUser(null);
+          setFormData(EMPTY_FORM);
+          setShowAddModal(true);
+        }}
+        className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Add User
+      </button>
+      <button
+        onClick={() => {
+          setBulkUploadResult(null);
+          setBulkUploadModal(true);
+        }}
+        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+      >
+        <Upload className="w-4 h-4 mr-2" />
+        Bulk Upload
+      </button>
+    </div>
   </div>
 
  {/* Filters */}

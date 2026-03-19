@@ -14,6 +14,9 @@ const getAssessments = asyncHandler(async (req, res) => {
 
   // Filter by organization based on role
   if (req.user.role !== 'superadmin') {
+    if (!req.user.organization) {
+      return res.json({ success: true, data: { assessments: [], totalPages: 0, currentPage: 1, total: 0 } });
+    }
     query.organization = req.user.organization._id;
   }
 
@@ -85,7 +88,7 @@ const getAssessment = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization._id.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization._id.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -117,9 +120,13 @@ const createAssessment = asyncHandler(async (req, res) => {
     tags
   } = req.body;
 
-  const organizationId = req.user.role === 'superadmin' && req.body.organizationId
-    ? req.body.organizationId
-    : req.user.organization._id;
+  const organizationId = req.user.role === 'superadmin'
+    ? (req.body.organizationId || null)
+    : (req.user.organization?._id || null);
+
+  if (!organizationId) {
+    throw new ApiError(400, 'Organization is required. Please ensure your account is assigned to an organization.');
+  }
 
   const assessment = await Assessment.create({
     title,
@@ -162,7 +169,7 @@ const updateAssessment = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -212,7 +219,7 @@ const deleteAssessment = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -249,7 +256,7 @@ const duplicateAssessment = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -330,7 +337,7 @@ const getAssessmentStats = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -387,7 +394,7 @@ const togglePublish = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -418,7 +425,7 @@ const assignAssessment = asyncHandler(async (req, res) => {
   
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -480,7 +487,7 @@ const unassignAssessment = asyncHandler(async (req, res) => {
   
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -598,7 +605,7 @@ const toggleMute = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -670,7 +677,7 @@ const generatePublicLink = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -709,7 +716,7 @@ const revokePublicLink = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if ((!req.user.organization || assessment.organization.toString() !== req.user.organization._id.toString())) {
       throw new ApiError(403, 'Access denied');
     }
   }
