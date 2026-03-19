@@ -127,22 +127,18 @@ const Login = () => {
         <p className="text-xs text-gray-500 text-center mb-4 uppercase tracking-wider font-semibold">
           Demo Credentials
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] text-gray-500">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px] text-gray-500">
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="font-bold text-gray-700 mb-1">Super Admin</p>
-            <p className="font-mono break-all">super@admin.com / super</p>
+            <p className="font-bold text-gray-700 mb-1">SuperAdmin</p>
+            <p className="font-mono break-all">super@admin.com / supperadmin</p>
           </div>
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="font-bold text-gray-700 mb-1">Admin (Global Talent)</p>
-            <p className="font-mono break-all">sarah.j@globaltalent.com / password</p>
+            <p className="font-bold text-gray-700 mb-1">Admin</p>
+            <p className="font-mono break-all">admin@admin.com / admin</p>
           </div>
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="font-bold text-gray-700 mb-1">Admin (Peak Performance)</p>
-            <p className="font-mono break-all">m.chen@peakperformance.com / password</p>
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="font-bold text-gray-700 mb-1">Standard User (Demo Org)</p>
-            <p className="font-mono break-all">d.wilson@demo.com / password</p>
+            <p className="font-bold text-gray-700 mb-1">User</p>
+            <p className="font-mono break-all">user@user.com / user</p>
           </div>
         </div>
       </div>

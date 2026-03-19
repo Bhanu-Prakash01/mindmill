@@ -80,7 +80,7 @@ const seedData = async () => {
     // Create SuperAdmin
     const superAdmin = await User.create({
       email: 'super@admin.com',
-      password: 'super',
+      password: 'supperadmin',
       firstName: 'Super',
       lastName: 'Admin',
       role: 'superadmin',
@@ -88,7 +88,7 @@ const seedData = async () => {
       isActive: true
     });
 
-    console.log('Created SuperAdmin: super@admin.com / super');
+    console.log('Created SuperAdmin: super@admin.com / supperadmin');
 
     // Create Admins for new Orgs
     const sarah = await User.create({
@@ -372,9 +372,9 @@ const seedData = async () => {
 
     console.log('\n✅ Database seeded successfully!');
     console.log('\n📧 Login Credentials:');
-    console.log('   SuperAdmin:  super@admin.com / super');
-    console.log('   Admin (Demo): admin@admin.com / admin');
-    console.log('   User (Demo):  user@user.com / user');
+    console.log('   SuperAdmin:  super@admin.com / supperadmin');
+    console.log('   Admin:       admin@admin.com / admin');
+    console.log('   User:        user@user.com / user');
     console.log('   Admin (Global): sarah.j@globaltalent.com / password');
     console.log('   Admin (Peak):   m.chen@peakperformance.com / password');
     console.log('   User (Demo):    d.wilson@demo.com / password');
