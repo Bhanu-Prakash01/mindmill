@@ -36,8 +36,13 @@ export const userService = {
   return response.data;
  },
 
- bulkUpload: async (data) => {
-  const response = await api.post('/users/bulk-upload', data);
-  return response.data;
- },
+  bulkUpload: async (data) => {
+   const response = await api.post('/users/bulk-upload', data);
+   return response.data;
+  },
+
+  resetPassword: async (id, newPassword) => {
+   const response = await api.post(`/users/${id}/reset-password`, { newPassword });
+   return response.data;
+  },
 };

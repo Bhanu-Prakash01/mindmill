@@ -10,7 +10,8 @@ const {
   assignAssessment,
   removeAssessment,
   getUserAssessments,
-  bulkCreateUsers
+  bulkCreateUsers,
+  resetPassword
 } = require('../controllers/userController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin, isSameOrganization } = require('../middleware/roleMiddleware');
@@ -34,5 +35,6 @@ router.get('/:id/assessments', idParamValidation, getUserAssessments);
 router.delete('/:id', isAdmin, idParamValidation, deleteUser);
 router.post('/:id/assign-assessment', isAdmin, idParamValidation, assignAssessment);
 router.delete('/:id/assign-assessment/:assessmentId', isAdmin, idParamValidation, removeAssessment);
+router.post('/:id/reset-password', isAdmin, idParamValidation, resetPassword);
 
 module.exports = router;

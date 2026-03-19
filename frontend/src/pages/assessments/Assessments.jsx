@@ -237,20 +237,11 @@ const Assessments = () => {
  <h1 className="text-2xl font-bold text-gray-900">Assessments</h1>
  <p className="text-gray-500 mt-1">
  {isAdmin ? 'Manage assessments and evaluations' : 'Your assigned assessments'}
- </p>
- </div>
- {isAdmin && (
- <Link
- to="/assessments/create"
- className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
- >
- <Plus className="w-4 h-4 mr-2" />
- Create Assessment
- </Link>
- )}
- </div>
+  </p>
+  </div>
+  </div>
 
- {/* Filters */}
+  {/* Filters */}
  <div className="flex flex-col sm:flex-row gap-4">
  <div className="relative flex-1">
  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

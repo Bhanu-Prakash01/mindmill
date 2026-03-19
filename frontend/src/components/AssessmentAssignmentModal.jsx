@@ -51,21 +51,6 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
     return () => clearTimeout(timer);
   }, [serverSearchQuery]);
 
-  const handleAssignUsers = async (userIds) => {
-    setSaving(true);
-    try {
-      await assessmentService.assignToUsers(assessment._id, userIds);
-      const newUsers = users.filter(u => userIds.includes(u._id));
-      setAssignedUsers([...assignedUsers, ...newUsers]);
-      onSuccess?.();
-    } catch (error) {
-      console.error('Error assigning users:', error);
-      alert(error.response?.data?.message || 'Failed to assign users');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleUnassignUsers = async (userIds) => {
     setSaving(true);
     try {
@@ -74,21 +59,6 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
       onSuccess?.();
     } catch (error) {
       console.error('Error unassigning users:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAssignGroups = async (groupIds) => {
-    setSaving(true);
-    try {
-      await assessmentService.assignToGroups(assessment._id, groupIds);
-      const newGroups = groups.filter(g => groupIds.includes(g._id));
-      setAssignedGroups([...assignedGroups, ...newGroups]);
-      onSuccess?.();
-    } catch (error) {
-      console.error('Error assigning groups:', error);
-      alert(error.response?.data?.message || 'Failed to assign groups');
     } finally {
       setSaving(false);
     }
@@ -116,7 +86,9 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
     const group = groups.find(g => g._id === groupId);
     return sum + (group?.members?.length || 0);
   }, 0);
-  const totalMembers = totalUserCredits + totalGroupMemberCredits;
+  const totalGroupCredits = totalGroupMemberCredits * creditCost;
+  const totalCredits = totalUserCredits + totalGroupCredits;
+  const totalRecipients = selectedUserIds.length + totalGroupMemberCredits;
 
   const toggleUserSelection = (userId) => {
     setSelectedUserIds(prev =>
@@ -151,19 +123,22 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   };
 
   const handleAssignSelected = async () => {
+    if (selectedUserIds.length === 0 && selectedGroupIds.length === 0) return;
+    
     setSaving(true);
     try {
-      if (activeTab === 'users' && selectedUserIds.length > 0) {
+      if (selectedUserIds.length > 0) {
         await assessmentService.assignToUsers(assessment._id, selectedUserIds);
         const newUsers = users.filter(u => selectedUserIds.includes(u._id));
-        setAssignedUsers([...assignedUsers, ...newUsers]);
-        setSelectedUserIds([]);
-      } else if (activeTab === 'groups' && selectedGroupIds.length > 0) {
+        setAssignedUsers(prev => [...prev, ...newUsers]);
+      }
+      if (selectedGroupIds.length > 0) {
         await assessmentService.assignToGroups(assessment._id, selectedGroupIds);
         const newGroups = groups.filter(g => selectedGroupIds.includes(g._id));
-        setAssignedGroups([...assignedGroups, ...newGroups]);
-        setSelectedGroupIds([]);
+        setAssignedGroups(prev => [...prev, ...newGroups]);
       }
+      setSelectedUserIds([]);
+      setSelectedGroupIds([]);
       onSuccess?.();
     } catch (error) {
       console.error('Error assigning:', error);
@@ -480,14 +455,70 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-sm bg-white text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200 font-medium transition-all shadow-sm hover:shadow-md"
-          >
-            Done
-          </button>
+        {/* Footer with selection summary */}
+        <div className="p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-indigo-50">
+          {(selectedUserIds.length > 0 || selectedGroupIds.length > 0) ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs text-gray-700">
+                    {selectedUserIds.length > 0 && (
+                      <span className="font-bold text-indigo-700">
+                        {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {selectedUserIds.length > 0 && selectedGroupIds.length > 0 && (
+                      <span className="text-gray-400 mx-1">+</span>
+                    )}
+                    {selectedGroupIds.length > 0 && (
+                      <span className="font-bold text-purple-700">
+                        {selectedGroupIds.length} group{selectedGroupIds.length !== 1 ? 's' : ''} ({totalGroupMemberCredits} members)
+                      </span>
+                    )}
+                    <span className="text-gray-500 mx-1">=</span>
+                    <span className="font-bold text-indigo-700">
+                      {totalCredits} credits
+                    </span>
+                    <span className="text-gray-400 ml-1">
+                      ({totalRecipients} recipient{totalRecipients !== 1 ? 's' : ''})
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedUserIds([]);
+                    setSelectedGroupIds([]);
+                  }}
+                  className="px-4 py-2 text-xs text-gray-600 hover:text-gray-800 font-medium transition-all"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  onClick={handleAssignSelected}
+                  disabled={saving}
+                  className="px-5 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-2"
+                >
+                  {saving ? (
+                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                  ) : (
+                    'Assign Selected'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-5 py-2 text-sm bg-white text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200 font-medium transition-all shadow-sm hover:shadow-md"
+              >
+                Done
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

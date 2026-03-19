@@ -2,23 +2,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services';
 import {
- Users,
- Plus,
- Search,
- Filter,
- MoreVertical,
- Edit2,
- Trash2,
- UserCheck,
- UserX,
- Mail,
- Building2,
- CheckCircle,
- XCircle,
- BadgeCheck,
- Upload,
- FileText,
- AlertCircle,
+  Users,
+  Plus,
+  Search,
+  Filter,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  UserCheck,
+  UserX,
+  Mail,
+  Building2,
+  CheckCircle,
+  XCircle,
+  BadgeCheck,
+  Upload,
+  FileText,
+  AlertCircle,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 const EMPTY_FORM = {
@@ -49,9 +52,13 @@ const UserManagement = () => {
  const [showAddModal, setShowAddModal] = useState(false);
  const [editingUser, setEditingUser] = useState(null);
  const [formData, setFormData] = useState(EMPTY_FORM);
- const [bulkUploadModal, setBulkUploadModal] = useState(false);
- const [bulkUploadResult, setBulkUploadResult] = useState(null);
- const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadModal, setBulkUploadModal] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
  useEffect(() => {
   fetchUsers();
@@ -118,14 +125,34 @@ const UserManagement = () => {
  }
  };
 
-  const handleToggleStatus = async (id) => {
-  try {
-  await userService.toggleUserStatus(id);
-  fetchUsers();
-  } catch (error) {
-  console.error('Error toggling user status:', error);
-  }
-  };
+   const handleToggleStatus = async (id) => {
+   try {
+   await userService.toggleUserStatus(id);
+   fetchUsers();
+   } catch (error) {
+   console.error('Error toggling user status:', error);
+   }
+   };
+
+   const handleResetPassword = async (e) => {
+     e.preventDefault();
+     if (!newPassword || newPassword.length < 6) {
+       alert('Password must be at least 6 characters');
+       return;
+     }
+     try {
+       setResettingPassword(true);
+       await userService.resetPassword(editingUser._id, newPassword);
+       alert('Password reset successfully');
+       setShowPasswordReset(false);
+       setNewPassword('');
+     } catch (error) {
+       console.error('Error resetting password:', error);
+       alert(error.response?.data?.message || 'Failed to reset password');
+     } finally {
+       setResettingPassword(false);
+     }
+   };
 
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -196,25 +223,27 @@ const UserManagement = () => {
   };
 
    const openEditModal = (user) => {
-  setEditingUser(user);
-  setFormData({
-    salutation: user.salutation || '',
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    role: user.role,
-    jobTitle: user.jobTitle || '',
-    phoneCountryCode: user.phoneCountryCode || '',
-    phone: user.phone || '',
-    city: user.city || '',
-    company: user.company || '',
-    status: user.isActive ? 'active' : 'inactive',
-    deactivationDate: user.deactivationDate
-      ? new Date(user.deactivationDate).toISOString().split('T')[0]
-      : '',
-    deactivationReason: user.deactivationReason || '',
-  });
-  setShowAddModal(true);
+   setEditingUser(user);
+   setFormData({
+     salutation: user.salutation || '',
+     firstName: user.firstName,
+     lastName: user.lastName,
+     email: user.email,
+     role: user.role,
+     jobTitle: user.jobTitle || '',
+     phoneCountryCode: user.phoneCountryCode || '',
+     phone: user.phone || '',
+     city: user.city || '',
+     company: user.company || '',
+     status: user.isActive ? 'active' : 'inactive',
+     deactivationDate: user.deactivationDate
+       ? new Date(user.deactivationDate).toISOString().split('T')[0]
+       : '',
+     deactivationReason: user.deactivationReason || '',
+   });
+   setShowPasswordReset(false);
+   setNewPassword('');
+   setShowAddModal(true);
 };
 
  const filteredUsers = users.filter((user) => {
@@ -567,20 +596,86 @@ const UserManagement = () => {
  />
  </div>
 
- {/* Status */}
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
- <select
- value={formData.status}
- onChange={(e) => setFormData({ ...formData, status: e.target.value, deactivationDate: '', deactivationReason: '' })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
- >
- <option value="active">Active</option>
- <option value="inactive">Inactive</option>
- </select>
- </div>
+  {/* Status */}
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+  <select
+  value={formData.status}
+  onChange={(e) => setFormData({ ...formData, status: e.target.value, deactivationDate: '', deactivationReason: '' })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+  >
+  <option value="active">Active</option>
+  <option value="inactive">Inactive</option>
+  </select>
+  </div>
 
- {/* Deactivation fields — conditional */}
+  {/* Password Reset - Only for existing users */}
+  {editingUser && (
+    <div className="border-t border-gray-200 pt-4 mt-4">
+      {!showPasswordReset ? (
+        <button
+          type="button"
+          onClick={() => setShowPasswordReset(true)}
+          className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          <KeyRound className="w-4 h-4" />
+          Reset Password
+        </button>
+      ) : (
+        <form onSubmit={handleResetPassword} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              New Password
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowPasswordReset(false)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="relative">
+            <input
+              type={showNewPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Enter new password"
+              minLength={6}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <button
+            type="submit"
+            disabled={resettingPassword || newPassword.length < 6}
+            className="w-full px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+          >
+            {resettingPassword ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                Resetting...
+              </>
+            ) : (
+              <>
+                <KeyRound className="w-4 h-4" />
+                Reset Password
+              </>
+            )}
+          </button>
+        </form>
+      )}
+    </div>
+  )}
+
+  {/* Deactivation fields — conditional */}
  {formData.status === 'inactive' && (
  <div className="space-y-4 p-4 bg-red-50 border border-red-100 rounded-lg">
  <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Deactivation Details</p>
@@ -609,13 +704,13 @@ const UserManagement = () => {
  </div>
  )}
 
-  {/* Actions */}
-  <div className="flex gap-3 pt-2">
-  <button
-  type="button"
-  onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setEditingUser(null); }}
-  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 "
-  >
+   {/* Actions */}
+   <div className="flex gap-3 pt-2">
+   <button
+   type="button"
+   onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setEditingUser(null); setShowPasswordReset(false); setNewPassword(''); }}
+   className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 "
+   >
   Cancel
   </button>
   <button

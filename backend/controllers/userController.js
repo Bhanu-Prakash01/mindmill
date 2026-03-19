@@ -521,6 +521,43 @@ const bulkCreateUsers = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Reset user password (Admin only)
+ * @route   POST /api/users/:id/reset-password
+ * @access  Private (Admin, SuperAdmin)
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new ApiError(400, 'Password must be at least 6 characters');
+  }
+
+  const user = await User.findById(req.params.id).select('+password');
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Admin can only reset password for users in their organization
+  if (req.user.role !== 'superadmin') {
+    if (user.organization?.toString() !== req.user.organization?._id?.toString()) {
+      throw new ApiError(403, 'Access denied');
+    }
+  }
+
+  // Hash new password
+  const bcrypt = require('bcryptjs');
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(newPassword, salt);
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Password reset successfully'
+  });
+});
+
 module.exports = {
   getUsers,
   getUser,
@@ -531,5 +568,6 @@ module.exports = {
   assignAssessment,
   removeAssessment,
   getUserAssessments,
-  bulkCreateUsers
+  bulkCreateUsers,
+  resetPassword
 };
