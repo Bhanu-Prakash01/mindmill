@@ -1,10 +1,11 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
+import SuperAdminLayout from './layouts/SuperAdminLayout';
 import AuthLayout from './layouts/AuthLayout';
 
 // Pages
@@ -37,6 +38,9 @@ import DiscReport from './pages/reports/DiscReport';
 // Credits
 import Credits from './pages/credits/Credits';
 
+// Invites
+import Invites from './pages/invites/Invites';
+
 // Support
 import Support from './pages/support/Support';
 import TicketDetail from './pages/support/TicketDetail';
@@ -44,9 +48,8 @@ import TicketDetail from './pages/support/TicketDetail';
 // Settings
 import Settings from './pages/settings/Settings';
 
-// Question Bank
-import QuestionBankList from './pages/question-banks/QuestionBankList';
-import QuestionBankDetail from './pages/question-banks/QuestionBankDetail';
+// Organization
+import OrganizationProfile from './pages/organization/OrganizationProfile';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -71,250 +74,314 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
  return children;
 };
 
-// Role-based Dashboard Redirect
-const DashboardRedirect = () => {
- const { user } = useAuth();
+// SuperAdmin Dashboard Redirect (at root)
+const SuperAdminRedirect = () => {
+ const { user, loading, isAuthenticated, logout } = useAuth();
+ const navigate = useNavigate();
+
+ if (loading) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+ </div>
+ );
+ }
+
+ if (!isAuthenticated) {
+ return <Navigate to="/login" replace />;
+ }
+
+ if (user?.role === 'superadmin') {
+ return <Navigate to="/dashboard/superadmin" replace />;
+ }
+
+ if (user?.organization?.slug) {
+ return <Navigate to={`/o/${user.organization.slug}/`} replace />;
+ }
+
+ return (
+ <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+ <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+ <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Error</h2>
+ <p className="text-gray-600 mb-6">Your account is not associated with any active organization. Please contact support.</p>
+ <button 
+ onClick={() => { logout(); navigate('/login'); }} 
+ className="w-full bg-primary-600 text-white font-medium py-2 px-4 rounded hover:bg-primary-700 transition"
+ >
+ Logout
+ </button>
+ </div>
+ </div>
+ );
+};
+
+// Org Dashboard Redirect (under /o/:orgSlug)
+const OrgDashboardRedirect = () => {
+ const { user, loading } = useAuth();
+ const { orgSlug } = useParams();
+
+ if (loading) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+ <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+ </div>
+ );
+ }
+
+ if (!orgSlug) {
+ return <Navigate to="/login" replace />;
+ }
 
  if (user?.role === 'superadmin') {
  return <Navigate to="/dashboard/superadmin" replace />;
  } else if (user?.role === 'admin') {
- return <Navigate to="/dashboard/admin" replace />;
+ return <Navigate to={`/o/${orgSlug}/dashboard/admin`} replace />;
  } else {
- return <Navigate to="/dashboard/user" replace />;
+ return <Navigate to={`/o/${orgSlug}/dashboard/user`} replace />;
  }
 };
 
 const AppRoutes = () => {
  return (
  <Routes>
- {/* Public Routes */}
- <Route element={<AuthLayout />}>
- <Route path="/login" element={<Login />} />
- </Route>
+   {/* Public Routes (no org prefix) */}
+   <Route element={<AuthLayout />}>
+   <Route path="/login" element={<Login />} />
+   </Route>
 
- {/* Protected Routes */}
- <Route
- element={
- <ProtectedRoute>
- <MainLayout />
- </ProtectedRoute>
- }
- >
- {/* Dashboard Routes */}
- <Route path="/" element={<DashboardRedirect />} />
+   {/* Public Organization Profile */}
+   <Route path="/org/:slug" element={<OrganizationProfile />} />
 
- <Route
- path="/dashboard/superadmin"
- element={
- <ProtectedRoute allowedRoles={['superadmin']}>
- <SuperAdminDashboard />
- </ProtectedRoute>
- }
- />
+   {/* Public Test Taking (no auth, no org prefix) */}
+   <Route path="/take/:token" element={<PublicTest />} />
+   <Route path="/take/:token/big5/:attemptId" element={<Big5Test />} />
+   <Route path="/take/:token/disc/:attemptId" element={<DiscTest />} />
+   <Route path="/take/:token/test/:attemptId" element={<TakeTest />} />
 
- <Route
- path="/dashboard/admin"
- element={
- <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
- <AdminDashboard />
- </ProtectedRoute>
- }
- />
+    {/* SuperAdmin Routes (at root, auth required) */}
+    <Route
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <SuperAdminLayout />
+    </ProtectedRoute>
+    }
+    >
+    <Route path="/dashboard/superadmin" element={<SuperAdminDashboard />} />
+    <Route path="/users" element={<Users />} />
+    <Route path="/groups" element={<Groups />} />
+    <Route path="/groups/:id/members" element={<GroupMembers />} />
+    <Route path="/assessments" element={<Assessments />} />
+    <Route path="/assessments/create" element={<AssessmentForm />} />
+    <Route path="/assessments/:id" element={<AssessmentForm />} />
+    <Route path="/reports" element={<Reports />} />
+    <Route path="/reports/:id" element={<ReportDetail />} />
+    <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
+    <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+    <Route path="/credits" element={<Credits />} />
+    <Route path="/support" element={<Support />} />
+    <Route path="/support/:id" element={<TicketDetail />} />
+    <Route path="/settings" element={<Settings />} />
+    </Route>
 
- <Route
- path="/dashboard/user"
- element={
- <ProtectedRoute allowedRoles={['user', 'admin', 'superadmin']}>
- <UserDashboard />
- </ProtectedRoute>
- }
- />
+   {/* Root redirect */}
+   <Route path="/" element={<SuperAdminRedirect />} />
 
- {/* Users */}
- <Route
- path="/users"
- element={
- <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
- <Users />
- </ProtectedRoute>
- }
- />
- <Route
- path="/groups"
- element={
- <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
- <Groups />
- </ProtectedRoute>
- }
- />
- <Route
- path="/groups/:id/members"
- element={
- <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
- <GroupMembers />
- </ProtectedRoute>
- }
- />
+   {/* Org-Scoped Routes under /o/:orgSlug */}
+   <Route path="/o/:orgSlug">
+   {/* Org Login (no auth required) */}
+   <Route element={<AuthLayout />}>
+   <Route path="login" element={<Login />} />
+   </Route>
 
-  {/* Assessments */}
-  <Route
-  path="/assessments"
-  element={
-  <ProtectedRoute>
-  <Assessments />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/assessments/create"
-  element={
-  <ProtectedRoute allowedRoles={['superadmin']}>
-  <AssessmentForm />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/assessments/:id"
-  element={
-  <ProtectedRoute allowedRoles={['superadmin']}>
-  <AssessmentForm />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/assessments/:id/take"
-  element={
-  <ProtectedRoute>
-  <TakeTest />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/assessments/:id/big5"
-  element={
-  <ProtectedRoute>
-  <Big5Test />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/assessments/:id/disc"
-  element={
-  <ProtectedRoute>
-  <DiscTest />
-  </ProtectedRoute>
-  }
-  />
-  <Route
-  path="/take/:token"
-  element={<PublicTest />}
-  />
-  <Route
-  path="/take/:token/big5/:attemptId"
-  element={<Big5Test />}
-  />
-  <Route
-  path="/take/:token/disc/:attemptId"
-  element={<DiscTest />}
-  />
-  <Route
-  path="/take/:token/test/:attemptId"
-  element={<TakeTest />}
-  />
- <Route
- path="/reports/big5/:attemptId"
- element={
- <ProtectedRoute>
- <Big5Report />
- </ProtectedRoute>
- }
- />
- <Route
- path="/reports/disc/:attemptId"
- element={
- <ProtectedRoute>
- <DiscReport />
- </ProtectedRoute>
- }
- />
+   {/* Org Protected Routes */}
+   <Route
+   element={
+   <ProtectedRoute>
+   <MainLayout />
+   </ProtectedRoute>
+   }
+   >
+   {/* Dashboard */}
+   <Route index element={<OrgDashboardRedirect />} />
+   <Route
+   path="dashboard/admin"
+   element={
+   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+   <AdminDashboard />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="dashboard/user"
+   element={
+   <ProtectedRoute allowedRoles={['user', 'admin', 'superadmin']}>
+   <UserDashboard />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Reports */}
- <Route
- path="/reports"
- element={
- <ProtectedRoute>
- <Reports />
- </ProtectedRoute>
- }
- />
- <Route
- path="/reports/:id"
- element={
- <ProtectedRoute>
- <ReportDetail />
- </ProtectedRoute>
- }
- />
+   {/* Users */}
+   <Route
+   path="users"
+   element={
+   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+   <Users />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="groups"
+   element={
+   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+   <Groups />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="groups/:id/members"
+   element={
+   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+   <GroupMembers />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Credits */}
- <Route
- path="/credits"
- element={
- <ProtectedRoute>
- <Credits />
- </ProtectedRoute>
- }
- />
+   {/* Assessments */}
+   <Route
+   path="assessments"
+   element={
+   <ProtectedRoute>
+   <Assessments />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/create"
+   element={
+   <ProtectedRoute allowedRoles={['superadmin']}>
+   <AssessmentForm />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/:id"
+   element={
+   <ProtectedRoute allowedRoles={['superadmin']}>
+   <AssessmentForm />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/:id/take"
+   element={
+   <ProtectedRoute>
+   <TakeTest />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/:id/big5"
+   element={
+   <ProtectedRoute>
+   <Big5Test />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/:id/disc"
+   element={
+   <ProtectedRoute>
+   <DiscTest />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Support */}
- <Route
- path="/support"
- element={
- <ProtectedRoute>
- <Support />
- </ProtectedRoute>
- }
- />
- <Route
- path="/support/:id"
- element={
- <ProtectedRoute>
- <TicketDetail />
- </ProtectedRoute>
- }
- />
+   {/* Reports */}
+   <Route
+   path="reports"
+   element={
+   <ProtectedRoute>
+   <Reports />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="reports/:id"
+   element={
+   <ProtectedRoute>
+   <ReportDetail />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="reports/big5/:attemptId"
+   element={
+   <ProtectedRoute>
+   <Big5Report />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="reports/disc/:attemptId"
+   element={
+   <ProtectedRoute>
+   <DiscReport />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Settings */}
- <Route
- path="/settings"
- element={
- <ProtectedRoute>
- <Settings />
- </ProtectedRoute>
- }
- />
+   {/* Credits */}
+   <Route
+   path="credits"
+   element={
+   <ProtectedRoute>
+   <Credits />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Question Bank (Super Admin Only) */}
- <Route
- path="/question-banks"
- element={
- <ProtectedRoute allowedRoles={['superadmin']}>
- <QuestionBankList />
- </ProtectedRoute>
- }
- />
- <Route
- path="/question-banks/:assessmentId/sets/:dimension"
- element={
- <ProtectedRoute allowedRoles={['superadmin']}>
- <QuestionBankDetail />
- </ProtectedRoute>
- }
- />
- </Route>
+   {/* Invites */}
+   <Route
+   path="invites"
+   element={
+   <ProtectedRoute>
+   <Invites />
+   </ProtectedRoute>
+   }
+   />
 
- {/* Catch all */}
- <Route path="*" element={<Navigate to="/" replace />} />
+   {/* Support */}
+   <Route
+   path="support"
+   element={
+   <ProtectedRoute>
+   <Support />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="support/:id"
+   element={
+   <ProtectedRoute>
+   <TicketDetail />
+   </ProtectedRoute>
+   }
+   />
+
+   {/* Settings */}
+   <Route
+   path="settings"
+   element={
+   <ProtectedRoute>
+   <Settings />
+   </ProtectedRoute>
+   }
+   />
+   </Route>
+   </Route>
+
+   {/* Catch all */}
+   <Route path="*" element={<Navigate to="/" replace />} />
  </Routes>
  );
 };

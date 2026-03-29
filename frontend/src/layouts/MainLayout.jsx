@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 import {
@@ -15,39 +15,44 @@ import {
  LogOut,
  ChevronDown,
  Building2,
- UsersRound
+ UsersRound,
+ Send
 } from 'lucide-react';
 
 const MainLayout = () => {
  const { user, logout, isSuperAdmin, isAdmin } = useAuth();
  const location = useLocation();
  const navigate = useNavigate();
+ const { orgSlug } = useParams();
  const [sidebarOpen, setSidebarOpen] = useState(false);
  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+ const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
+
  const handleLogout = async () => {
  await logout();
- navigate('/login');
+ navigate(orgSlug ? `/o/${orgSlug}/login` : '/login');
  };
 
  const navigation = [
- { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+ { name: 'Dashboard', href: `${orgPrefix}/`, icon: LayoutDashboard },
  ...(isAdmin ? [
- { name: 'Users', href: '/users', icon: Users },
- { name: 'Groups', href: '/groups', icon: UsersRound }
+ { name: 'Users', href: `${orgPrefix}/users`, icon: Users },
+ { name: 'Groups', href: `${orgPrefix}/groups`, icon: UsersRound }
  ] : []),
- { name: 'Assessments', href: '/assessments', icon: FileText },
- { name: 'Reports', href: '/reports', icon: BarChart3 },
- ...(isAdmin ? [{ name: 'Credits', href: '/credits', icon: CreditCard }] : []),
- { name: 'Support', href: '/support', icon: HelpCircle },
- { name: 'Settings', href: '/settings', icon: Settings },
+ { name: 'Assessments', href: `${orgPrefix}/assessments`, icon: FileText },
+ { name: 'Invites', href: `${orgPrefix}/invites`, icon: Send },
+ { name: 'Reports', href: `${orgPrefix}/reports`, icon: BarChart3 },
+ ...(isAdmin ? [{ name: 'Credits', href: `${orgPrefix}/credits`, icon: CreditCard }] : []),
+ { name: 'Support', href: `${orgPrefix}/support`, icon: HelpCircle },
+ { name: 'Settings', href: `${orgPrefix}/settings`, icon: Settings },
  ];
 
  const isActive = (path) => {
- if (path === '/') {
- return location.pathname.startsWith('/dashboard');
- }
- return location.pathname.startsWith(path);
+  if (path === `${orgPrefix}/` || path === '/') {
+   return location.pathname === orgPrefix + '/' || location.pathname.startsWith(`${orgPrefix}/dashboard`);
+  }
+  return location.pathname.startsWith(path);
  };
 
  const isTestPage = location.pathname.match(/\/assessments\/.*?\/(take|big5|disc)$/);
@@ -83,7 +88,7 @@ const MainLayout = () => {
  >
  {/* Logo */}
  <div className="h-16 flex items-center px-6 border-b border-gray-200 ">
- <Link to="/" className="flex items-center gap-3">
+ <Link to={orgPrefix || '/'} className="flex items-center gap-3">
  <img
  src="/logo.png"
  alt="Mindmil Assessments"
@@ -175,11 +180,11 @@ const MainLayout = () => {
  onClick={() => setUserMenuOpen(false)}
  />
  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
- <Link
- to="/settings"
- className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 "
- onClick={() => setUserMenuOpen(false)}
- >
+  <Link
+  to={`${orgPrefix}/settings`}
+  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 "
+  onClick={() => setUserMenuOpen(false)}
+  >
  <Settings className="w-4 h-4" />
  Settings
  </Link>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import {
@@ -10,11 +10,12 @@ import {
   Loader2,
   Info,
   Target,
-  Maximize2
+  Maximize2,
+  XCircle
 } from 'lucide-react';
 
 const DiscTest = () => {
-  const { id, token, attemptId: urlAttemptId } = useParams();
+  const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   
   const isPublicAccess = !!token;
@@ -26,11 +27,19 @@ const DiscTest = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [attemptId, setAttemptId] = useState(urlAttemptId || null);
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
+  const attemptIdRef = useRef(attemptId);
+  const tabSwitchCountRef = useRef(0);
+  const fullscreenExitsRef = useRef(0);
+
+  useEffect(() => {
+    attemptIdRef.current = attemptId;
+  }, [attemptId]);
 
   // Professional DISC standard: 28 questions, but we handle dynamic counts from DB
   const totalQuestions = questions.length || 28;
@@ -68,9 +77,10 @@ const DiscTest = () => {
   };
 
   const logProctoringEvent = async (event, details) => {
-    if (!attemptId) return;
+    const currentId = attemptIdRef.current;
+    if (!currentId) return;
     try {
-      await attemptService.logProctoringEvent(attemptId, { event, details });
+      await attemptService.logProctoringEvent(currentId, { event, details });
     } catch (error) {
       console.error('Error logging proctoring event:', error);
     }
@@ -80,16 +90,18 @@ const DiscTest = () => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
-        setTabSwitchCount(prev => prev + 1);
-        logProctoringEvent('tab_switch', { count: tabSwitchCount + 1 });
+        tabSwitchCountRef.current += 1;
+        setTabSwitchCount(tabSwitchCountRef.current);
+        logProctoringEvent('tab_switch', { count: tabSwitchCountRef.current });
       }
     };
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
-        setFullscreenExits(prev => prev + 1);
-        logProctoringEvent('fullscreen_exit', { count: fullscreenExits + 1 });
+        fullscreenExitsRef.current += 1;
+        setFullscreenExits(fullscreenExitsRef.current);
+        logProctoringEvent('fullscreen_exit', { count: fullscreenExitsRef.current });
       }
     };
 
@@ -100,7 +112,7 @@ const DiscTest = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [attemptId, tabSwitchCount, fullscreenExits]);
+  }, []);
 
   const fetchAssessment = async () => {
     try {
@@ -314,13 +326,28 @@ const DiscTest = () => {
           alert('Assessment submitted successfully! Thank you for completing the assessment.');
           navigate('/');
         } else {
-          navigate(`/reports/disc/${data.data.attempt._id}`);
+          const prefix = orgSlug ? `/o/${orgSlug}` : '';
+          navigate(`${prefix}/reports/disc/${data.data.attempt._id}`);
         }
       } else {
         throw new Error(data.message);
       }
     } catch (err) {
       alert(err.message || 'Failed to submit assessment');
+      setSubmitting(false);
+    }
+  };
+
+  const handleQuit = async () => {
+    if (isPublicAccess) return;
+    setSubmitting(true);
+    try {
+      const response = await attemptService.abandonAttempt(attemptId);
+      alert(response.message || 'Test abandoned');
+      const prefix = orgSlug ? `/o/${orgSlug}` : '';
+      navigate(`${prefix}/dashboard/user`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to quit test');
       setSubmitting(false);
     }
   };
@@ -519,14 +546,25 @@ const DiscTest = () => {
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
-          <button
-            onClick={handlePrev}
-            disabled={currentPage === 0}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            Previous
-          </button>
+          <div className="flex items-center gap-2">
+            {!isPublicAccess && (
+              <button
+                onClick={() => setShowQuitConfirm(true)}
+                className="flex items-center gap-2 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm"
+              >
+                <XCircle className="w-4 h-4" />
+                Quit
+              </button>
+            )}
+            <button
+              onClick={handlePrev}
+              disabled={currentPage === 0}
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              Previous
+            </button>
+          </div>
 
           <div className="flex gap-1.5">
             {Array.from({ length: totalPages }).map((_, i) => (
@@ -565,6 +603,48 @@ const DiscTest = () => {
           </div>
         )}
       </main>
+
+      {/* Quit Confirmation Modal */}
+      {showQuitConfirm && !isPublicAccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <XCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Quit Test?</h2>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              {Object.keys(responses).length >= 3 ? (
+                <span className="text-red-600">
+                  You have answered {Object.keys(responses).length} questions. Quitting will count as 1 test credit used.
+                </span>
+              ) : (
+                <span className="text-green-600">
+                  You have answered {Object.keys(responses).length} question(s). Since you answered fewer than 3 questions, no test credit will be deducted.
+                </span>
+              )}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQuitConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Continue Assessment
+              </button>
+              <button
+                onClick={handleQuit}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {submitting ? 'Quitting...' : 'Quit Test'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

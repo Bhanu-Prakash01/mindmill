@@ -33,6 +33,30 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
     status: { $in: ['open', 'in-progress'] } 
   });
 
+  // Get ticket status breakdown
+  const ticketStatusBreakdown = await SupportTicket.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const ticketStats = {
+    open: 0,
+    'in-progress': 0,
+    waiting: 0,
+    resolved: 0,
+    closed: 0,
+    total: 0
+  };
+
+  ticketStatusBreakdown.forEach(item => {
+    ticketStats[item._id] = item.count;
+    ticketStats.total += item.count;
+  });
+
   // Get monthly stats
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -78,6 +102,7 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
         pendingCreditRequests,
         openTickets
       },
+      ticketStats,
       recentOrganizations,
       recentUsers,
       monthlyStats: monthlyStats.map(s => ({
@@ -251,12 +276,6 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
 const getUserDashboard = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  // Get all assigned assessments (including drafts)
-  const assignedAssessments = await Assessment.find({
-    assignedUsers: userId,
-    isActive: true
-  }).select('title category difficulty timeBound isPublished allowMultipleAttempts maxAttempts');
-
   // Get attempts
   const attempts = await Attempt.find({ user: userId })
     .populate('assessment', 'title category')
@@ -266,8 +285,11 @@ const getUserDashboard = asyncHandler(async (req, res) => {
   const inProgressAttempts = attempts.filter(a => a.status === 'in-progress' && a.assessment);
 
   // Calculate stats
-  // Only count published assessments for the "Assigned" count to avoid confusing users
-  const totalAssigned = assignedAssessments.filter(a => a.isPublished).length;
+  const totalAssigned = await Assessment.countDocuments({
+    assignedUsers: userId,
+    isActive: true,
+    isPublished: true
+  });
   const totalCompleted = completedAttempts.length;
   const totalInProgress = inProgressAttempts.length;
 
@@ -291,40 +313,6 @@ const getUserDashboard = asyncHandler(async (req, res) => {
       passed: attempt.passed,
       completedAt: attempt.completedAt
     }));
-
-  // Map assigned assessments with their attempt status
-  const assessmentStatusList = assignedAssessments.map(assessment => {
-    const assessmentAttempts = attempts.filter(
-      a => a.assessment && a.assessment._id.toString() === assessment._id.toString()
-    );
-    
-    return {
-      ...assessment.toObject(),
-      attemptCount: assessmentAttempts.length,
-      isCompleted: assessmentAttempts.some(a => a.status === 'completed'),
-      isInProgress: assessmentAttempts.some(a => a.status === 'in-progress'),
-      lastAttemptStatus: assessmentAttempts[0]?.status || null
-    };
-  });
-
-  // Get pending assessments: 
-  // 1. Assigned but not completed (within attempt limits)
-  // 2. Draft assessments (view only)
-  const pendingAssessments = assessmentStatusList.filter(a => {
-    // If it's a draft, show it
-    if (!a.isPublished) return true;
-    
-    // If not started yet, it's pending
-    if (a.attemptCount === 0) return true;
-    
-    // If multi-attempt allowed, check if limit reached
-    if (a.allowMultipleAttempts) {
-      return a.attemptCount < (a.maxAttempts || 1);
-    }
-    
-    // If single attempt and not completed yet, it's pending (could be in-progress)
-    return !a.isCompleted;
-  });
 
   // Get performance by category
   const categoryPerformance = {};
@@ -352,14 +340,11 @@ const getUserDashboard = asyncHandler(async (req, res) => {
         totalAssigned,
         totalCompleted,
         totalInProgress,
-        pendingAssessments: pendingAssessments.length,
         averageScore,
         averageTimeSpent
       },
-      assignedAssessments: assessmentStatusList,
       inProgressAttempts,
       recentResults,
-      pendingAssessments,
       performanceByCategory
     }
   });

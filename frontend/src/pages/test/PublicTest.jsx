@@ -7,31 +7,57 @@ import {
   AlertCircle,
   Loader2,
   Eye,
-  EyeOff
+  EyeOff,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 const PublicTest = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  
+
   const [assessment, setAssessment] = useState(null);
+  const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [testTakerName, setTestTakerName] = useState('');
+  const [testTakerEmail, setTestTakerEmail] = useState('');
+  const [testTakerPhone, setTestTakerPhone] = useState('');
+  const [isInviteLink, setIsInviteLink] = useState(false);
 
   useEffect(() => {
-    fetchPublicAssessment();
+    fetchAssessmentByToken();
   }, [token]);
 
-  const fetchPublicAssessment = async () => {
+  const fetchAssessmentByToken = async () => {
     try {
       setLoading(true);
+
+      // Try invite-based lookup first
+      try {
+        const inviteResponse = await assessmentService.getAssessmentByInviteToken(token);
+        if (inviteResponse?.success) {
+          const data = inviteResponse.data;
+          setAssessment(data.assessment);
+          setInvite(data.invite);
+          setIsInviteLink(true);
+          // Pre-fill from invite data
+          setTestTakerName(data.invite?.testTakerName || '');
+          setTestTakerEmail(data.invite?.testTakerEmail || '');
+          return;
+        }
+      } catch (inviteErr) {
+        // Not an invite link, try public link
+      }
+
+      // Fall back to public link lookup
       const response = await assessmentService.getPublicAssessment(token);
       if (response.data?.assessment) {
         setAssessment(response.data.assessment);
+        setIsInviteLink(false);
       } else {
         setError('Assessment not found or not available');
       }
@@ -48,21 +74,41 @@ const PublicTest = () => {
       return;
     }
 
+    if (isInviteLink && !testTakerEmail.trim()) {
+      alert('Please enter your email');
+      return;
+    }
+
     try {
       setVerifying(true);
-      const response = await attemptService.startPublicAttempt(assessment._id, {
-        testTakerName: testTakerName.trim(),
-        passcode: assessment.requirePasscode ? passcode : undefined
-      });
-      
-      if (response.data?.attempt) {
-        const { _id, category } = response.data.assessment || assessment;
+      let response;
+
+      if (isInviteLink) {
+        // Use invite-based start
+        response = await attemptService.startInviteAttempt(token, {
+          testTakerName: testTakerName.trim(),
+          testTakerEmail: testTakerEmail.trim(),
+          testTakerPhone: testTakerPhone.trim()
+        });
+      } else {
+        // Use legacy public start
+        response = await attemptService.startPublicAttempt(assessment._id, {
+          testTakerName: testTakerName.trim(),
+          passcode: assessment.requirePasscode ? passcode : undefined
+        });
+      }
+
+      if (response.data?.data?.attempt || response.data?.attempt) {
+        const attemptData = response.data?.data?.attempt || response.data?.attempt;
+        const assessmentData = response.data?.data?.assessment || response.data?.assessment || assessment;
+        const category = assessmentData?.category;
+
         if (category === 'big5') {
-          navigate(`/take/${token}/big5/${response.data.attempt._id}`);
+          navigate(`/take/${token}/big5/${attemptData._id}`);
         } else if (category === 'disc') {
-          navigate(`/take/${token}/disc/${response.data.attempt._id}`);
+          navigate(`/take/${token}/disc/${attemptData._id}`);
         } else {
-          navigate(`/take/${token}/test/${response.data.attempt._id}`);
+          navigate(`/take/${token}/test/${attemptData._id}`);
         }
       }
     } catch (err) {
@@ -100,8 +146,8 @@ const PublicTest = () => {
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-indigo-600 p-6 text-center">
           {assessment?.organization?.logo && (
-            <img 
-              src={assessment.organization.logo} 
+            <img
+              src={assessment.organization.logo}
               alt={assessment.organization.name}
               className="h-12 mx-auto mb-3"
             />
@@ -132,23 +178,63 @@ const PublicTest = () => {
                 {assessment?.category?.toUpperCase()}
               </span>
             </div>
+            {assessment?.totalQuestions > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">{assessment.totalQuestions} questions</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Your Name
+                Your Name *
               </label>
               <input
                 type="text"
                 value={testTakerName}
                 onChange={(e) => setTestTakerName(e.target.value)}
                 placeholder="Enter your full name"
+                required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
 
-            {assessment?.requirePasscode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="flex items-center gap-1">
+                  <Mail className="w-4 h-4" />
+                  Email Address *
+                </div>
+              </label>
+              <input
+                type="email"
+                value={testTakerEmail}
+                onChange={(e) => setTestTakerEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  Phone Number *
+                </div>
+              </label>
+              <input
+                type="tel"
+                value={testTakerPhone}
+                onChange={(e) => setTestTakerPhone(e.target.value)}
+                placeholder="+91 9876543210"
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            {assessment?.requirePasscode && !isInviteLink && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Passcode
@@ -178,7 +264,7 @@ const PublicTest = () => {
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <p className="text-sm text-amber-800">
-              <strong>Note:</strong> Once you start, the timer will begin. 
+              <strong>Note:</strong> Once you start, the timer will begin.
               Make sure you have a stable internet connection and enough time to complete the assessment.
             </p>
           </div>

@@ -10,11 +10,26 @@ const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Find user by email and include password for comparison
-  const user = await User.findOne({ email }).select('+password').populate('organization');
+  let user;
 
-  if (!user) {
-    throw new ApiError(401, 'Invalid email or password');
+  if (req.organization) {
+    // Org-scoped login: find user by email within the organization
+    user = await User.findOne({ email, organization: req.organization._id })
+      .select('+password')
+      .populate('organization');
+
+    if (!user) {
+      throw new ApiError(401, 'Invalid email or password for this organization');
+    }
+  } else {
+    // No org context: allow superadmin login only
+    user = await User.findOne({ email, role: 'superadmin' })
+      .select('+password')
+      .populate('organization');
+
+    if (!user) {
+      throw new ApiError(401, 'Please access via your organization URL to login');
+    }
   }
 
   // Check if user is active
@@ -95,16 +110,22 @@ const getMe = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const updateProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, phone, jobTitle } = req.body;
+  const { firstName, lastName, phone, jobTitle, avatar, city, isCoordinator } = req.body;
+
+  const updateData = {};
+  if (firstName !== undefined) updateData.firstName = firstName;
+  if (lastName !== undefined) updateData.lastName = lastName;
+  if (phone !== undefined) updateData.phone = phone;
+  if (jobTitle !== undefined) updateData.jobTitle = jobTitle;
+  if (avatar !== undefined) updateData.avatar = avatar;
+  if (city !== undefined) updateData.city = city;
+  if (isCoordinator !== undefined && ['admin', 'superadmin'].includes(req.user.role)) {
+    updateData.isCoordinator = isCoordinator;
+  }
 
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    {
-      firstName,
-      lastName,
-      phone,
-      jobTitle
-    },
+    updateData,
     { new: true, runValidators: true }
   ).populate('organization');
 
@@ -122,7 +143,9 @@ const updateProfile = asyncHandler(async (req, res) => {
         organization: user.organization,
         avatar: user.avatar,
         phone: user.phone,
-        jobTitle: user.jobTitle
+        jobTitle: user.jobTitle,
+        city: user.city,
+        isCoordinator: user.isCoordinator
       }
     }
   });
@@ -195,11 +218,161 @@ const refreshToken = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get all organizations for demo login
+ * @route   GET /api/auth/demo/organizations
+ * @access  Public
+ */
+const getDemoOrganizations = asyncHandler(async (req, res) => {
+  const { Organization } = require('../models');
+
+  const organizations = await Organization.find({ isActive: true })
+    .select('name slug description primaryColor secondaryColor logo')
+    .sort({ name: 1 });
+
+  // Get user count per org
+  const orgsWithData = await Promise.all(
+    organizations.map(async (org) => {
+      const userCount = await User.countDocuments({
+        organization: org._id,
+        isActive: true
+      });
+      return {
+        id: org._id,
+        name: org.name,
+        slug: org.slug,
+        description: org.description,
+        primaryColor: org.primaryColor,
+        secondaryColor: org.secondaryColor,
+        logo: org.logo,
+        userCount
+      };
+    })
+  );
+
+  res.json({
+    success: true,
+    data: {
+      organizations: orgsWithData
+    }
+  });
+});
+
+/**
+ * @desc    Get demo users for an organization
+ * @route   GET /api/auth/demo/organizations/:slug/users
+ * @access  Public
+ */
+const getDemoUsers = asyncHandler(async (req, res) => {
+  const { Organization } = require('../models');
+  const { slug } = req.params;
+
+  const organization = await Organization.findOne({
+    slug: slug.toLowerCase().trim(),
+    isActive: true
+  });
+
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  const users = await User.find({
+    organization: organization._id,
+    isActive: true
+  }).select('email firstName lastName role jobTitle');
+
+  res.json({
+    success: true,
+    data: {
+      organization: {
+        name: organization.name,
+        slug: organization.slug,
+        primaryColor: organization.primaryColor
+      },
+      users: users.map(u => ({
+        id: u._id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        fullName: u.fullName,
+        role: u.role,
+        jobTitle: u.jobTitle
+      }))
+    }
+  });
+});
+
+/**
+ * @desc    Demo login without password
+ * @route   POST /api/auth/demo/login
+ * @access  Public
+ */
+const demoLogin = asyncHandler(async (req, res) => {
+  const { Organization } = require('../models');
+  const { email, orgSlug } = req.body;
+
+  if (!email || !orgSlug) {
+    throw new ApiError(400, 'Email and organization slug are required');
+  }
+
+  const organization = await Organization.findOne({
+    slug: orgSlug.toLowerCase().trim(),
+    isActive: true
+  });
+
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  const user = await User.findOne({
+    email: email.toLowerCase().trim(),
+    organization: organization._id,
+    isActive: true
+  }).populate('organization');
+
+  if (!user) {
+    throw new ApiError(404, 'User not found in this organization');
+  }
+
+  // Update last login
+  user.lastLogin = new Date();
+  await user.save();
+
+  // Generate JWT token
+  const token = generateToken({
+    userId: user._id,
+    email: user.email,
+    role: user.role
+  });
+
+  res.json({
+    success: true,
+    message: 'Demo login successful',
+    data: {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        organization: user.organization,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin
+      },
+      token
+    }
+  });
+});
+
 module.exports = {
   login,
   getMe,
   updateProfile,
   changePassword,
   logout,
-  refreshToken
+  refreshToken,
+  getDemoOrganizations,
+  getDemoUsers,
+  demoLogin
 };

@@ -51,6 +51,19 @@ const submitBig5 = asyncHandler(async (req, res) => {
   attempt.big5Results = big5Results;
   attempt.answeredQuestions = 50;
 
+  // Deduct test slot from assessment's unlock pool
+  if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
+    attempt.creditDeducted = true;
+    const orgId = attempt.organization.toString();
+    const unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId
+    );
+    if (unlockEntry) {
+      unlockEntry.testsUsed += 1;
+      await assessment.save();
+    }
+  }
+
   await attempt.save();
 
   // Generate Big5 report

@@ -13,11 +13,23 @@ const organizationSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  subdomain: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    sparse: true,
+    match: [/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens, and cannot start or end with a hyphen']
+  },
   description: {
     type: String,
     default: ''
   },
   logo: {
+    type: String,
+    default: null
+  },
+  banner: {
     type: String,
     default: null
   },
@@ -49,10 +61,11 @@ const organizationSchema = new mongoose.Schema({
   credits: {
     total: { type: Number, default: 0 },
     used: { type: Number, default: 0 },
+    locked: { type: Number, default: 0 },
     remaining: {
       type: Number,
       default: function() {
-        return this.credits.total - this.credits.used;
+        return this.credits.total - this.credits.used - this.credits.locked;
       }
     },
     expiryDate: { type: Date, default: null },
@@ -104,6 +117,14 @@ const organizationSchema = new mongoose.Schema({
 
 // Indexes
 organizationSchema.index({ 'subscription.status': 1 });
+
+// Pre-save middleware to auto-generate subdomain from slug if not set
+organizationSchema.pre('save', function(next) {
+  if (!this.subdomain && this.slug) {
+    this.subdomain = this.slug;
+  }
+  next();
+});
 
 // Pre-save middleware to calculate remaining credits
 organizationSchema.pre('save', function(next) {

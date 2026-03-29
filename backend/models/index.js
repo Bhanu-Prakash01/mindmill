@@ -7,6 +7,8 @@ const Report = require('./Report');
 const CreditRequest = require('./CreditRequest');
 const SupportTicket = require('./SupportTicket');
 const Group = require('./Group');
+const StandardQuery = require('./StandardQuery');
+const TestTakerInvite = require('./TestTakerInvite');
 
 module.exports = {
   User,
@@ -17,5 +19,7 @@ module.exports = {
   Report,
   CreditRequest,
   SupportTicket,
-  Group
+  Group,
+  StandardQuery,
+  TestTakerInvite
 };

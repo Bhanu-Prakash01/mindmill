@@ -2,12 +2,31 @@ import api from './api';
 
 export const authService = {
  login: async (email, password) => {
- const response = await api.post('/auth/login', { email, password });
- if (response.data.success) {
- localStorage.setItem('token', response.data.data.token);
- localStorage.setItem('user', JSON.stringify(response.data.data.user));
- }
- return response.data;
+  const response = await api.post('/auth/login', { email, password });
+  if (response.data.success) {
+  localStorage.setItem('token', response.data.data.token);
+  localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  }
+  return response.data;
+ },
+
+ getDemoOrganizations: async () => {
+  const response = await api.get('/auth/demo/organizations');
+  return response.data;
+ },
+
+ getDemoUsers: async (slug) => {
+  const response = await api.get(`/auth/demo/organizations/${slug}/users`);
+  return response.data;
+ },
+
+ demoLogin: async (email, orgSlug) => {
+  const response = await api.post('/auth/demo/login', { email, orgSlug });
+  if (response.data.success) {
+  localStorage.setItem('token', response.data.data.token);
+  localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  }
+  return response.data;
  },
 
  logout: async () => {

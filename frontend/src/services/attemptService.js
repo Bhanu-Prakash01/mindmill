@@ -6,12 +6,17 @@ export const attemptService = {
   return response.data;
  },
 
- startPublicAttempt: async (assessmentId, data = {}) => {
-  const response = await api.post(`/attempts/public/${assessmentId}/start`, data);
-  return response.data;
- },
+  startPublicAttempt: async (assessmentId, data = {}) => {
+    const response = await api.post(`/attempts/public/${assessmentId}/start`, data);
+    return response.data;
+  },
 
- getMyAttempts: async (params = {}) => {
+  startInviteAttempt: async (token, data = {}) => {
+    const response = await api.post(`/attempts/invite/${token}/start`, data);
+    return response.data;
+  },
+
+  getMyAttempts: async (params = {}) => {
   const response = await api.get('/attempts', { params });
   return response.data;
  },
@@ -54,8 +59,13 @@ export const attemptService = {
   return response.data;
  },
 
- requestReportAccess: async (attemptId, message = '') => {
-  const response = await api.post(`/attempts/${attemptId}/request-report`, { message });
-  return response.data;
- },
+  requestReportAccess: async (attemptId, message = '') => {
+    const response = await api.post(`/attempts/${attemptId}/request-report`, { message });
+    return response.data;
+  },
+
+  abandonAttempt: async (id) => {
+    const response = await api.post(`/attempts/${id}/abandon`);
+    return response.data;
+  },
 };

@@ -104,12 +104,6 @@ const createUser = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Admins cannot create other admins');
   }
 
-  // Check if email already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(400, 'Email already registered');
-  }
-
   // Determine organization
   let userOrganization = req.user.organization;
   if (req.user.role === 'superadmin' && organizationId) {
@@ -117,6 +111,13 @@ const createUser = asyncHandler(async (req, res) => {
     if (!userOrganization) {
       throw new ApiError(404, 'Organization not found');
     }
+  }
+
+  // Check if email already exists in this organization
+  const orgId = userOrganization ? userOrganization._id : null;
+  const existingUser = await User.findOne({ email, organization: orgId });
+  if (existingUser) {
+    throw new ApiError(400, 'Email already registered in this organization');
   }
 
   const user = await User.create({
@@ -252,11 +253,7 @@ const assignAssessment = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  // Check if assessment belongs to the same organization
-  if (assessment.organization.toString() !== user.organization?.toString()) {
-    throw new ApiError(400, 'Assessment does not belong to user\'s organization');
-  }
-
+  // Assessments are global — no org check needed
   // Add assessment to user's assigned assessments if not already present
   if (!user.assignedAssessments.includes(assessmentId)) {
     user.assignedAssessments.push(assessmentId);
@@ -457,8 +454,8 @@ const bulkCreateUsers = asyncHandler(async (req, res) => {
         continue;
       }
 
-      // Check if user already exists
-      const existingUser = await User.findOne({ email: userData.email.toLowerCase().trim() });
+      // Check if user already exists in this organization
+      const existingUser = await User.findOne({ email: userData.email.toLowerCase().trim(), organization: organizationId });
       if (existingUser) {
         results.skipped.push({
           row: rowNumber,

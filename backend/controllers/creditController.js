@@ -18,6 +18,7 @@ const getCredits = asyncHandler(async (req, res) => {
       const orgs = await Organization.find({ isActive: true });
       const totalCredits = orgs.reduce((sum, org) => sum + org.credits.total, 0);
       const totalUsed = orgs.reduce((sum, org) => sum + org.credits.used, 0);
+      const totalLocked = orgs.reduce((sum, org) => sum + (org.credits.locked || 0), 0);
       
       return res.json({
         success: true,
@@ -25,7 +26,8 @@ const getCredits = asyncHandler(async (req, res) => {
           summary: {
             totalCredits,
             totalUsed,
-            totalRemaining: totalCredits - totalUsed,
+            totalLocked,
+            totalAvailable: totalCredits - totalUsed - totalLocked,
             organizationCount: orgs.length
           }
         }

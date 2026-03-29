@@ -26,6 +26,7 @@ const getGroups = asyncHandler(async (req, res) => {
   const groups = await Group.find(query)
     .populate('createdBy', 'firstName lastName')
     .populate('members', 'firstName lastName email')
+    .populate('moderator', 'firstName lastName email')
     .populate('organization', 'name slug')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
@@ -56,6 +57,7 @@ const getGroup = asyncHandler(async (req, res) => {
   const group = await Group.findById(req.params.id)
     .populate('createdBy', 'firstName lastName email')
     .populate('members', 'firstName lastName email role')
+    .populate('moderator', 'firstName lastName email')
     .populate('organization', 'name slug');
 
   if (!group) {
@@ -81,7 +83,7 @@ const getGroup = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin)
  */
 const createGroup = asyncHandler(async (req, res) => {
-  const { name, description, memberIds = [] } = req.body;
+  const { name, description, icon, moderator, memberIds = [] } = req.body;
 
   const organizationId = req.user.role === 'superadmin' && req.body.organizationId
     ? req.body.organizationId
@@ -90,6 +92,8 @@ const createGroup = asyncHandler(async (req, res) => {
   const group = await Group.create({
     name,
     description,
+    icon,
+    moderator: moderator || null,
     organization: organizationId,
     createdBy: req.user._id,
     members: memberIds
@@ -97,6 +101,7 @@ const createGroup = asyncHandler(async (req, res) => {
 
   await group.populate('createdBy', 'firstName lastName');
   await group.populate('members', 'firstName lastName email');
+  await group.populate('moderator', 'firstName lastName email');
 
   res.status(201).json({
     success: true,
@@ -124,14 +129,17 @@ const updateGroup = asyncHandler(async (req, res) => {
     }
   }
 
-  const { name, description } = req.body;
+  const { name, description, icon, moderator } = req.body;
 
   if (name) group.name = name;
   if (description !== undefined) group.description = description;
+  if (icon !== undefined) group.icon = icon;
+  if (moderator !== undefined) group.moderator = moderator || null;
 
   await group.save();
   await group.populate('createdBy', 'firstName lastName');
   await group.populate('members', 'firstName lastName email');
+  await group.populate('moderator', 'firstName lastName email');
 
   res.json({
     success: true,

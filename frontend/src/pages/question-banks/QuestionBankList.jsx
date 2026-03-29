@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { questionBankService, assessmentService } from '../../services';
 import { FileText, Search, Plus, Eye, Download, Upload, Trash2, Filter } from 'lucide-react';
 
 const QuestionBankList = () => {
   const navigate = useNavigate();
+  const { orgSlug } = useParams();
+  const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
   const [questionBanks, setQuestionBanks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +70,7 @@ const QuestionBankList = () => {
           <p className="text-gray-500 mt-1">Manage and organize question sets across assessments</p>
         </div>
         <button
-          onClick={() => navigate('/assessments')}
+          onClick={() => navigate(`${orgPrefix}/assessments`)}
           className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -184,7 +186,7 @@ const QuestionBankList = () => {
 
                 <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => navigate(`/question-banks/${bank._id}/sets/${bank.dimension}`)}
+                    onClick={() => navigate(`${orgPrefix}/question-banks/${bank._id}/sets/${bank.dimension}`)}
                     className="flex-1 px-3 py-2 text-sm bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1"
                   >
                     <Eye className="w-4 h-4" />

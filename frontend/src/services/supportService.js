@@ -22,7 +22,7 @@ export const supportService = {
  },
 
  addResponse: async (id, message, isInternal = false) => {
- const response = await api.post(`/support/tickets/${id}/responses`, {
+ const response = await api.post(`/support/tickets/${id}/respond`, {
  message,
  isInternal,
  });
@@ -30,25 +30,47 @@ export const supportService = {
  },
 
  updateStatus: async (id, status) => {
- const response = await api.patch(`/support/tickets/${id}/status`, { status });
+ const response = await api.put(`/support/tickets/${id}/status`, { status });
  return response.data;
  },
 
  assignTicket: async (id, userId) => {
- const response = await api.patch(`/support/tickets/${id}/assign`, { userId });
+ const response = await api.put(`/support/tickets/${id}/assign`, { userId });
  return response.data;
  },
 
- addTags: async (id, tags) => {
- const response = await api.patch(`/support/tickets/${id}/tags`, { tags });
+ getCoordinators: async () => {
+ const response = await api.get('/support/coordinators');
  return response.data;
  },
 
- submitSatisfaction: async (id, rating, feedback) => {
- const response = await api.post(`/support/tickets/${id}/satisfaction`, {
- rating,
- feedback,
- });
+ getStandardQueries: async () => {
+ const response = await api.get('/settings/standard-queries');
+ return response.data;
+ },
+
+ getAllStandardQueries: async () => {
+ const response = await api.get('/settings/standard-queries/all');
+ return response.data;
+ },
+
+ createStandardQuery: async (data) => {
+ const response = await api.post('/settings/standard-queries', data);
+ return response.data;
+ },
+
+ updateStandardQuery: async (id, data) => {
+ const response = await api.put(`/settings/standard-queries/${id}`, data);
+ return response.data;
+ },
+
+ deleteStandardQuery: async (id) => {
+ const response = await api.delete(`/settings/standard-queries/${id}`);
+ return response.data;
+ },
+
+ seedDefaultQueries: async () => {
+ const response = await api.post('/settings/standard-queries/seed');
  return response.data;
  },
 };

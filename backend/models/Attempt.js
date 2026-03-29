@@ -53,6 +53,19 @@ const attemptSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  testTakerEmail: {
+    type: String,
+    default: null
+  },
+  testTakerPhone: {
+    type: String,
+    default: null
+  },
+  invite: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TestTakerInvite',
+    default: null
+  },
   assessment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Assessment',
@@ -211,6 +224,11 @@ const attemptSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+  },
+  // Track whether this attempt consumed a test slot from the assessment's unlock pool
+  creditDeducted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

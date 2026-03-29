@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directories exist
-const uploadDirs = ['uploads/logos', 'uploads/avatars', 'uploads/attachments', 'uploads/questions'];
+const uploadDirs = ['uploads/logos', 'uploads/avatars', 'uploads/attachments', 'uploads/questions', 'uploads/banners'];
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -17,6 +17,8 @@ const storage = multer.diskStorage({
     
     if (file.fieldname === 'logo') {
       uploadPath += 'logos/';
+    } else if (file.fieldname === 'banner') {
+      uploadPath += 'banners/';
     } else if (file.fieldname === 'avatar') {
       uploadPath += 'avatars/';
     } else if (file.fieldname === 'attachment') {
@@ -47,7 +49,7 @@ const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   
   // Check file type based on fieldname
-  if (file.fieldname === 'logo' || file.fieldname === 'avatar' || file.fieldname === 'questionImage') {
+  if (file.fieldname === 'logo' || file.fieldname === 'avatar' || file.fieldname === 'questionImage' || file.fieldname === 'banner') {
     if (allowedTypes.image.test(ext)) {
       cb(null, true);
     } else {
@@ -90,9 +92,16 @@ const uploadQuestionImage = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
+const uploadBanner = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
 module.exports = {
   uploadLogo,
   uploadAvatar,
   uploadAttachment,
-  uploadQuestionImage
+  uploadQuestionImage,
+  uploadBanner
 };

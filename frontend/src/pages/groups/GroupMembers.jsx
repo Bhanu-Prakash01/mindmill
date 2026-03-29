@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 const GroupMembers = () => {
-  const { id: groupId } = useParams();
+  const { id: groupId, orgSlug } = useParams();
   const navigate = useNavigate();
   
   const [group, setGroup] = useState(null);
@@ -95,7 +95,7 @@ const GroupMembers = () => {
           <h2 className="text-xl font-bold text-gray-900">Group not found</h2>
           <p className="text-gray-500 mt-2">The group you're looking for doesn't exist.</p>
           <button 
-            onClick={() => navigate('/groups')}
+            onClick={() => navigate(orgSlug ? `/o/${orgSlug}/groups` : '/groups')}
             className="mt-6 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
           >
             Back to Groups
@@ -111,7 +111,7 @@ const GroupMembers = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/groups')}
+            onClick={() => navigate(orgSlug ? `/o/${orgSlug}/groups` : '/groups')}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

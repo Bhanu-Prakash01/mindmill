@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { groupService, userService } from '../../services';
 import {
   Users,
@@ -45,6 +45,7 @@ import {
   Gift,
   Calendar
 } from 'lucide-react';
+import { SmilePlus, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const COOL_ICONS = [
@@ -80,8 +81,18 @@ const COOL_ICONS = [
   { icon: Trophy, color: 'bg-yellow-100 text-yellow-600', border: 'border-yellow-200' },
 ];
 
+const EMOJI_OPTIONS = [
+  '🔥','🚀','⭐','🎯','💪','🏆','🎨','📚','🌍','💡',
+  '🎵','❤️','🌟','💎','🦋','🌈','⚡','🎪','🎭','🧩',
+  '🎸','⚽','🔮','🍀','🌸','🌻','🏔️','🌊','🦊','🐝',
+  '🐉','🐼','🦁','🎮','🛸','🏠','⚙️','🧪','📌','🎯',
+  '🏋️','🎓','🛡️','🗺️','🧭','🔨','💻','📊','🗂️','🪄'
+];
+
 const Groups = () => {
   const navigate = useNavigate();
+  const { orgSlug } = useParams();
+  const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +101,7 @@ const Groups = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   useEffect(() => {
     fetchGroups();
@@ -232,20 +244,30 @@ const Groups = () => {
 
                 <div className="flex items-start justify-between relative z-10">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${IconData.color} flex items-center justify-center shadow-inner transition-transform group-hover:rotate-12`}>
-                      <Icon className="w-5 h-5" />
+                    <div className={`w-9 h-9 rounded-lg ${group.icon ? 'bg-gray-100' : IconData.color} flex items-center justify-center shadow-inner transition-transform group-hover:rotate-12`}>
+                      {group.icon ? (
+                        <span className="text-xl leading-none">{group.icon}</span>
+                      ) : (
+                        <Icon className="w-5 h-5" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight truncate">
                         {group.name}
                       </h3>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/groups/${group._id}/members`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`${orgPrefix}/groups/${group._id}/members`); }}
                         className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5 hover:text-indigo-600 transition-colors"
                       >
                         <Users className="w-2.5 h-2.5" />
                         <span>{group.members?.length || 0} participants</span>
                       </button>
+                      {group.moderator && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 mt-0.5">
+                          <ShieldCheck className="w-2.5 h-2.5" />
+                          <span className="truncate">{group.moderator.firstName} {group.moderator.lastName}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -254,9 +276,22 @@ const Groups = () => {
                 </div>
 
                 {group.description && (
-                  <p className="text-xs text-gray-600 mt-3 line-clamp-1 min-h-[1rem]">
-                    {group.description}
-                  </p>
+                  <div className="mt-3 min-h-[1rem]">
+                    <p className={`text-xs text-gray-600 ${expandedDescriptions[group._id] ? '' : 'line-clamp-2'}`}>
+                      {group.description}
+                    </p>
+                    {group.description.length > 80 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedDescriptions(prev => ({ ...prev, [group._id]: !prev[group._id] }));
+                        }}
+                        className="text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 mt-0.5 transition-colors"
+                      >
+                        {expandedDescriptions[group._id] ? 'Read less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <div className="mt-4 flex items-center justify-between pt-3 border-t border-gray-100">
@@ -266,7 +301,7 @@ const Groups = () => {
                   
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={(e) => { e.stopPropagation(); navigate(`/groups/${group._id}/members`); }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`${orgPrefix}/groups/${group._id}/members`); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm"
                       title="Manage Members"
                     >
@@ -326,9 +361,24 @@ const Groups = () => {
 const GroupFormModal = ({ group, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: group?.name || '',
-    description: group?.description || ''
+    description: group?.description || '',
+    icon: group?.icon || '',
+    moderator: group?.moderator?._id || ''
   });
   const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await userService.getUsers();
+        setUsers(res.data?.users || []);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -377,6 +427,58 @@ const GroupFormModal = ({ group, onClose, onSuccess }) => {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
               placeholder="e.g. Engineering Team"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Group Icon <span className="font-normal text-gray-400">(You may add emojis)</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xl shrink-0">
+                {formData.icon || <SmilePlus className="w-5 h-5 text-gray-400" />}
+              </div>
+              <p className="text-xs text-gray-500">
+                {formData.icon ? 'Selected — click again to deselect' : 'Choose an emoji below'}
+              </p>
+            </div>
+            <div className="grid grid-cols-10 gap-1.5 p-3 bg-gray-50 rounded-xl border border-gray-200 max-h-36 overflow-y-auto">
+              {EMOJI_OPTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, icon: formData.icon === emoji ? '' : emoji })}
+                  className={`w-8 h-8 flex items-center justify-center text-lg rounded-lg transition-all hover:scale-110 ${
+                    formData.icon === emoji
+                      ? 'bg-indigo-100 ring-2 ring-indigo-500 scale-110'
+                      : 'hover:bg-gray-200'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-sm font-semibold text-gray-700">
+              Group Moderator
+            </label>
+            <div className="relative">
+              <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                value={formData.moderator}
+                onChange={(e) => setFormData({ ...formData, moderator: e.target.value })}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all appearance-none"
+              >
+                <option value="">No moderator assigned</option>
+                {users.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.firstName} {u.lastName} ({u.email})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           <div className="space-y-1">

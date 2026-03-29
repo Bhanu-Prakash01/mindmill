@@ -50,8 +50,12 @@ const supportTicketSchema = new mongoose.Schema({
   },
   message: {
     type: String,
-    required: [true, 'Message is required']
+    default: ''
   },
+  selectedIssues: [{
+    type: String,
+    trim: true
+  }],
   category: {
     type: String,
     enum: ['technical', 'billing', 'general', 'complaint', 'feature_request', 'assessment_issue'],
@@ -59,7 +63,7 @@ const supportTicketSchema = new mongoose.Schema({
   },
   priority: {
     type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
+    enum: ['medium', 'high', 'urgent'],
     default: 'medium'
   },
   status: {

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { assessmentService } from '../../services';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { attemptService } from '../../services';
 import AssessmentAssignmentModal from '../../components/AssessmentAssignmentModal';
+import UnlockAssessmentModal from '../../components/UnlockAssessmentModal';
+import InviteTestTakerModal from '../../components/InviteTestTakerModal';
 import {
  FileText,
  Plus,
@@ -23,8 +25,14 @@ import {
  UserPlus,
  Share2,
  Link as LinkIcon,
- Volume2,
- VolumeX
+  Volume2,
+   VolumeX,
+   Unlock,
+   Coins,
+   RotateCcw,
+   Building2,
+   ChevronDown,
+   ChevronUp
 } from 'lucide-react';
 
 // Category metadata: image, description, acknowledgement
@@ -89,6 +97,8 @@ const getDifficultyBadge = (difficulty) => {
 const Assessments = () => {
  const { user } = useAuth();
  const navigate = useNavigate();
+ const { orgSlug } = useParams();
+ const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
  const [assessments, setAssessments] = useState([]);
  const [loading, setLoading] = useState(true);
  const [searchQuery, setSearchQuery] = useState('');
@@ -97,8 +107,11 @@ const Assessments = () => {
  const [passcodeModal, setPasscodeModal] = useState({ show: false, assessmentId: null, assessmentCategory: null, passcode: '' });
  const [verifying, setVerifying] = useState(false);
  const [assignmentModal, setAssignmentModal] = useState({ show: false, assessment: null });
- const [shareModal, setShareModal] = useState({ show: false, assessment: null });
- const [publicLinkModal, setPublicLinkModal] = useState({ show: false, assessment: null, loading: false, link: null });
+  const [shareModal, setShareModal] = useState({ show: false, assessment: null });
+  const [publicLinkModal, setPublicLinkModal] = useState({ show: false, assessment: null, loading: false, link: null });
+  const [unlockModal, setUnlockModal] = useState({ show: false, assessment: null });
+  const [inviteModal, setInviteModal] = useState({ show: false, assessment: null });
+  const [purchasesModal, setPurchasesModal] = useState({ show: false, assessment: null });
 
  useEffect(() => {
   fetchAssessments();
@@ -160,9 +173,9 @@ const Assessments = () => {
  });
 
  const getTestRoute = (assessmentId, category) => {
- if (category === 'big5') return `/assessments/${assessmentId}/big5`;
- if (category === 'disc') return `/assessments/${assessmentId}/disc`;
- return `/assessments/${assessmentId}/take`;
+ if (category === 'big5') return `${orgPrefix}/assessments/${assessmentId}/big5`;
+ if (category === 'disc') return `${orgPrefix}/assessments/${assessmentId}/disc`;
+ return `${orgPrefix}/assessments/${assessmentId}/take`;
  };
 
  const handleStartTest = (assessment) => {
@@ -209,6 +222,22 @@ const Assessments = () => {
   }
   };
 
+  const handleRefundUnattempted = async (assessment) => {
+    const testsLocked = Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo?.testsUsed || 0));
+    if (testsLocked <= 0) {
+      alert('No locked test slots to refund.');
+      return;
+    }
+    if (!confirm(`Refund credits for all assigned users who haven't attempted this test? This will free up ${testsLocked} locked test slot(s).`)) return;
+    try {
+      const response = await assessmentService.refundUnattempted(assessment._id);
+      alert(response.message);
+      fetchAssessments();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to refund unattempted tests');
+    }
+  };
+
   const handleRevokePublicLink = async () => {
   try {
   await assessmentService.revokePublicLink(publicLinkModal.assessment._id);
@@ -239,6 +268,15 @@ const Assessments = () => {
  {isAdmin ? 'Manage assessments and evaluations' : 'Your assigned assessments'}
   </p>
   </div>
+  {user?.role === 'superadmin' && (
+   <Link
+   to={`${orgPrefix}/assessments/create`}
+   className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+   >
+  <Plus className="w-4 h-4 mr-2" />
+  Create Assessment
+  </Link>
+  )}
   </div>
 
   {/* Filters */}
@@ -286,8 +324,32 @@ const Assessments = () => {
  return (
  <div
  key={assessment._id}
- className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-shadow flex flex-col"
+ className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-shadow flex flex-col relative"
  >
+ {/* Lock Overlay for Admin - Blurred locked assessments */}
+ {isAdmin && assessment.isLocked && (
+ <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl cursor-pointer px-6"
+      onClick={() => setUnlockModal({ show: true, assessment })}>
+   <Lock className="w-7 h-7 text-gray-400 mb-2" />
+   <p className="text-base font-bold text-gray-800 mb-1 text-center">
+     {meta.inspiredBy || assessment.title}
+   </p>
+   <p className="text-xs text-gray-500 mb-1 text-center line-clamp-2">
+     {meta.description || assessment.description || 'No description'}
+   </p>
+   <div className="flex items-center gap-1 text-sm text-amber-600 font-medium mb-3">
+     <Coins className="w-4 h-4" />
+     {assessment.effectiveCreditCost || 5} credits per test
+   </div>
+   <button
+     onClick={(e) => { e.stopPropagation(); setUnlockModal({ show: true, assessment }); }}
+     className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+   >
+     <Unlock className="w-4 h-4" />
+     Unlock Assessment
+   </button>
+ </div>
+ )}
  {/* Hero Image */}
  <div className="relative w-full h-36 overflow-hidden bg-gray-100">
  {heroImage ? (
@@ -389,12 +451,27 @@ const Assessments = () => {
  </span>
  </div>
 
+ {/* Unlock status for admin (unlocked assessments) */}
+ {isAdmin && !assessment.isLocked && assessment.orgUnlockInfo && (
+ <div className="flex items-center gap-2 mb-3">
+   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+     <Unlock className="w-3 h-3" />
+     {Math.max(0, assessment.orgUnlockInfo.testsAllowed - (assessment.assignedUsers?.length || 0))} remaining
+   </span>
+   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+     <Lock className="w-3 h-3" />
+     {Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo.testsUsed || 0))} locked
+   </span>
+ </div>
+ )}
+
  {/* Action row */}
  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
  {isAdmin ? (
+ user?.role === 'superadmin' ? (
  <div className="flex items-center gap-1">
  <Link
- to={`/assessments/${assessment._id}`}
+ to={`${orgPrefix}/assessments/${assessment._id}`}
  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
  title="Edit"
  >
@@ -437,30 +514,79 @@ const Assessments = () => {
   >
   <LinkIcon className="w-4 h-4" />
   </button>
-  <button
-  onClick={() => handleToggleMute(assessment._id)}
-  className={`p-2 rounded-lg transition-colors ${assessment.isMuted ? 'text-green-600 hover:bg-green-50' : 'text-gray-500 hover:bg-gray-100'}`}
-  title={assessment.isMuted ? 'Unmute' : 'Mute'}
+   <button
+   onClick={() => handleToggleMute(assessment._id)}
+   className={`p-2 rounded-lg transition-colors ${assessment.isMuted ? 'text-green-600 hover:bg-green-50' : 'text-gray-500 hover:bg-gray-100'}`}
+   title={assessment.isMuted ? 'Unmute' : 'Mute'}
+   >
+   {assessment.isMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+   </button>
+   <button
+   onClick={() => setPurchasesModal({ show: true, assessment })}
+   className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+   title="View Purchases"
+   >
+   <Users className="w-4 h-4" />
+   </button>
+   <button
+  onClick={() => handleDelete(assessment._id)}
+  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+  title="Delete"
   >
-  {assessment.isMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+  <Trash2 className="w-4 h-4" />
   </button>
-  <button
- onClick={() => handleDelete(assessment._id)}
- className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
- title="Delete"
- >
- <Trash2 className="w-4 h-4" />
- </button>
  </div>
  ) : (
- <button
- onClick={() => handleStartTest(assessment)}
- className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
- >
- <Play className="w-4 h-4 mr-1.5" />
- Start Assessment
- </button>
- )}
+  <div className="flex items-center gap-2">
+  <button
+  onClick={() => setAssignmentModal({ show: true, assessment })}
+  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+  title="Assign to Users/Groups"
+  >
+  <UserPlus className="w-4 h-4" />
+  Assign
+  </button>
+  {assessment.isLocked === false && (
+  <button
+  onClick={() => setInviteModal({ show: true, assessment })}
+  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+  title="Invite Test Taker"
+  >
+  <Share2 className="w-4 h-4" />
+  Invite
+  </button>
+  )}
+   <button
+  onClick={() => handleGeneratePublicLink(assessment)}
+  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+  title="Generate Public Link"
+  >
+  <LinkIcon className="w-4 h-4" />
+  Share
+  </button>
+   {assessment.orgUnlockInfo && Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo.testsUsed || 0)) > 0 && (
+  <button
+  onClick={() => handleRefundUnattempted(assessment)}
+  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+  title="Refund unattempted test slots"
+  >
+  <RotateCcw className="w-4 h-4" />
+  Refund
+  </button>
+  )}
+ </div>
+ )
+  ) : (
+  <>
+  <button
+  onClick={() => handleStartTest(assessment)}
+  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+  >
+  <Play className="w-4 h-4 mr-1.5" />
+  Start Assessment
+  </button>
+  </>
+  )}
  {isAdmin && assessment.averageScore > 0 && (
  <div className="flex items-center gap-1 text-sm text-gray-500">
  <BarChart3 className="w-4 h-4" />
@@ -481,10 +607,10 @@ const Assessments = () => {
  {isAdmin ? 'No assessments found' : 'No assessments assigned to you yet'}
  </p>
   {user?.role === 'superadmin' && (
-  <Link
-  to="/assessments/create"
-  className="inline-flex items-center mt-4 text-indigo-600 hover:text-indigo-700"
-  >
+   <Link
+   to={`${orgPrefix}/assessments/create`}
+   className="inline-flex items-center mt-4 text-indigo-600 hover:text-indigo-700"
+   >
   <Plus className="w-4 h-4 mr-1" />
   Create your first assessment
   </Link>
@@ -564,6 +690,32 @@ const Assessments = () => {
  <SharePasscodeModal
  assessment={shareModal.assessment}
  onClose={() => setShareModal({ show: false, assessment: null })}
+ />
+ )}
+
+ {/* Unlock Assessment Modal */}
+ {unlockModal.show && unlockModal.assessment && (
+ <UnlockAssessmentModal
+ assessment={unlockModal.assessment}
+ onClose={() => setUnlockModal({ show: false, assessment: null })}
+ onSuccess={() => { setUnlockModal({ show: false, assessment: null }); fetchAssessments(); }}
+ />
+ )}
+
+ {/* Invite Test Taker Modal */}
+ {inviteModal.show && inviteModal.assessment && (
+ <InviteTestTakerModal
+ assessment={inviteModal.assessment}
+ onClose={() => setInviteModal({ show: false, assessment: null })}
+ onSuccess={() => { setInviteModal({ show: false, assessment: null }); fetchAssessments(); }}
+ />
+ )}
+
+ {/* Purchases Modal */}
+ {purchasesModal.show && purchasesModal.assessment && (
+ <PurchasesModal
+ assessment={purchasesModal.assessment}
+ onClose={() => setPurchasesModal({ show: false, assessment: null })}
  />
  )}
  </div>
@@ -725,6 +877,183 @@ const PublicLinkModal = ({ assessment, link, loading, onClose, onRevoke }) => {
             <p>Failed to generate link. Please try again.</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+// Purchases Modal Component
+const PurchasesModal = ({ assessment, onClose }) => {
+  const [purchases, setPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedOrg, setExpandedOrg] = useState(null);
+
+  useEffect(() => {
+    fetchPurchases();
+  }, []);
+
+  const fetchPurchases = async () => {
+    try {
+      const response = await assessmentService.getAssessmentPurchases(assessment._id);
+      setPurchases(response.data?.purchases || []);
+    } catch (error) {
+      console.error('Error fetching purchases:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-indigo-100 rounded-full">
+              <Users className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Assessment Purchases</h2>
+              <p className="text-sm text-gray-500">{assessment.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : purchases.length === 0 ? (
+            <div className="text-center py-12">
+              <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No organizations have purchased this assessment yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {purchases.map((purchase) => (
+                <div key={purchase.organization.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                  {/* Organization Header */}
+                  <button
+                    onClick={() => setExpandedOrg(expandedOrg === purchase.organization.id ? null : purchase.organization.id)}
+                    className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    {purchase.organization.logo ? (
+                      <img
+                        src={purchase.organization.logo.startsWith('http') ? purchase.organization.logo : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${purchase.organization.logo}`}
+                        alt={purchase.organization.name}
+                        className="w-10 h-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${purchase.organization.primaryColor || '#6366f1'}15` }}
+                      >
+                        <Building2 className="w-5 h-5" style={{ color: purchase.organization.primaryColor || '#6366f1' }} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">{purchase.organization.name}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Unlock className="w-3.5 h-3.5" />
+                          {purchase.testsAllowed} tests
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                          {purchase.testsUsed} used
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Coins className="w-3.5 h-3.5 text-amber-500" />
+                          {purchase.creditsLocked} credits
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">
+                        {new Date(purchase.unlockedAt).toLocaleDateString()}
+                      </span>
+                      {expandedOrg === purchase.organization.id ? (
+                        <ChevronUp className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Expanded Details */}
+                  {expandedOrg === purchase.organization.id && (
+                    <div className="border-t border-gray-100 bg-gray-50/50 p-4">
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="bg-white rounded-lg p-3 border border-gray-100">
+                          <p className="text-xs text-gray-500 mb-1">Assigned Users</p>
+                          <p className="text-lg font-bold text-gray-900">{purchase.assignedUsers.length}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-gray-100">
+                          <p className="text-xs text-gray-500 mb-1">Completed</p>
+                          <p className="text-lg font-bold text-green-600">{purchase.attempts.completed}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-gray-100">
+                          <p className="text-xs text-gray-500 mb-1">In Progress</p>
+                          <p className="text-lg font-bold text-amber-600">{purchase.attempts.inProgress}</p>
+                        </div>
+                      </div>
+
+                      {/* Assigned Users List */}
+                      {purchase.assignedUsers.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Assigned Users</p>
+                          <div className="space-y-2">
+                            {purchase.assignedUsers.map((user) => (
+                              <div key={user.id} className="flex items-center gap-3 bg-white rounded-lg p-2.5 border border-gray-100">
+                                <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                                  style={{ backgroundColor: purchase.organization.primaryColor || '#6366f1' }}
+                                >
+                                  {user.firstName?.[0]}{user.lastName?.[0]}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-800 truncate">
+                                    {user.fullName || `${user.firstName} ${user.lastName}`}
+                                  </p>
+                                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {user.role}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {purchase.assignedUsers.length === 0 && (
+                        <p className="text-sm text-gray-400 text-center py-4">No users assigned yet</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

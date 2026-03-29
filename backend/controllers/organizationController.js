@@ -107,7 +107,7 @@ const createOrganization = asyncHandler(async (req, res) => {
   const { name, slug, description, primaryColor, secondaryColor } = req.body;
 
   // Check if slug already exists
-  const existingOrg = await Organization.findOne({ slug });
+  const existingOrg = await Organization.findOne({ slug: slug?.toLowerCase().trim() });
   if (existingOrg) {
     throw new ApiError(400, 'Organization slug already exists');
   }
@@ -243,6 +243,42 @@ const updateLogo = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Update organization banner
+ * @route   PUT /api/organizations/:id/banner
+ * @access  Private (Admin, SuperAdmin)
+ */
+const updateBanner = asyncHandler(async (req, res) => {
+  const { banner } = req.body;
+
+  let organization = await Organization.findById(req.params.id);
+
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  // Check permissions
+  if (req.user.role !== 'superadmin' && 
+      req.user.organization._id.toString() !== organization._id.toString()) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  // If a file is uploaded, use file path; otherwise use the preset value from body
+  const bannerValue = req.file ? `/uploads/banners/${req.file.filename}` : banner;
+
+  organization = await Organization.findByIdAndUpdate(
+    req.params.id,
+    { banner: bannerValue },
+    { new: true }
+  );
+
+  res.json({
+    success: true,
+    message: 'Banner updated successfully',
+    data: { organization }
+  });
+});
+
+/**
  * @desc    Update public profile
  * @route   PUT /api/organizations/:id/public-profile
  * @access  Private (Admin, SuperAdmin)
@@ -317,6 +353,7 @@ const getPublicProfile = asyncHandler(async (req, res) => {
         name: organization.name,
         slug: organization.slug,
         logo: organization.logo,
+        banner: organization.banner,
         primaryColor: organization.primaryColor,
         publicProfile: organization.publicProfile,
         publishedAssessments
@@ -429,6 +466,7 @@ module.exports = {
   updateOrganization,
   updateBranding,
   updateLogo,
+  updateBanner,
   updatePublicProfile,
   getPublicProfile,
   addCredits,

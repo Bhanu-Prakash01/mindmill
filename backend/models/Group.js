@@ -14,6 +14,10 @@ const groupSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  icon: {
+    type: String,
+    default: ''
+  },
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
@@ -28,6 +32,11 @@ const groupSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  moderator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

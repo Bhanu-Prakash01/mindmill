@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     trim: true
   },
@@ -88,6 +87,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['Separated', 'Disassociated', 'Sabbatical', null],
     default: null
+  },
+  isCoordinator: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -96,6 +99,9 @@ const userSchema = new mongoose.Schema({
 // Index for faster queries
 userSchema.index({ organization: 1 });
 userSchema.index({ role: 1 });
+// Compound unique index: email must be unique within an organization
+// Superadmin users (organization: null) have globally unique emails
+userSchema.index({ email: 1, organization: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

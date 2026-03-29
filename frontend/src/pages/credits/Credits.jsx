@@ -11,7 +11,8 @@ import {
  AlertCircle,
  Building2,
  ArrowUpRight,
- ArrowDownRight
+ ArrowDownRight,
+ Lock
 } from 'lucide-react';
 
 const Credits = () => {
@@ -154,7 +155,7 @@ const Credits = () => {
 
  {/* Credit Stats */}
   {organization?.credits && (
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
   <div className="bg-white rounded-xl border border-gray-200 p-6">
   <div className="flex items-center justify-between">
   <div>
@@ -184,9 +185,22 @@ const Credits = () => {
   <div className="bg-white rounded-xl border border-gray-200 p-6">
   <div className="flex items-center justify-between">
   <div>
-  <p className="text-sm text-gray-500 ">Remaining</p>
-  <p className="text-3xl font-bold text-gray-900 mt-1">
-  {organization.credits.remaining}
+  <p className="text-sm text-gray-500 ">Locked Credits</p>
+  <p className="text-3xl font-bold text-amber-600 mt-1">
+  {organization.credits.locked || 0}
+  </p>
+  </div>
+  <div className="p-3 bg-amber-100 rounded-lg">
+  <Lock className="w-6 h-6 text-amber-600 " />
+  </div>
+  </div>
+  </div>
+  <div className="bg-white rounded-xl border border-gray-200 p-6">
+  <div className="flex items-center justify-between">
+  <div>
+  <p className="text-sm text-gray-500 ">Available</p>
+  <p className="text-3xl font-bold text-green-600 mt-1">
+  {Math.max(0, organization.credits.total - organization.credits.used - (organization.credits.locked || 0))}
   </p>
   </div>
   <div className="p-3 bg-green-100 rounded-lg">

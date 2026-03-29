@@ -17,7 +17,8 @@ const getQuestions = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (assessment.organization && req.user.organization &&
+      assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -46,7 +47,8 @@ const getQuestion = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (question.assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (question.assessment.organization && req.user.organization &&
+      question.assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -92,7 +94,8 @@ const createQuestion = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (assessment.organization && req.user.organization &&
+      assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -153,7 +156,8 @@ const updateQuestion = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (question.assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (question.assessment.organization && req.user.organization &&
+      question.assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -199,7 +203,8 @@ const deleteQuestion = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (question.assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (question.assessment.organization && req.user.organization &&
+      question.assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -237,7 +242,8 @@ const reorderQuestions = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (assessment.organization && req.user.organization &&
+      assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -276,7 +282,8 @@ const bulkCreateQuestions = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (assessment.organization.toString() !== req.user.organization._id.toString()) {
+    if (assessment.organization && req.user.organization &&
+      assessment.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }

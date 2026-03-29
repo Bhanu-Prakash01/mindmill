@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { assessmentService, groupService, userService } from '../services';
-import { X, Users, UserCheck, Search, Check, AlertTriangle, Info, FileText, CheckCircle, Coins } from 'lucide-react';
+import { X, Users, UserCheck, Search, Check, AlertTriangle, Info, FileText, CheckCircle, Lock, Unlock } from 'lucide-react';
 
 const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('users');
@@ -12,6 +12,12 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const [saving, setSaving] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [unlockStats, setUnlockStats] = useState(assessment.orgUnlockInfo ? {
+    testsAllowed: assessment.orgUnlockInfo.testsAllowed,
+    testsUsed: assessment.orgUnlockInfo.testsUsed,
+    testsRemaining: Math.max(0, assessment.orgUnlockInfo.testsAllowed - (assessment.assignedUsers?.length || 0)),
+    testsLocked: Math.max(0, (assessment.assignedUsers || []).length - (assessment.orgUnlockInfo.testsUsed || 0))
+  } : null);
 
   useEffect(() => {
     fetchData('');
@@ -54,8 +60,9 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const handleUnassignUsers = async (userIds) => {
     setSaving(true);
     try {
-      await assessmentService.unassign(assessment._id, userIds, []);
+      const res = await assessmentService.unassign(assessment._id, userIds, []);
       setAssignedUsers(assignedUsers.filter(u => !userIds.includes(u._id || u)));
+      if (res.data?.unlockStats) setUnlockStats(res.data.unlockStats);
       onSuccess?.();
     } catch (error) {
       console.error('Error unassigning users:', error);
@@ -67,8 +74,9 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const handleUnassignGroups = async (groupIds) => {
     setSaving(true);
     try {
-      await assessmentService.unassign(assessment._id, [], groupIds);
+      const res = await assessmentService.unassign(assessment._id, [], groupIds);
       setAssignedGroups(assignedGroups.filter(g => !groupIds.includes(g._id || g)));
+      if (res.data?.unlockStats) setUnlockStats(res.data.unlockStats);
       onSuccess?.();
     } catch (error) {
       console.error('Error unassigning groups:', error);
@@ -79,16 +87,6 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
   const assignedUserIds = assignedUsers.map(u => u._id || u);
   const assignedGroupIds = assignedGroups.map(g => g._id || g);
-
-  const creditCost = assessment.creditsRequired || 5;
-  const totalUserCredits = selectedUserIds.length * creditCost;
-  const totalGroupMemberCredits = selectedGroupIds.reduce((sum, groupId) => {
-    const group = groups.find(g => g._id === groupId);
-    return sum + (group?.members?.length || 0);
-  }, 0);
-  const totalGroupCredits = totalGroupMemberCredits * creditCost;
-  const totalCredits = totalUserCredits + totalGroupCredits;
-  const totalRecipients = selectedUserIds.length + totalGroupMemberCredits;
 
   const toggleUserSelection = (userId) => {
     setSelectedUserIds(prev =>
@@ -127,16 +125,18 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
     
     setSaving(true);
     try {
+      let res;
       if (selectedUserIds.length > 0) {
-        await assessmentService.assignToUsers(assessment._id, selectedUserIds);
+        res = await assessmentService.assignToUsers(assessment._id, selectedUserIds);
         const newUsers = users.filter(u => selectedUserIds.includes(u._id));
         setAssignedUsers(prev => [...prev, ...newUsers]);
       }
       if (selectedGroupIds.length > 0) {
-        await assessmentService.assignToGroups(assessment._id, selectedGroupIds);
+        res = await assessmentService.assignToGroups(assessment._id, selectedGroupIds);
         const newGroups = groups.filter(g => selectedGroupIds.includes(g._id));
         setAssignedGroups(prev => [...prev, ...newGroups]);
       }
+      if (res?.data?.unlockStats) setUnlockStats(res.data.unlockStats);
       setSelectedUserIds([]);
       setSelectedGroupIds([]);
       onSuccess?.();
@@ -188,14 +188,8 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Credit info and warnings */}
+        {/* Info banner */}
         <div className="mx-5 mt-3 space-y-2">
-          <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs text-indigo-800">
-            <Coins className="h-4 w-4 shrink-0 text-indigo-600" />
-            <span className="font-medium">
-              This assessment requires <span className="font-bold">{creditCost} credits</span> per user when started
-            </span>
-          </div>
           {assessment.isPublished ? (
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
@@ -209,6 +203,41 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
               <span className="font-medium">
                 This is a draft. You can assign users now, but they will only see it once it is published.
               </span>
+            </div>
+          )}
+
+          {/* Unlock stats */}
+          {unlockStats && (
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <Unlock className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Remaining</p>
+                  <p className="text-sm font-bold text-emerald-700">{unlockStats.testsRemaining}</p>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-gray-200" />
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Locked</p>
+                  <p className="text-sm font-bold text-amber-700">{unlockStats.testsLocked}</p>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-gray-200" />
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Used</p>
+                  <p className="text-sm font-bold text-gray-700">{unlockStats.testsUsed}</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -459,32 +488,18 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
         <div className="p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-indigo-50">
           {(selectedUserIds.length > 0 || selectedGroupIds.length > 0) ? (
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs text-gray-700">
-                    {selectedUserIds.length > 0 && (
-                      <span className="font-bold text-indigo-700">
-                        {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {selectedUserIds.length > 0 && selectedGroupIds.length > 0 && (
-                      <span className="text-gray-400 mx-1">+</span>
-                    )}
-                    {selectedGroupIds.length > 0 && (
-                      <span className="font-bold text-purple-700">
-                        {selectedGroupIds.length} group{selectedGroupIds.length !== 1 ? 's' : ''} ({totalGroupMemberCredits} members)
-                      </span>
-                    )}
-                    <span className="text-gray-500 mx-1">=</span>
-                    <span className="font-bold text-indigo-700">
-                      {totalCredits} credits
-                    </span>
-                    <span className="text-gray-400 ml-1">
-                      ({totalRecipients} recipient{totalRecipients !== 1 ? 's' : ''})
-                    </span>
+              <div className="flex items-center gap-2 text-xs text-gray-700">
+                <span className="font-bold text-indigo-700">
+                  {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''}
+                </span>
+                {selectedUserIds.length > 0 && selectedGroupIds.length > 0 && (
+                  <span className="text-gray-400 mx-1">+</span>
+                )}
+                {selectedGroupIds.length > 0 && (
+                  <span className="font-bold text-purple-700">
+                    {selectedGroupIds.length} group{selectedGroupIds.length !== 1 ? 's' : ''}
                   </span>
-                </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <button

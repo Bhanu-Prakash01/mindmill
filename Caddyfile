@@ -1,0 +1,199 @@
+# The Caddyfile is an easy way to configure your Caddy web server.
+#
+# Unless the file starts with a global options block, the first
+# uncommented line is always the address of your site.
+#
+# To use your own domain name (with automatic HTTPS), first make
+# sure your domain's A/AAAA DNS records are properly pointed to
+# this machine's public IP, then replace ":80" below with your
+# domain name.
+{
+    email admin@googleme.in
+}
+
+api.outreachq.com {
+	# Set this path to your site's directory.
+	root * /usr/share/caddy
+
+	# Enable the static file server.
+	file_server
+
+	# Another common task is to set up a reverse proxy:
+	reverse_proxy localhost:5000
+
+	# Or serve a PHP site through php-fpm:
+	# php_fastcgi localhost:9000
+}
+
+api.googleme.in {
+	reverse_proxy localhost:5001
+}
+
+demoapi.outreachq.com {
+	reverse_proxy localhost:5002
+}
+crm.outreachq.com {
+	root * /var/www/html
+
+	# SPA fallback (THIS FIXES EVERYTHING)
+	try_files {path} {path}/ /index.html
+
+	encode gzip
+	file_server
+}
+
+www.googleme.in, googleme.in {
+	root * /var/www/dev
+	try_files {path} {path}/ /index.html
+	encode gzip
+	file_server
+}
+
+
+admin.googleme.in {
+	root * /var/www/admin
+	try_files {path} {path}/ /index.html
+	encode gzip
+	file_server
+}
+
+
+
+
+aquapure.outreachq.com {
+	root * /var/www/aquapure-bottles
+	
+	try_files {path} {path}/ /index.html
+	
+	encode gzip 
+	file_server
+}
+
+buildcore.outreachq.com {
+	root * /var/www/buildcore
+	
+	try_files {path} {path}/ index.html 
+	
+	encode gzip 
+	file_server
+}
+
+freshlink.outreachq.com {
+	root * /var/www/freshlink-agro
+	
+	try_files {path} {path}/ index.html 
+	
+	encode gzip 
+	file_server
+}
+
+
+primeserve.outreachq.com {
+	root * /var/www/primeserve-catering
+	
+	try_files {path} {path}/ index.html 
+	
+	encode gzip 
+	file_server
+}
+
+vagabond.outreachq.com {
+	root * /var/www/vagabond-rentals
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+comfortstay.outreachq.com {
+	root * /var/www/comfort-stay-pg
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+luxegems.outreachq.com {
+	root * /var/www/luxe-gems
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+
+vikramsonkar.outreachq.com {
+	root * /var/www/vikram-sonkar-help
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+urbanthread.outreachq.com {
+	root * /var/www/urban-thread
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+nairafashion.outreachq.com {
+	root * /var/www/naira-fashion
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+aurelia.outreachq.com {
+	root * /var/www/aurelia-jewelry
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+gym.outreachq.com {
+	root * /var/www/iron-forge-gym
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+zenith.outreachq.com {
+	root * /var/www/zenith-fitness
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+api.mindmil.com {
+	reverse_proxy localhost:5005
+}
+
+app.mindmil.com {
+	root * /var/www/mindmill
+	try_files {path} {path}/ /index.html
+	encode gzip
+	file_server
+}
+
+
+
+rentals.outreachq.com {
+	root * /var/www/vagabond-rentals
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+ironforge.outreachq.com {
+	root * /var/www/iron-forge-gym
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+zenithfitness.outreachq.com {
+	root * /var/www/zenith-fitness
+	try_files {path} {path}/ /index.html
+	encode gzip 
+	file_server
+}
+
+# Refer to the Caddy docs for more information:
+# https://caddyserver.com/docs/caddyfile

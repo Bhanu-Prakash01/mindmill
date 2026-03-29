@@ -8,7 +8,10 @@ import {
   TrendingUp,
   AlertCircle,
   CreditCard,
-  HelpCircle
+  HelpCircle,
+  Clock,
+  XCircle,
+  MessageSquare
 } from 'lucide-react';
 import {
  BarChart,
@@ -46,6 +49,7 @@ const StatCard = ({ title, value, icon: Icon, trend, trendUp, color }) => (
 
 const SuperAdminDashboard = () => {
  const [stats, setStats] = useState(null);
+ const [ticketStats, setTicketStats] = useState(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
 
@@ -58,6 +62,7 @@ const SuperAdminDashboard = () => {
  const response = await api.get('/dashboard/superadmin');
  if (response.data.success) {
  setStats(response.data.data);
+ setTicketStats(response.data.data.ticketStats);
  }
  } catch (err) {
  setError('Failed to load dashboard data');
@@ -149,6 +154,48 @@ const SuperAdminDashboard = () => {
  </div>
  </div>
  )}
+ </div>
+ )}
+
+ {/* Ticket Status Breakdown */}
+ {ticketStats && (
+ <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+ <div className="flex items-center justify-between mb-6">
+ <h3 className="text-lg font-semibold text-gray-900">Support Tickets</h3>
+ <Link
+ to="/support"
+ className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+ >
+ View All →
+ </Link>
+ </div>
+ <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+ <div className="bg-blue-50 rounded-lg p-4 text-center">
+ <Clock className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+ <p className="text-2xl font-bold text-blue-700">{ticketStats.open || 0}</p>
+ <p className="text-xs text-blue-600 mt-1">Open</p>
+ </div>
+ <div className="bg-yellow-50 rounded-lg p-4 text-center">
+ <AlertCircle className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+ <p className="text-2xl font-bold text-yellow-700">{ticketStats['in-progress'] || 0}</p>
+ <p className="text-xs text-yellow-600 mt-1">In Progress</p>
+ </div>
+ <div className="bg-orange-50 rounded-lg p-4 text-center">
+ <MessageSquare className="w-6 h-6 text-orange-500 mx-auto mb-2" />
+ <p className="text-2xl font-bold text-orange-700">{ticketStats.waiting || 0}</p>
+ <p className="text-xs text-orange-600 mt-1">Waiting</p>
+ </div>
+ <div className="bg-green-50 rounded-lg p-4 text-center">
+ <CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-2" />
+ <p className="text-2xl font-bold text-green-700">{ticketStats.resolved || 0}</p>
+ <p className="text-xs text-green-600 mt-1">Resolved</p>
+ </div>
+ <div className="bg-gray-50 rounded-lg p-4 text-center">
+ <XCircle className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+ <p className="text-2xl font-bold text-gray-700">{ticketStats.closed || 0}</p>
+ <p className="text-xs text-gray-600 mt-1">Closed</p>
+ </div>
+ </div>
  </div>
  )}
 

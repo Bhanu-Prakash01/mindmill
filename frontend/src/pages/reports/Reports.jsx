@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { reportService } from '../../services';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
  FileBarChart,
  Search,
@@ -19,6 +19,8 @@ import {
 
 const Reports = () => {
  const { user } = useAuth();
+ const { orgSlug } = useParams();
+ const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
  const [reports, setReports] = useState([]);
  const [loading, setLoading] = useState(true);
  const [searchQuery, setSearchQuery] = useState('');
@@ -207,10 +209,10 @@ const Reports = () => {
  <div className="flex items-center justify-end gap-2">
  <Link
  to={report.assessment?.category === 'big5'
- ? `/reports/big5/${typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id}`
+ ? `${orgPrefix}/reports/big5/${typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id}`
  : report.assessment?.category === 'disc'
- ? `/reports/disc/${typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id}`
- : `/reports/${report._id}`
+ ? `${orgPrefix}/reports/disc/${typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id}`
+ : `${orgPrefix}/reports/${report._id}`
  }
  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
  title="View Report"

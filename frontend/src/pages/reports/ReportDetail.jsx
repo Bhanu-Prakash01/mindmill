@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 const ReportDetail = () => {
- const { id } = useParams();
+ const { id, orgSlug } = useParams();
  const navigate = useNavigate();
  const { user } = useAuth();
 
@@ -189,7 +189,7 @@ const ReportDetail = () => {
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
  <div className="flex items-center gap-4">
  <button
- onClick={() => navigate('/reports')}
+ onClick={() => navigate(orgSlug ? `/o/${orgSlug}/reports` : '/reports')}
  className="p-2 text-gray-500 hover:text-gray-700 "
  >
  <ArrowLeft className="w-5 h-5" />

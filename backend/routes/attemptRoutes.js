@@ -6,18 +6,21 @@ const {
   getPublicAttempt,
   startAttempt,
   startPublicAttempt,
+  startInviteAttempt,
   saveAnswer,
   submitAttempt,
   autoSave,
   verifyPasscode,
   logProctoringEvent,
-  requestReportAccess
+  requestReportAccess,
+  abandonAttempt
 } = require('../controllers/attemptController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 
 // Public routes (no auth required)
 router.post('/public/:assessmentId/start', startPublicAttempt);
+router.post('/invite/:token/start', startInviteAttempt);
 router.get('/public/attempt/:id', getPublicAttempt);
 
 // Protected routes
@@ -30,6 +33,7 @@ router.post('/assessments/:assessmentId/start', startAttempt);
 router.post('/assessments/:assessmentId/verify-passcode', verifyPasscode);
 router.post('/:id/answer', idParamValidation, saveAnswer);
 router.post('/:id/submit', idParamValidation, submitAttempt);
+router.post('/:id/abandon', idParamValidation, abandonAttempt);
 router.post('/:id/auto-save', idParamValidation, autoSave);
 router.post('/:id/proctoring-log', idParamValidation, logProctoringEvent);
 router.post('/:id/request-report', idParamValidation, requestReportAccess);

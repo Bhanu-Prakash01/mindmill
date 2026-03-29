@@ -507,39 +507,53 @@ const UserManagement = () => {
   </div>
   </div>
 
-  {/* Password - Only for new users */}
-  {!editingUser && (
+  {/* Role & Password side-by-side */}
+  <div className="grid grid-cols-2 gap-4">
+    {/* Role */}
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Password <span className="text-red-500">*</span>
+        Role <span className="text-red-500">*</span>
       </label>
-      <input
-        type="password"
-        required
-        value={formData.password}
-        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+      <select
+        value={formData.role}
+        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
         className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        placeholder="Enter initial password"
-        minLength={6}
-      />
+      >
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+        {currentUser?.role === 'superadmin' && <option value="superadmin">Super Admin</option>}
+      </select>
     </div>
-  )}
-
- {/* Role */}
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Role <span className="text-red-500">*</span>
- </label>
- <select
- value={formData.role}
- onChange={(e) => setFormData({ ...formData, role: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
- >
- <option value="user">User</option>
- <option value="admin">Admin</option>
- {currentUser?.role === 'superadmin' && <option value="superadmin">Super Admin</option>}
- </select>
- </div>
+    {/* Password - Only for new users */}
+    {!editingUser ? (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Password <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          required
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          placeholder="Min 6 characters"
+          minLength={6}
+        />
+      </div>
+    ) : (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select
+          value={formData.status}
+          onChange={(e) => setFormData({ ...formData, status: e.target.value, deactivationDate: '', deactivationReason: '' })}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        >
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    )}
+  </div>
 
   {/* Phone */}
   <div>
@@ -598,20 +612,7 @@ const UserManagement = () => {
  />
  </div>
 
-  {/* Status */}
-  <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-  <select
-  value={formData.status}
-  onChange={(e) => setFormData({ ...formData, status: e.target.value, deactivationDate: '', deactivationReason: '' })}
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-  >
-  <option value="active">Active</option>
-  <option value="inactive">Inactive</option>
-  </select>
-  </div>
-
-  {/* Password Reset - Only for existing users */}
+   {/* Password Reset - Only for existing users */}
   {editingUser && (
     <div className="border-t border-gray-200 pt-4 mt-4">
       {!showPasswordReset ? (

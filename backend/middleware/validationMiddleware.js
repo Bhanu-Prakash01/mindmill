@@ -195,16 +195,19 @@ const supportTicketValidation = {
       .notEmpty()
       .withMessage('Subject is required'),
     body('message')
-      .trim()
-      .notEmpty()
-      .withMessage('Message is required'),
+      .optional({ checkFalsy: true })
+      .trim(),
+    body('selectedIssues')
+      .optional()
+      .isArray()
+      .withMessage('Selected issues must be an array'),
     body('category')
       .optional()
       .isIn(['technical', 'billing', 'general', 'complaint', 'feature_request', 'assessment_issue'])
       .withMessage('Invalid category'),
     body('priority')
       .optional()
-      .isIn(['low', 'medium', 'high', 'urgent'])
+      .isIn(['medium', 'high', 'urgent'])
       .withMessage('Invalid priority'),
     handleValidationErrors
   ]

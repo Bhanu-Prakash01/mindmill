@@ -123,7 +123,7 @@ const AdminDashboard = () => {
  );
  }
 
- const creditsRemaining = stats?.stats?.credits?.total - stats?.stats?.credits?.used || 0;
+  const creditsRemaining = stats?.stats?.credits?.total - stats?.stats?.credits?.used || 0;
  const creditsLow = creditsRemaining < 100;
  const summary = stats?.summary || {};
 

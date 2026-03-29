@@ -122,7 +122,7 @@ const getBig5Direction = (questionNum, trait) => {
 };
 
 const AssessmentForm = () => {
- const { id } = useParams();
+ const { id, orgSlug } = useParams();
  const navigate = useNavigate();
  const { user } = useAuth();
  const isEditing = !!id;
@@ -155,7 +155,6 @@ const AssessmentForm = () => {
   isPublished: false,
   requirePasscode: false,
   passcode: '',
-  organizationId: '',
   reportConfig: {
   type: 'standard',
   showScores: true,
@@ -165,6 +164,7 @@ const AssessmentForm = () => {
   includeRecommendations: true,
   },
   tags: [],
+  creditCostPerTest: '',
   });
 
  const [newQuestion, setNewQuestion] = useState({
@@ -226,7 +226,6 @@ const AssessmentForm = () => {
   isPublished: assessment.isPublished || false,
   requirePasscode: assessment.requirePasscode || false,
   passcode: assessment.passcode || '',
-  organizationId: assessment.organization?._id || assessment.organization || '',
   reportConfig: assessment.reportConfig || {
   type: 'standard',
   showScores: true,
@@ -236,6 +235,7 @@ const AssessmentForm = () => {
   includeRecommendations: true,
   },
   tags: assessment.tags || [],
+  creditCostPerTest: assessment.creditCostPerTest != null ? String(assessment.creditCostPerTest) : '',
   });
  fetchQuestions();
  }
@@ -256,25 +256,27 @@ const AssessmentForm = () => {
  }
  };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSaving(true);
-  try {
-  const submitData = user?.role === 'superadmin'
-    ? { ...formData, organizationId: formData.organizationId }
-    : formData;
-  if (isEditing) {
-  await assessmentService.updateAssessment(id, submitData);
+   const handleSubmit = async (e) => {
+   e.preventDefault();
+   setSaving(true);
+   try {
+   const submitData = { ...formData };
+   // Convert creditCostPerTest: empty string → null (use default), otherwise number
+   submitData.creditCostPerTest = submitData.creditCostPerTest !== '' ? Number(submitData.creditCostPerTest) : null;
+   if (isEditing) {
+   await assessmentService.updateAssessment(id, submitData);
   } else {
      const response = await assessmentService.createAssessment(submitData);
-     const newId = response.data?.assessment?._id || response.assessment?._id;
-     if (newId) {
-       navigate(`/assessments/${newId}`, { replace: true });
-       setActiveTab("questions");
-       return;
-     }
-   }
-   navigate("/assessments");
+      const newId = response.data?.assessment?._id || response.assessment?._id;
+      if (newId) {
+        const prefix = orgSlug ? `/o/${orgSlug}` : '';
+        navigate(`${prefix}/assessments/${newId}`, { replace: true });
+        setActiveTab("questions");
+        return;
+      }
+    }
+    const prefix = orgSlug ? `/o/${orgSlug}` : '';
+    navigate(`${prefix}/assessments`);
   } catch (error) {
   console.error('Error saving assessment:', error);
   alert(error.response?.data?.message || 'Failed to save assessment');
@@ -624,7 +626,10 @@ const AssessmentForm = () => {
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-4">
  <button
- onClick={() => navigate('/assessments')}
+ onClick={() => {
+   const prefix = orgSlug ? `/o/${orgSlug}` : '';
+   navigate(`${prefix}/assessments`);
+ }}
  className="p-2 text-gray-500 hover:text-gray-700 "
  >
  <ArrowLeft className="w-5 h-5" />
@@ -728,31 +733,11 @@ const AssessmentForm = () => {
  {/* Content */}
  <div className="bg-white rounded-xl border border-gray-200 p-6">
   {activeTab === 'details' && (
-  <div className="space-y-6 max-w-2xl">
-  {user?.role === 'superadmin' && (
-  <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-  Organization <span className="text-red-500">*</span>
-  </label>
-  <select
-  value={formData.organizationId}
-  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
-  required
-  >
-  <option value="">Select an organization</option>
-  {organizations.map((org) => (
-  <option key={org._id} value={org._id}>
-  {org.name}
-  </option>
-  ))}
-  </select>
-  </div>
-  )}
-  <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-  Title <span className="text-red-500">*</span>
-  </label>
+ <div className="space-y-6 max-w-2xl">
+ <div>
+ <label className="block text-sm font-medium text-gray-700 mb-1">
+ Title <span className="text-red-500">*</span>
+ </label>
  <input
  type="text"
  value={formData.title}
@@ -1460,6 +1445,24 @@ const AssessmentForm = () => {
  max="100"
  />
  <span className="text-sm text-gray-500">%</span>
+ </div>
+ </div>
+
+ <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+ <div>
+ <h3 className="text-sm font-medium text-gray-900 ">Credit Cost Per Test</h3>
+ <p className="text-sm text-gray-500 ">Override category default cost (leave blank for default)</p>
+ </div>
+ <div className="flex items-center gap-2">
+ <input
+ type="number"
+ value={formData.creditCostPerTest}
+ onChange={(e) => setFormData({ ...formData, creditCostPerTest: e.target.value })}
+ className="w-24 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
+ min="1"
+ placeholder="Default"
+ />
+ <span className="text-sm text-gray-500">credits</span>
  </div>
  </div>
 

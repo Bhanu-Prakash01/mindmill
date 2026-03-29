@@ -1,4 +1,4 @@
-const { SupportTicket, User, Organization } = require('../models');
+const { SupportTicket, User, Organization, StandardQuery } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 
 /**
@@ -89,13 +89,19 @@ const getTicket = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createTicket = asyncHandler(async (req, res) => {
-  const { subject, message, category, priority, attachments } = req.body;
+  const { subject, message, category, priority, attachments, selectedIssues } = req.body;
+
+  // Require either message or selectedIssues
+  if ((!message || message.trim() === '') && (!selectedIssues || selectedIssues.length === 0)) {
+    throw new ApiError(400, 'Please select an issue or describe your problem');
+  }
 
   const ticket = await SupportTicket.create({
     user: req.user._id,
     organization: req.user.organization?._id || null,
     subject,
-    message,
+    message: message || '',
+    selectedIssues: selectedIssues || [],
     category: category || 'general',
     priority: priority || 'medium',
     attachments: attachments || [],
@@ -302,6 +308,29 @@ const getStats = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get coordinators list
+ * @route   GET /api/support/coordinators
+ * @access  Private (Admin, SuperAdmin)
+ */
+const getCoordinators = asyncHandler(async (req, res) => {
+  let query = { isCoordinator: true, isActive: true };
+
+  // Admin sees only coordinators from their organization
+  if (req.user.role === 'admin') {
+    query.organization = req.user.organization._id;
+  }
+
+  const coordinators = await User.find(query)
+    .select('firstName lastName email')
+    .sort({ firstName: 1 });
+
+  res.json({
+    success: true,
+    data: { coordinators }
+  });
+});
+
 module.exports = {
   getTickets,
   getTicket,
@@ -309,5 +338,6 @@ module.exports = {
   addResponse,
   updateStatus,
   assignTicket,
-  getStats
+  getStats,
+  getCoordinators
 };

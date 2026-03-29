@@ -106,8 +106,28 @@ export const assessmentService = {
   return response.data;
  },
 
- getPublicAssessment: async (token) => {
-  const response = await api.get(`/assessments/public/${token}`);
-  return response.data;
- },
+  getPublicAssessment: async (token) => {
+    const response = await api.get(`/assessments/public/${token}`);
+    return response.data;
+  },
+
+  getAssessmentByInviteToken: async (token) => {
+    const response = await api.get(`/assessments/invite/${token}`);
+    return response.data;
+  },
+
+  unlockAssessment: async (id, testCount) => {
+    const response = await api.post(`/assessments/${id}/unlock`, { testCount });
+    return response.data;
+  },
+
+  refundUnattempted: async (id) => {
+    const response = await api.post(`/assessments/${id}/refund-unattempted`);
+    return response.data;
+  },
+
+  getAssessmentPurchases: async (id) => {
+    const response = await api.get(`/assessments/${id}/purchases`);
+    return response.data;
+  },
 };

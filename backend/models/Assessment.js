@@ -35,7 +35,7 @@ const assessmentSchema = new mongoose.Schema({
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
-    required: [true, 'Organization is required']
+    default: null
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -180,7 +180,21 @@ const assessmentSchema = new mongoose.Schema({
       };
       return creditMap[this.category] || 5;
     }
-  }
+  },
+  // Per-assessment credit cost override (SuperAdmin can set)
+  // Falls back to Organization.credits.creditCost[category] if not set
+  creditCostPerTest: {
+    type: Number,
+    default: null
+  },
+  // Track per-organization unlock status
+  unlockedBy: [{
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
+    testsAllowed: { type: Number, required: true },
+    testsUsed: { type: Number, default: 0 },
+    unlockedAt: { type: Date, default: Date.now },
+    creditsLocked: { type: Number, default: 0 }
+  }]
 }, {
   timestamps: true
 });
@@ -191,6 +205,7 @@ assessmentSchema.index({ category: 1 });
 assessmentSchema.index({ createdBy: 1 });
 assessmentSchema.index({ isActive: 1, isPublished: 1 });
 assessmentSchema.index({ title: 'text', description: 'text' });
+assessmentSchema.index({ 'unlockedBy.organization': 1 });
 
 // Pre-save middleware to update total questions count
 assessmentSchema.pre('save', function(next) {

@@ -7,7 +7,8 @@ const {
   addResponse,
   updateStatus,
   assignTicket,
-  getStats
+  getStats,
+  getCoordinators
 } = require('../controllers/supportController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin } = require('../middleware/roleMiddleware');
@@ -19,6 +20,7 @@ router.use(authMiddleware);
 router.get('/tickets', paginationValidation, getTickets);
 router.get('/tickets/:id', idParamValidation, getTicket);
 router.get('/stats', isAdmin, getStats);
+router.get('/coordinators', isAdmin, getCoordinators);
 
 router.post('/tickets', supportTicketLimiter, supportTicketValidation.create, createTicket);
 router.post('/tickets/:id/respond', idParamValidation, addResponse);

@@ -31,7 +31,7 @@ import {
 } from 'recharts';
 
 const DiscReport = () => {
- const { attemptId } = useParams();
+ const { attemptId, orgSlug } = useParams();
  const navigate = useNavigate();
  const [report, setReport] = useState(null);
  const [loading, setLoading] = useState(true);
@@ -93,7 +93,7 @@ const DiscReport = () => {
  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
  <p className="text-red-600 ">{error}</p>
  <button
- onClick={() => navigate('/dashboard')}
+ onClick={() => navigate(orgSlug ? `/o/${orgSlug}/` : '/')}
  className="mt-4 text-indigo-600 hover:text-indigo-700"
  >
  Return to Dashboard

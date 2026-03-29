@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supportService } from '../../services';
+import { orgSlug } from '../../services/api';
 import { Link } from 'react-router-dom';
 import {
  Ticket,
@@ -25,18 +26,22 @@ const Support = () => {
  const [filterStatus, setFilterStatus] = useState('all');
  const [filterPriority, setFilterPriority] = useState('all');
  const [showCreateModal, setShowCreateModal] = useState(false);
+ const [standardQueries, setStandardQueries] = useState([]);
  const [createForm, setCreateForm] = useState({
  subject: '',
  message: '',
  category: 'general',
  priority: 'medium',
+ selectedIssues: [],
  });
+ const [showDescribeField, setShowDescribeField] = useState(false);
  const [submitting, setSubmitting] = useState(false);
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
  useEffect(() => {
  fetchTickets();
+ fetchStandardQueries();
  }, []);
 
  const fetchTickets = async () => {
@@ -53,13 +58,55 @@ const Support = () => {
  }
  };
 
+ const fetchStandardQueries = async () => {
+ try {
+ const response = await supportService.getStandardQueries();
+ setStandardQueries(response.data?.queries || []);
+ } catch (error) {
+ console.error('Error fetching standard queries:', error);
+ }
+ };
+
+ const handleIssueToggle = (label) => {
+ const isSelected = createForm.selectedIssues.includes(label);
+ let newSelectedIssues;
+
+ if (isSelected) {
+ newSelectedIssues = createForm.selectedIssues.filter(i => i !== label);
+ } else {
+ newSelectedIssues = [...createForm.selectedIssues, label];
+ }
+
+ setCreateForm({ ...createForm, selectedIssues: newSelectedIssues });
+
+ // Check if "Others" is selected
+ const hasOthers = newSelectedIssues.some(i =>
+ i.toLowerCase() === 'others' || i.toLowerCase() === 'other'
+ );
+ setShowDescribeField(hasOthers);
+ };
+
  const handleCreateTicket = async (e) => {
  e.preventDefault();
  setSubmitting(true);
  try {
- await supportService.createTicket(createForm);
+ // Build message from selected issues if not using describe field
+ const payload = {
+ ...createForm,
+ message: showDescribeField
+ ? createForm.message
+ : createForm.selectedIssues.join('; ')
+ };
+ await supportService.createTicket(payload);
  setShowCreateModal(false);
- setCreateForm({ subject: '', message: '', category: 'general', priority: 'medium' });
+ setCreateForm({
+ subject: '',
+ message: '',
+ category: 'general',
+ priority: 'medium',
+ selectedIssues: [],
+ });
+ setShowDescribeField(false);
  fetchTickets();
  } catch (error) {
  console.error('Error creating ticket:', error);
@@ -93,7 +140,6 @@ const Support = () => {
 
  const getPriorityBadge = (priority) => {
  const styles = {
- low: 'bg-gray-100 text-gray-700 ',
  medium: 'bg-blue-100 text-blue-700 ',
  high: 'bg-orange-100 text-orange-700 ',
  urgent: 'bg-red-100 text-red-700 ',
@@ -196,7 +242,6 @@ const Support = () => {
  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  >
  <option value="all">All Priorities</option>
- <option value="low">Low</option>
  <option value="medium">Medium</option>
  <option value="high">High</option>
  <option value="urgent">Urgent</option>
@@ -271,7 +316,7 @@ const Support = () => {
  </td>
  <td className="px-6 py-4 text-right">
  <Link
- to={`/support/${ticket._id}`}
+ to={orgSlug ? `/o/${orgSlug}/support/${ticket._id}` : `/support/${ticket._id}`}
  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex items-center gap-1"
  >
  <span className="text-sm">View</span>
@@ -294,7 +339,7 @@ const Support = () => {
  {/* Create Ticket Modal */}
  {showCreateModal && (
  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
- <div className="bg-white rounded-xl max-w-lg w-full p-6">
+ <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
  <h2 className="text-xl font-bold text-gray-900 mb-4">Create Support Ticket</h2>
  <form onSubmit={handleCreateTicket} className="space-y-4">
  <div>
@@ -310,6 +355,45 @@ const Support = () => {
  placeholder="Brief description of your issue"
  />
  </div>
+
+ {/* Standard Issue Options - Checkboxes */}
+ {standardQueries.length > 0 && (
+ <div>
+ <label className="block text-sm font-medium text-gray-700 mb-2">
+ Select your issue(s)
+ </label>
+ <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+ {standardQueries.map((query) => (
+ <label key={query._id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 rounded">
+ <input
+ type="checkbox"
+ checked={createForm.selectedIssues.includes(query.label)}
+ onChange={() => handleIssueToggle(query.label)}
+ className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+ />
+ <span className="text-sm text-gray-700">{query.label}</span>
+ </label>
+ ))}
+ </div>
+ </div>
+ )}
+
+ {/* Describe Field - Shown when "Others" is selected */}
+ {showDescribeField && (
+ <div>
+ <label className="block text-sm font-medium text-gray-700 mb-1">
+ Describe your issue
+ </label>
+ <textarea
+ rows={4}
+ value={createForm.message}
+ onChange={(e) => setCreateForm({ ...createForm, message: e.target.value })}
+ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+ placeholder="Describe your issue in detail..."
+ />
+ </div>
+ )}
+
  <div className="grid grid-cols-2 gap-4">
  <div>
  <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -337,30 +421,32 @@ const Support = () => {
  onChange={(e) => setCreateForm({ ...createForm, priority: e.target.value })}
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  >
- <option value="low">Low</option>
  <option value="medium">Medium</option>
  <option value="high">High</option>
  <option value="urgent">Urgent</option>
  </select>
  </div>
  </div>
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Message
- </label>
- <textarea
- required
- rows={4}
- value={createForm.message}
- onChange={(e) => setCreateForm({ ...createForm, message: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- placeholder="Describe your issue in detail..."
- />
- </div>
+
+ {/* Hidden message field for non-Others selections (fallback) */}
+ {!showDescribeField && (
+ <input type="hidden" value={createForm.selectedIssues.join('; ')} name="message" />
+ )}
+
  <div className="flex gap-3 pt-4">
  <button
  type="button"
- onClick={() => setShowCreateModal(false)}
+ onClick={() => {
+ setShowCreateModal(false);
+ setCreateForm({
+ subject: '',
+ message: '',
+ category: 'general',
+ priority: 'medium',
+ selectedIssues: [],
+ });
+ setShowDescribeField(false);
+ }}
  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 "
  >
  Cancel

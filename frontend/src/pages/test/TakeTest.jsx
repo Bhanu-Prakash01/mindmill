@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import {
@@ -9,12 +9,17 @@ import {
  Flag,
  CheckCircle,
  AlertTriangle,
- Maximize2
+ Maximize2,
+ XCircle
 } from 'lucide-react';
 
 const TakeTest = () => {
- const { id } = useParams();
+ const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
  const navigate = useNavigate();
+
+ const isPublicAccess = !!token;
+ const assessmentId = isPublicAccess ? undefined : id;
+ const attemptId = isPublicAccess ? urlAttemptId : null;
 
  const [assessment, setAssessment] = useState(null);
  const [attempt, setAttempt] = useState(null);
@@ -25,55 +30,66 @@ const TakeTest = () => {
  const [loading, setLoading] = useState(true);
  const [timeRemaining, setTimeRemaining] = useState(0);
  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+ const [showQuitConfirm, setShowQuitConfirm] = useState(false);
  const [submitting, setSubmitting] = useState(false);
  const [tabSwitchCount, setTabSwitchCount] = useState(0);
  const [fullscreenExits, setFullscreenExits] = useState(0);
+ const [error, setError] = useState(null);
+ const attemptRef = useRef(attempt);
+ const tabSwitchCountRef = useRef(0);
+ const fullscreenExitsRef = useRef(0);
 
  useEffect(() => {
- startTest();
+  if (isPublicAccess) {
+    fetchPublicAssessment();
+  } else {
+    startTest();
+  }
 
- // Proctoring event listeners
- const handleVisibilityChange = () => {
- if (document.hidden) {
- alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
- setTabSwitchCount(prev => prev + 1);
- logProctoringEvent('tab_switch', { count: tabSwitchCount + 1 });
- }
- };
+  // Proctoring event listeners
+  const handleVisibilityChange = () => {
+  if (document.hidden) {
+  alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
+  tabSwitchCountRef.current += 1;
+  setTabSwitchCount(tabSwitchCountRef.current);
+  logProctoringEvent('tab_switch', { count: tabSwitchCountRef.current });
+  }
+  };
 
- const handleFullscreenChange = () => {
- if (!document.fullscreenElement) {
- alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
- setFullscreenExits(prev => prev + 1);
- logProctoringEvent('fullscreen_exit', { count: fullscreenExits + 1 });
- }
- };
+  const handleFullscreenChange = () => {
+  if (!document.fullscreenElement) {
+  alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
+  fullscreenExitsRef.current += 1;
+  setFullscreenExits(fullscreenExitsRef.current);
+  logProctoringEvent('fullscreen_exit', { count: fullscreenExitsRef.current });
+  }
+  };
 
- document.addEventListener('visibilitychange', handleVisibilityChange);
- document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
 
- return () => {
- document.removeEventListener('visibilitychange', handleVisibilityChange);
- document.removeEventListener('fullscreenchange', handleFullscreenChange);
- };
- }, []);
+  return () => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  };
+  }, []);
 
  // Timer countdown
  useEffect(() => {
- if (timeRemaining <= 0 || !attempt) return;
+  if (timeRemaining <= 0 || !attempt) return;
 
- const timer = setInterval(() => {
- setTimeRemaining(prev => {
- if (prev <= 1) {
- handleSubmit();
- return 0;
- }
- return prev - 1;
- });
- }, 1000);
+  const timer = setInterval(() => {
+  setTimeRemaining(prev => {
+  if (prev <= 1) {
+  handleSubmit();
+  return 0;
+  }
+  return prev - 1;
+  });
+  }, 1000);
 
- return () => clearInterval(timer);
- }, [timeRemaining, attempt]);
+  return () => clearInterval(timer);
+  }, [timeRemaining, attempt]);
 
  const startTest = async () => {
  try {
@@ -82,16 +98,16 @@ const TakeTest = () => {
  const passcode = urlParams.get('passcode');
 
  // Start attempt
- const attemptResponse = await attemptService.startAttempt(id, passcode);
+ const attemptResponse = await attemptService.startAttempt(assessmentId, passcode);
  const attemptData = attemptResponse.data?.attempt;
  setAttempt(attemptData);
 
  // Get assessment details
- const assessmentResponse = await assessmentService.getAssessment(id);
+ const assessmentResponse = await assessmentService.getAssessment(assessmentId);
  setAssessment(assessmentResponse.data?.assessment);
 
  // Get questions
- const questionsResponse = await assessmentService.getQuestions(id);
+ const questionsResponse = await assessmentService.getQuestions(assessmentId);
  const questionsData = questionsResponse.data?.questions || [];
  setQuestions(questionsData);
 
@@ -109,7 +125,28 @@ const TakeTest = () => {
  } catch (error) {
  console.error('Error starting test:', error);
  alert(error.response?.data?.message || 'Failed to start test');
- navigate('/assessments');
+ navigate(orgSlug ? `/o/${orgSlug}/assessments` : '/');
+ }
+ };
+
+ const fetchPublicAssessment = async () => {
+ try {
+ const attemptRes = await attemptService.getPublicAttempt(attemptId);
+ const attemptData = attemptRes.data?.attempt;
+ setAttempt(attemptData);
+ setAssessment(attemptData?.assessment);
+ 
+ if (attemptData?.expiresAt) {
+ const expiresAt = new Date(attemptData.expiresAt).getTime();
+ const now = Date.now();
+ setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+ }
+ 
+ requestFullscreen();
+ setLoading(false);
+ } catch (err) {
+ setError(err.response?.data?.message || 'Failed to load assessment');
+ setLoading(false);
  }
  };
 
@@ -121,11 +158,11 @@ const TakeTest = () => {
  };
 
  const logProctoringEvent = async (event, details) => {
- if (!attempt) return;
+ if (!attemptRef.current) return;
  try {
- await attemptService.logProctoringEvent(attempt._id, { event, details });
+  await attemptService.logProctoringEvent(attemptRef.current._id, { event, details });
  } catch (error) {
- console.error('Error logging proctoring event:', error);
+  console.error('Error logging proctoring event:', error);
  }
  };
 
@@ -167,10 +204,23 @@ const TakeTest = () => {
  setSubmitting(true);
  try {
  await attemptService.submitAttempt(attempt._id);
- navigate('/dashboard/user');
+ navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/');
  } catch (error) {
  console.error('Error submitting test:', error);
  alert(error.response?.data?.message || 'Failed to submit test');
+ setSubmitting(false);
+ }
+ };
+
+ const handleQuit = async () => {
+ setSubmitting(true);
+ try {
+ const response = await attemptService.abandonAttempt(attempt._id);
+ alert(response.message || 'Test abandoned');
+ navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/');
+ } catch (error) {
+ console.error('Error quitting test:', error);
+ alert(error.response?.data?.message || 'Failed to quit test');
  setSubmitting(false);
  }
  };
@@ -191,6 +241,18 @@ const TakeTest = () => {
  <div className="text-center">
  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
  <p className="text-gray-600 ">Loading assessment...</p>
+ </div>
+ </div>
+ );
+ }
+
+ if (error) {
+ return (
+ <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+ <div className="text-center max-w-md p-8 bg-white rounded-xl shadow-lg">
+ <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+ <h2 className="text-xl font-bold text-gray-900 mb-2">Assessment Unavailable</h2>
+ <p className="text-gray-600">{error}</p>
  </div>
  </div>
  );
@@ -249,6 +311,13 @@ const TakeTest = () => {
  >
  <Maximize2 className="w-4 h-4" />
  Fullscreen
+ </button>
+
+ <button
+ onClick={() => setShowQuitConfirm(true)}
+ className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+ >
+ Quit
  </button>
 
  <button
@@ -483,6 +552,48 @@ const TakeTest = () => {
  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
  >
  {submitting ? 'Submitting...' : 'Submit'}
+ </button>
+ </div>
+ </div>
+ </div>
+ )}
+
+ {/* Quit Confirmation Modal */}
+ {showQuitConfirm && (
+ <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+ <div className="bg-white rounded-xl max-w-md w-full p-6">
+ <div className="flex items-center gap-3 mb-4">
+ <div className="p-3 bg-red-100 rounded-full">
+ <XCircle className="w-6 h-6 text-red-600" />
+ </div>
+ <h2 className="text-xl font-bold text-gray-900">Quit Test?</h2>
+ </div>
+
+ <p className="text-gray-600 mb-4">
+ {answeredCount >= 3 ? (
+   <span className="text-red-600">
+     You have answered {answeredCount} questions. Quitting will count as 1 test credit used.
+   </span>
+ ) : (
+   <span className="text-green-600">
+     You have answered {answeredCount} question(s). Since you answered fewer than 3 questions, no test credit will be deducted.
+   </span>
+ )}
+ </p>
+
+ <div className="flex gap-3">
+ <button
+ onClick={() => setShowQuitConfirm(false)}
+ className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+ >
+ Continue Assessment
+ </button>
+ <button
+ onClick={handleQuit}
+ disabled={submitting}
+ className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+ >
+ {submitting ? 'Quitting...' : 'Quit Test'}
  </button>
  </div>
  </div>

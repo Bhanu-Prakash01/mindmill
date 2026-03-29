@@ -55,6 +55,19 @@ const submitDisc = asyncHandler(async (req, res) => {
   attempt.discResults = discResults;
   attempt.answeredQuestions = totalQuestionsCount;
 
+  // Deduct test slot from assessment's unlock pool
+  if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
+    attempt.creditDeducted = true;
+    const orgId = attempt.organization.toString();
+    const unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId
+    );
+    if (unlockEntry) {
+      unlockEntry.testsUsed += 1;
+      await assessment.save();
+    }
+  }
+
   await attempt.save();
 
   // Generate DISC report

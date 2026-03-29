@@ -1,4 +1,4 @@
-const { Attempt, Assessment, Question, Report, Organization } = require('../models');
+const { Attempt, Assessment, Question, Report, Organization, TestTakerInvite } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 
 /**
@@ -180,7 +180,7 @@ const startAttempt = asyncHandler(async (req, res) => {
     const previousAttempts = await Attempt.countDocuments({
       user: req.user._id,
       assessment: assessmentId,
-      status: { $in: ['completed', 'expired'] }
+      status: { $in: ['completed', 'expired', 'abandoned'] }
     });
 
     if (previousAttempts >= assessment.maxAttempts) {
@@ -188,13 +188,25 @@ const startAttempt = asyncHandler(async (req, res) => {
     }
   }
 
-  // Check organization credits (based on assessment category)
-  const organization = await Organization.findById(req.user.organization);
-  const creditsRequired = assessment.creditsRequired || organization.credits.creditCost?.[assessment.category] || 5;
-  const remainingCredits = organization.credits.total - organization.credits.used;
+  // Check if assessment is unlocked for this organization (test slot available)
+  if (req.user.role !== 'superadmin') {
+    const orgId = req.user.organization?._id?.toString();
+    if (!orgId) {
+      throw new ApiError(403, 'You must belong to an organization to take assessments');
+    }
 
-  if (remainingCredits < creditsRequired) {
-    throw new ApiError(403, `Insufficient credits. This assessment requires ${creditsRequired} credits.`);
+    const unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId
+    );
+
+    if (!unlockEntry) {
+      throw new ApiError(403, 'Assessment not unlocked. Contact your admin to purchase test slots.');
+    }
+
+    const remainingTests = unlockEntry.testsAllowed - unlockEntry.testsUsed;
+    if (remainingTests <= 0) {
+      throw new ApiError(403, 'No test slots remaining. Admin needs to purchase more test slots.');
+    }
   }
 
   // Calculate expiry time
@@ -216,24 +228,6 @@ const startAttempt = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.headers['user-agent']
   });
-
-  // Deduct credit based on assessment category
-  organization.credits.used += creditsRequired;
-  
-  // Track usage in oldest non-expired batch first
-  const now = new Date();
-  let remainingToTrack = creditsRequired;
-  for (const batch of organization.credits.batches) {
-    if (batch.expiresAt && batch.expiresAt > now && batch.used < batch.amount) {
-      const availableInBatch = batch.amount - batch.used;
-      const toDeduct = Math.min(availableInBatch, remainingToTrack);
-      batch.used += toDeduct;
-      remainingToTrack -= toDeduct;
-      if (remainingToTrack <= 0) break;
-    }
-  }
-  
-  await organization.save();
 
   // Prepare questions for test (randomize if enabled)
   let questions = assessment.questions;
@@ -287,6 +281,26 @@ const saveAnswer = asyncHandler(async (req, res) => {
   // Check if attempt has expired
   if (attempt.expiresAt && new Date() > attempt.expiresAt) {
     attempt.status = 'expired';
+
+    // Apply 3-question rule: deduct test slot only if >= 3 answers
+    if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
+      const answerCount = attempt.answers.length;
+      if (answerCount >= 3) {
+        attempt.creditDeducted = true;
+        const assessment = await Assessment.findById(attempt.assessment);
+        if (assessment) {
+          const orgId = attempt.organization.toString();
+          const unlockEntry = assessment.unlockedBy?.find(
+            u => u.organization.toString() === orgId
+          );
+          if (unlockEntry) {
+            unlockEntry.testsUsed += 1;
+            await assessment.save();
+          }
+        }
+      }
+    }
+
     await attempt.save();
     throw new ApiError(400, 'Attempt has expired');
   }
@@ -336,7 +350,8 @@ const submitAttempt = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  if (attempt.user.toString() !== req.user._id.toString()) {
+  // Allow public/invite-based attempts (user is null)
+  if (attempt.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -396,12 +411,67 @@ const submitAttempt = asyncHandler(async (req, res) => {
   attempt.passed = percentage >= assessment.passingPercentage;
   attempt.dimensionScores = dimensionScores;
 
+  // Deduct test slot from assessment's unlock pool (completed = always counts)
+  // For invite-based attempts (isPublicAttempt=true but has invite), we also deduct
+  if (!attempt.creditDeducted) {
+    const shouldDeduct = !attempt.isPublicAttempt || attempt.invite;
+    if (shouldDeduct) {
+      attempt.creditDeducted = true;
+      const orgId = attempt.organization.toString();
+      const unlockEntry = assessment.unlockedBy?.find(
+        u => u.organization.toString() === orgId
+      );
+      if (unlockEntry) {
+        unlockEntry.testsUsed += 1;
+        
+        // Consume credits: move from locked to used
+        const { Organization } = require('../models');
+        const organization = await Organization.findById(orgId);
+        if (organization) {
+          // Calculate credit cost for this test
+          let creditCost = assessment.creditCostPerTest;
+          if (creditCost == null) {
+            creditCost = organization.credits?.creditCost?.[assessment.category] ?? 5;
+          }
+          
+          // Move credits from locked to used
+          organization.credits.locked = Math.max(0, (organization.credits.locked || 0) - creditCost);
+          organization.credits.used += creditCost;
+          
+          // Track usage in oldest non-expired batch first
+          const now = new Date();
+          let remainingToTrack = creditCost;
+          for (const batch of organization.credits.batches) {
+            if (batch.expiresAt && batch.expiresAt > now && batch.used < batch.amount) {
+              const availableInBatch = batch.amount - batch.used;
+              const toDeduct = Math.min(availableInBatch, remainingToTrack);
+              batch.used += toDeduct;
+              remainingToTrack -= toDeduct;
+              if (remainingToTrack <= 0) break;
+            }
+          }
+          
+          await organization.save();
+        }
+        
+        await assessment.save();
+      }
+    }
+  }
+
   await attempt.save();
 
   // Generate report
   const report = await generateReport(attempt, assessment, dimensionScores);
   attempt.report = report._id;
   await attempt.save();
+
+  // Update invite status if this was an invite-based attempt
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, {
+      status: 'completed'
+    });
+  }
 
   res.json({
     success: true,
@@ -571,12 +641,28 @@ function generatePsychometricAnalysis(dimensionScores, overallPercentage) {
 }
 
 function calculateDISC(dimensionScores) {
-  // Simplified DISC calculation
+  const total = Object.values(dimensionScores).reduce((sum, d) => sum + (d.score || 0), 0) || 1;
   return {
-    D: dimensionScores['Dominance']?.score || 0,
-    I: dimensionScores['Influence']?.score || 0,
-    S: dimensionScores['Steadiness']?.score || 0,
-    C: dimensionScores['Compliance']?.score || 0,
+    D: {
+      rawScore: dimensionScores['Dominance']?.score || 0,
+      score: dimensionScores['Dominance']?.score || 0,
+      percentage: Math.round(((dimensionScores['Dominance']?.score || 0) / total) * 100)
+    },
+    I: {
+      rawScore: dimensionScores['Influence']?.score || 0,
+      score: dimensionScores['Influence']?.score || 0,
+      percentage: Math.round(((dimensionScores['Influence']?.score || 0) / total) * 100)
+    },
+    S: {
+      rawScore: dimensionScores['Steadiness']?.score || 0,
+      score: dimensionScores['Steadiness']?.score || 0,
+      percentage: Math.round(((dimensionScores['Steadiness']?.score || 0) / total) * 100)
+    },
+    C: {
+      rawScore: dimensionScores['Compliance']?.score || 0,
+      score: dimensionScores['Compliance']?.score || 0,
+      percentage: Math.round(((dimensionScores['Compliance']?.score || 0) / total) * 100)
+    },
     dominant: Object.entries(dimensionScores)
       .sort((a, b) => b[1].score - a[1].score)[0]?.[0] || ''
   };
@@ -697,13 +783,22 @@ const startPublicAttempt = asyncHandler(async (req, res) => {
     }
   }
 
-  // Check organization credits based on assessment category
-  const organization = await Organization.findById(assessment.organization);
-  const creditsRequired = assessment.creditsRequired || organization.credits.creditCost?.[assessment.category] || 5;
-  const remainingCredits = organization.credits.total - organization.credits.used;
+  // Check if assessment is unlocked for its organization (test slot available)
+  const orgId = assessment.organization?.toString();
+  if (!orgId) {
+    throw new ApiError(400, 'Assessment has no associated organization.');
+  }
+  const unlockEntry = assessment.unlockedBy?.find(
+    u => u.organization.toString() === orgId
+  );
 
-  if (remainingCredits < creditsRequired) {
-    throw new ApiError(403, `Insufficient credits. This assessment requires ${creditsRequired} credits.`);
+  if (!unlockEntry) {
+    throw new ApiError(403, 'Assessment not unlocked. Contact the organization admin.');
+  }
+
+  const remainingTests = unlockEntry.testsAllowed - unlockEntry.testsUsed;
+  if (remainingTests <= 0) {
+    throw new ApiError(403, 'No test slots remaining for this assessment.');
   }
 
   // Calculate expiry time
@@ -727,24 +822,6 @@ const startPublicAttempt = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.headers['user-agent']
   });
-
-  // Deduct credit based on assessment category
-  organization.credits.used += creditsRequired;
-  
-  // Track usage in oldest non-expired batch first
-  const now = new Date();
-  let remainingToTrack = creditsRequired;
-  for (const batch of organization.credits.batches) {
-    if (batch.expiresAt && batch.expiresAt > now && batch.used < batch.amount) {
-      const availableInBatch = batch.amount - batch.used;
-      const toDeduct = Math.min(availableInBatch, remainingToTrack);
-      batch.used += toDeduct;
-      remainingToTrack -= toDeduct;
-      if (remainingToTrack <= 0) break;
-    }
-  }
-  
-  await organization.save();
 
   await attempt.populate('assessment');
 
@@ -807,16 +884,227 @@ const requestReportAccess = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Abandon an in-progress attempt
+ * @route   POST /api/attempts/:id/abandon
+ * @access  Private
+ */
+const abandonAttempt = asyncHandler(async (req, res) => {
+  const attempt = await Attempt.findById(req.params.id);
+
+  if (!attempt) {
+    throw new ApiError(404, 'Attempt not found');
+  }
+
+  if (attempt.user?.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  if (attempt.status !== 'in-progress') {
+    throw new ApiError(400, 'Attempt is not in progress');
+  }
+
+  attempt.status = 'abandoned';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+
+  // Apply 3-question rule
+  let creditDeducted = false;
+  if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
+    const answerCount = attempt.answers.length;
+    if (answerCount >= 3) {
+      attempt.creditDeducted = true;
+      creditDeducted = true;
+      const assessment = await Assessment.findById(attempt.assessment);
+      if (assessment) {
+        const orgId = attempt.organization.toString();
+        const unlockEntry = assessment.unlockedBy?.find(
+          u => u.organization.toString() === orgId
+        );
+        if (unlockEntry) {
+          unlockEntry.testsUsed += 1;
+          await assessment.save();
+        }
+      }
+    }
+  }
+
+  await attempt.save();
+
+  res.json({
+    success: true,
+    message: creditDeducted
+      ? 'Attempt abandoned. 1 test credit was used (3+ questions answered).'
+      : 'Attempt abandoned. No test credit was used (fewer than 3 questions answered).',
+    data: {
+      attempt,
+      creditDeducted
+    }
+  });
+});
+
+/**
+ * @desc    Start attempt via invite token
+ * @route   POST /api/attempts/invite/:token/start
+ * @access  Public
+ */
+const startInviteAttempt = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { testTakerName, testTakerEmail, testTakerPhone } = req.body;
+
+  // Find the invite
+  const invite = await TestTakerInvite.findOne({ token })
+    .populate({
+      path: 'assessment',
+      populate: { path: 'questions' }
+    });
+
+  if (!invite) {
+    throw new ApiError(404, 'Invalid or expired invite link');
+  }
+
+  if (invite.status === 'completed') {
+    throw new ApiError(400, 'This assessment has already been completed');
+  }
+
+  if (invite.status === 'expired') {
+    throw new ApiError(410, 'This invite has expired');
+  }
+
+  // Check expiry
+  if (invite.expiresAt && new Date() > invite.expiresAt) {
+    invite.status = 'expired';
+    await invite.save();
+    throw new ApiError(410, 'This invite has expired');
+  }
+
+  const assessment = invite.assessment;
+
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  if (!assessment.isActive || !assessment.isPublished || assessment.isMuted) {
+    throw new ApiError(400, 'Assessment is not available');
+  }
+
+  // Check if there's already an in-progress attempt for this invite
+  if (invite.status === 'started' && invite.attempt) {
+    const existingAttempt = await Attempt.findById(invite.attempt)
+      .populate('assessment');
+
+    if (existingAttempt && existingAttempt.status === 'in-progress') {
+      return res.json({
+        success: true,
+        message: 'Resuming existing attempt',
+        data: {
+          attempt: existingAttempt,
+          questions: assessment.questions.map(q => ({
+            id: q._id,
+            type: q.type,
+            questionText: q.questionText,
+            questionImage: q.questionImage,
+            options: q.options,
+            order: q.order,
+            marks: q.marks,
+            timeLimit: q.timeLimit,
+            statements: q.statements
+          }))
+        }
+      });
+    }
+  }
+
+  // Validate test slot availability
+  const orgId = assessment.organization?.toString();
+  if (!orgId) {
+    throw new ApiError(400, 'Assessment has no associated organization');
+  }
+
+  const unlockEntry = assessment.unlockedBy?.find(
+    u => u.organization.toString() === orgId
+  );
+
+  if (!unlockEntry) {
+    throw new ApiError(403, 'Assessment not unlocked');
+  }
+
+  const remainingTests = unlockEntry.testsAllowed - unlockEntry.testsUsed;
+  if (remainingTests <= 0) {
+    throw new ApiError(403, 'No test slots remaining for this assessment');
+  }
+
+  // Calculate expiry time
+  let expiresAt = null;
+  if (assessment.timeBound.enabled) {
+    expiresAt = new Date(Date.now() + assessment.timeBound.durationMinutes * 60 * 1000);
+  }
+
+  // Create attempt linked to invite
+  const attempt = await Attempt.create({
+    user: null,
+    testTakerName: testTakerName || invite.testTakerName,
+    testTakerEmail: testTakerEmail || invite.testTakerEmail,
+    testTakerPhone: testTakerPhone || invite.testTakerPhone,
+    invite: invite._id,
+    assessment: assessment._id,
+    organization: assessment.organization,
+    isPublicAttempt: true,
+    status: 'in-progress',
+    expiresAt,
+    timeLimit: assessment.timeBound.enabled ? assessment.timeBound.durationMinutes * 60 : 0,
+    totalQuestions: assessment.questions.length,
+    totalMarks: assessment.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent']
+  });
+
+  // Update invite status
+  invite.status = 'started';
+  invite.attempt = attempt._id;
+  await invite.save();
+
+  await attempt.populate('assessment');
+
+  res.status(201).json({
+    success: true,
+    message: 'Assessment started successfully',
+    data: {
+      attempt,
+      assessment: {
+        _id: assessment._id,
+        title: assessment.title,
+        category: assessment.category,
+        timeBound: assessment.timeBound,
+        instructions: assessment.instructions
+      },
+      questions: assessment.questions.map(q => ({
+        id: q._id,
+        type: q.type,
+        questionText: q.questionText,
+        questionImage: q.questionImage,
+        options: q.options,
+        order: q.order,
+        marks: q.marks,
+        timeLimit: q.timeLimit,
+        statements: q.statements
+      }))
+    }
+  });
+});
+
 module.exports = {
   getAttempts,
   getAttempt,
   getPublicAttempt,
   startAttempt,
   startPublicAttempt,
+  startInviteAttempt,
   saveAnswer,
   submitAttempt,
   autoSave,
   verifyPasscode,
   logProctoringEvent,
-  requestReportAccess
+  requestReportAccess,
+  abandonAttempt
 };

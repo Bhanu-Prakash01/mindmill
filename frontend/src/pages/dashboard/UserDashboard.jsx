@@ -3,11 +3,7 @@ import api from '../../services/api';
 import {
  FileText,
  CheckCircle,
- Clock,
- TrendingUp,
- Award,
- Calendar,
- ArrowRight
+ Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -63,12 +59,6 @@ const UserDashboard = () => {
  );
  }
 
- const formatTime = (seconds) => {
- const mins = Math.floor(seconds / 60);
- const secs = seconds % 60;
- return `${mins}m ${secs}s`;
- };
-
  return (
  <div className="space-y-8">
  {/* Header */}
@@ -103,100 +93,8 @@ const UserDashboard = () => {
 
  {/* Main Content Grid */}
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
- {/* Pending Assessments */}
- <div className="lg:col-span-2 space-y-6">
- <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
- <div className="p-6 border-b border-gray-100 flex items-center justify-between">
- <h3 className="text-lg font-semibold text-gray-900 ">
- Pending Assessments
- </h3>
- <span className="text-sm text-gray-500 ">
- {stats?.pendingAssessments?.length || 0} pending
- </span>
- </div>
- <div className="divide-y divide-gray-100 ">
- {stats?.pendingAssessments?.map((assessment) => {
-   const isDraft = !assessment.isPublished;
-   const hasAttempted = assessment.attemptCount > 0;
-   const canStart = !isDraft && (!hasAttempted || (assessment.allowMultipleAttempts && assessment.attemptCount < (assessment.maxAttempts || 1)));
-   
-   return (
-     <div key={assessment._id} className="p-4 hover:bg-gray-50 ">
-       <div className="flex items-center justify-between">
-         <div className="flex-1">
-           <div className="flex items-center gap-2">
-             <p className="font-medium text-gray-900 ">
-               {assessment.title}
-             </p>
-             {isDraft && (
-               <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full uppercase tracking-wider">
-                 Draft
-               </span>
-             )}
-             {hasAttempted && !isDraft && (
-               <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase tracking-wider">
-                 Attempted {assessment.attemptCount}x
-               </span>
-             )}
-           </div>
-           <div className="flex items-center gap-4 mt-1">
-             <span className="text-sm text-gray-500 capitalize">
-               {assessment.category}
-             </span>
-             <span className="text-sm text-gray-500 ">
-               {assessment.difficulty}
-             </span>
-             {assessment.timeBound?.enabled && (
-               <span className="text-sm text-gray-500 flex items-center gap-1">
-                 <Clock className="w-3 h-3" />
-                 {assessment.timeBound.durationMinutes} min
-               </span>
-             )}
-           </div>
-         </div>
-         {canStart ? (
-           <Link
-             to={`/assessments/${assessment._id}/start`}
-             className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 shrink-0"
-           >
-             {hasAttempted ? 'Re-attempt' : 'Start'}
-             <ArrowRight className="w-4 h-4" />
-           </Link>
-         ) : (
-           <div className="flex items-center gap-2 shrink-0">
-             {isDraft ? (
-               <button
-                 disabled
-                 className="px-4 py-2 bg-gray-100 text-gray-400 rounded-lg flex items-center gap-2 transition-colors cursor-not-allowed"
-               >
-                 <Clock className="w-4 h-4" />
-                 Draft
-               </button>
-             ) : (
-               <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium flex items-center gap-2">
-                 <CheckCircle className="w-4 h-4" />
-                 Completed
-               </span>
-             )}
-           </div>
-         )}
-       </div>
-     </div>
-   );
- })}
- {(!stats?.pendingAssessments || stats.pendingAssessments.length === 0) && (
- <div className="p-8 text-center">
- <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
- <p className="text-gray-900 font-medium">All caught up!</p>
- <p className="text-gray-500 text-sm mt-1">
- You have no pending assessments
- </p>
- </div>
- )}
- </div>
- </div>
-
  {/* In Progress */}
+ <div className="lg:col-span-2">
  {stats?.inProgressAttempts && stats.inProgressAttempts.length > 0 && (
  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
  <div className="p-6 border-b border-gray-100 ">

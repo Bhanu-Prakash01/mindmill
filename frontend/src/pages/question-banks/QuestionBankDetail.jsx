@@ -4,7 +4,7 @@ import { questionBankService, assessmentService } from '../../services';
 import { ArrowLeft, Plus, Download, Upload, Trash2, Edit2, FileText, AlertTriangle } from 'lucide-react';
 
 const QuestionBankDetail = () => {
-  const { assessmentId, dimension } = useParams();
+  const { assessmentId, dimension, orgSlug } = useParams();
   const navigate = useNavigate();
   const [assessment, setAssessment] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -80,7 +80,7 @@ const QuestionBankDetail = () => {
 
     try {
       await questionBankService.deleteQuestionSet(assessmentId, dimension);
-      navigate('/question-banks');
+      navigate(orgSlug ? `/o/${orgSlug}/question-banks` : '/question-banks');
     } catch (error) {
       console.error('Error deleting set:', error);
       alert('Failed to delete question set');
@@ -93,7 +93,7 @@ const QuestionBankDetail = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/question-banks')}
+            onClick={() => navigate(orgSlug ? `/o/${orgSlug}/question-banks` : '/question-banks')}
             className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

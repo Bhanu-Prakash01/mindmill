@@ -51,8 +51,31 @@ export const organizationService = {
  return response.data;
  },
 
- getStats: async (id) => {
- const response = await api.get(`/organizations/${id}/stats`);
- return response.data;
- },
+  getStats: async (id) => {
+  const response = await api.get(`/organizations/${id}/stats`);
+  return response.data;
+  },
+
+  uploadLogo: async (id, file) => {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const response = await api.put(`/organizations/${id}/logo`, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+  },
+
+  uploadBanner: async (id, file) => {
+  const formData = new FormData();
+  formData.append('banner', file);
+  const response = await api.put(`/organizations/${id}/banner`, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+  },
+
+  updateBanner: async (id, banner) => {
+  const response = await api.put(`/organizations/${id}/banner`, { banner });
+  return response.data;
+  },
 };

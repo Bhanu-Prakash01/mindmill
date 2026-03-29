@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const TicketDetail = () => {
- const { id } = useParams();
+ const { id, orgSlug } = useParams();
  const navigate = useNavigate();
  const { user } = useAuth();
  const messagesEndRef = useRef(null);
@@ -25,11 +25,16 @@ const TicketDetail = () => {
  const [newMessage, setNewMessage] = useState('');
  const [sending, setSending] = useState(false);
  const [updatingStatus, setUpdatingStatus] = useState(false);
+ const [coordinators, setCoordinators] = useState([]);
+ const [assigningCoordinator, setAssigningCoordinator] = useState(false);
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
  useEffect(() => {
  fetchTicket();
+ if (isAdmin) {
+ fetchCoordinators();
+ }
  }, [id]);
 
  useEffect(() => {
@@ -46,6 +51,15 @@ const TicketDetail = () => {
  alert('Failed to load ticket');
  } finally {
  setLoading(false);
+ }
+ };
+
+ const fetchCoordinators = async () => {
+ try {
+ const response = await supportService.getCoordinators();
+ setCoordinators(response.data?.coordinators || []);
+ } catch (error) {
+ console.error('Error fetching coordinators:', error);
  }
  };
 
@@ -83,6 +97,20 @@ const TicketDetail = () => {
  }
  };
 
+ const handleAssignCoordinator = async (userId) => {
+ if (!userId) return;
+ setAssigningCoordinator(true);
+ try {
+ await supportService.assignTicket(id, userId);
+ fetchTicket();
+ } catch (error) {
+ console.error('Error assigning coordinator:', error);
+ alert('Failed to assign coordinator');
+ } finally {
+ setAssigningCoordinator(false);
+ }
+ };
+
  const getStatusBadge = (status) => {
  const styles = {
  open: 'bg-blue-100 text-blue-700 ',
@@ -107,7 +135,6 @@ const TicketDetail = () => {
 
  const getPriorityBadge = (priority) => {
  const styles = {
- low: 'bg-gray-100 text-gray-700 ',
  medium: 'bg-blue-100 text-blue-700 ',
  high: 'bg-orange-100 text-orange-700 ',
  urgent: 'bg-red-100 text-red-700 ',
@@ -147,7 +174,7 @@ const TicketDetail = () => {
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
  <div className="flex items-center gap-4">
  <button
- onClick={() => navigate('/support')}
+ onClick={() => navigate(orgSlug ? `/o/${orgSlug}/support` : '/support')}
  className="p-2 text-gray-500 hover:text-gray-700 "
  >
  <ArrowLeft className="w-5 h-5" />
@@ -187,6 +214,20 @@ const TicketDetail = () => {
  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
  {/* Messages List */}
  <div className="p-6 space-y-6 max-h-[500px] overflow-y-auto">
+ {/* Show selected issues if any */}
+ {ticket.selectedIssues?.length > 0 && (
+ <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-4">
+ <p className="text-sm font-medium text-indigo-900 mb-2">Reported Issues:</p>
+ <ul className="space-y-1">
+ {ticket.selectedIssues.map((issue, i) => (
+ <li key={i} className="text-sm text-indigo-700 flex items-center gap-2">
+ <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
+ {issue}
+ </li>
+ ))}
+ </ul>
+ </div>
+ )}
  {allMessages.map((message, index) => (
  <div
  key={message._id || index}
@@ -305,6 +346,26 @@ const TicketDetail = () => {
  )}
  </div>
  </div>
+
+ {/* Assign Coordinator - Admin Only */}
+ {isAdmin && coordinators.length > 0 && (
+ <div className="bg-white rounded-xl border border-gray-200 p-6">
+ <h3 className="text-sm font-medium text-gray-900 mb-4">Assign Coordinator</h3>
+ <select
+ value={ticket.assignedTo?._id || ''}
+ onChange={(e) => handleAssignCoordinator(e.target.value)}
+ disabled={assigningCoordinator}
+ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+ >
+ <option value="">Select coordinator...</option>
+ {coordinators.map((coord) => (
+ <option key={coord._id} value={coord._id}>
+ {coord.firstName} {coord.lastName}
+ </option>
+ ))}
+ </select>
+ </div>
+ )}
 
  {/* User Info */}
  <div className="bg-white rounded-xl border border-gray-200 p-6">

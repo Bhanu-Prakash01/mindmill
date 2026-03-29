@@ -9,3 +9,4 @@ export { organizationService } from './organizationService';
 export { dashboardService } from './dashboardService';
 export { groupService } from './groupService';
 export { questionBankService } from './questionBankService';
+export { inviteService } from './inviteService';

@@ -13,6 +13,7 @@ const connectDB = require('./config/database');
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const { resolveOrganization } = require('./middleware/orgMiddleware');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -26,28 +27,34 @@ const reportRoutes = require('./routes/reportRoutes');
 const creditRoutes = require('./routes/creditRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const big5Routes = require('./routes/big5Routes');
 const discRoutes = require('./routes/discRoutes');
+const inviteRoutes = require('./routes/inviteRoutes');
 
 // Initialize express app
 const app = express();
+
+// Trust proxy (required for rate limiting behind a reverse proxy like Caddy)
+app.set('trust proxy', 1);
 
 // Connect to database
 connectDB();
 
 // Manual CORS middleware - handles ALL requests including preflight
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin || '*';
+  res.header('Access-Control-Allow-Origin', origin);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'x-org-slug, Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
+
   // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  
+
   next();
 });
 
@@ -64,6 +71,9 @@ app.use('/api/', apiLimiter);
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Resolve organization from X-Org-Slug header (before routes)
+app.use(resolveOrganization);
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
@@ -91,9 +101,11 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/credits', creditRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api', big5Routes);
 app.use('/api', discRoutes);
+app.use('/api/invites', inviteRoutes);
 
 // 404 handler
 app.use(notFound);
