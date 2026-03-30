@@ -2,9 +2,6 @@ const { verifyToken } = require('../config/jwt');
 const { User } = require('../models');
 
 const authMiddleware = async (req, res, next) => {
-  const stack = new Error().stack;
-  console.log("AUTH_MIDDLEWARE_CALLED:", req.method, req.path, req.baseUrl, req.originalUrl, req.headers.authorization ? "has_token" : "no_token");
-  console.log("AUTH_STACK:", stack.split('\n').slice(1, 4).join(' | '));
   try {
     // Get token from header
     const authHeader = req.headers.authorization;

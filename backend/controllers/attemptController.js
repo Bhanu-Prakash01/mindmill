@@ -97,12 +97,12 @@ const getPublicAttempt = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.id)
     .populate({
       path: 'assessment',
-      select: 'title category description timeBound instructions questions totalQuestions'
-    })
-    .populate({
-      path: 'assessment.questions',
-      model: 'Question',
-      select: 'questionText order statements options type'
+      select: 'title category description timeBound instructions questions totalQuestions',
+      populate: {
+        path: 'questions',
+        model: 'Question',
+        select: 'questionText order statements options type'
+      }
     });
 
   if (!attempt) {
@@ -270,7 +270,8 @@ const saveAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  if (attempt.user.toString() !== req.user._id.toString()) {
+  // Allow public/invite-based attempts (user is null, req.user may be null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -350,8 +351,8 @@ const submitAttempt = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Allow public/invite-based attempts (user is null)
-  if (attempt.user && attempt.user.toString() !== req.user._id.toString()) {
+  // Allow public/invite-based attempts (user is null, req.user may be null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -360,6 +361,14 @@ const submitAttempt = asyncHandler(async (req, res) => {
   }
 
   const assessment = await Assessment.findById(attempt.assessment);
+
+  // Route Big5 and DISC assessments to their specialized scoring
+  if (assessment.category === 'big5') {
+    return await handleBig5Submit(req, res, attempt, assessment);
+  }
+  if (assessment.category === 'disc') {
+    return await handleDiscSubmit(req, res, attempt, assessment);
+  }
 
   // Calculate scores
   let totalScore = 0;
@@ -497,7 +506,8 @@ const autoSave = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  if (attempt.user.toString() !== req.user._id.toString()) {
+  // Allow public/invite-based attempts (user is null, req.user may be null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -589,12 +599,24 @@ async function generateReport(attempt, assessment, dimensionScores) {
     }
   }
 
+  // Resolve who conducted the assessment
+  let conductedBy = attempt.user; // default: the user themselves
+  if (attempt.invite) {
+    const { TestTakerInvite } = require('../models');
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
   const report = await Report.create({
     attempt: attempt._id,
     user: attempt.user,
+    conductedBy,
     assessment: attempt.assessment,
     organization: attempt.organization,
     type: assessment.category === 'psychometric' ? 'psychometric' : 'standard',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
     scores: {
       total: attempt.score,
       maxScore: attempt.totalMarks,
@@ -728,7 +750,8 @@ const logProctoringEvent = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  if (attempt.user && attempt.user.toString() !== req.user._id.toString()) {
+  // Allow public/invite-based attempts (user is null, req.user may be null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -1015,10 +1038,10 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
     }
   }
 
-  // Validate test slot availability
-  const orgId = assessment.organization?.toString();
+  // Validate test slot availability — use invite's organization (global assessments have null organization)
+  const orgId = invite.organization?.toString();
   if (!orgId) {
-    throw new ApiError(400, 'Assessment has no associated organization');
+    throw new ApiError(400, 'Invite has no associated organization');
   }
 
   const unlockEntry = assessment.unlockedBy?.find(
@@ -1048,7 +1071,7 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
     testTakerPhone: testTakerPhone || invite.testTakerPhone,
     invite: invite._id,
     assessment: assessment._id,
-    organization: assessment.organization,
+    organization: invite.organization || assessment.organization,
     isPublicAttempt: true,
     status: 'in-progress',
     expiresAt,
@@ -1092,6 +1115,236 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
     }
   });
 });
+
+/**
+ * Handle Big5 submit — delegates to Big5 scoring and report generation
+ */
+async function handleBig5Submit(req, res, attempt, assessment) {
+  const { scoreBig5, generateNarrative, getDominantTraits, getTraitDescription } = require('../services/big5ScoringService');
+
+  // Big5Test sends responses directly in the body: { responses: { 1: 5, 2: 3, ... } }
+  let responses = {};
+
+  if (req.body && req.body.responses && typeof req.body.responses === 'object' && Object.keys(req.body.responses).length > 0) {
+    responses = req.body.responses;
+  }
+
+  // Fallback: build from saved attempt.answers
+  if (Object.keys(responses).length === 0 && attempt.answers && attempt.answers.length > 0) {
+    attempt.answers.forEach(answer => {
+      if (answer.question) {
+        const qOrder = answer.question.order || 0;
+        if (answer.selectedOption !== undefined && answer.selectedOption !== null) {
+          responses[qOrder] = answer.selectedOption;
+        } else if (answer.ratingAnswer !== undefined && answer.ratingAnswer !== null) {
+          responses[qOrder] = answer.ratingAnswer;
+        }
+      }
+    });
+  }
+
+  // Last resort: check if Big5Test sent responses as raw body keys
+  if (Object.keys(responses).length === 0 && req.body) {
+    for (let i = 1; i <= 50; i++) {
+      if (req.body[String(i)] !== undefined) {
+        responses[i] = req.body[String(i)];
+      }
+    }
+  }
+
+  if (Object.keys(responses).length === 0) {
+    console.log('BIG5 DEBUG - body keys:', Object.keys(req.body || {}));
+    console.log('BIG5 DEBUG - body.responses:', req.body?.responses);
+    console.log('BIG5 DEBUG - attempt.answers:', attempt.answers?.length);
+    throw new ApiError(400, 'No responses received. Please answer all questions and try submitting again.');
+  }
+
+  const big5Results = scoreBig5(responses);
+
+  // Update attempt with results
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.big5Results = big5Results;
+  attempt.answeredQuestions = attempt.answers.length;
+
+  // Deduct test slot
+  await deductTestSlot(attempt, assessment);
+
+  await attempt.save();
+
+  // Resolve who conducted the assessment
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  // Generate Big5 report
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'big5',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    scores: {
+      byTrait: {
+        E: big5Results.E, A: big5Results.A, C: big5Results.C,
+        N: big5Results.N, O: big5Results.O
+      }
+    },
+    dimensions: {
+      BigFive: {
+        extraversion: big5Results.E.score,
+        agreeableness: big5Results.A.score,
+        conscientiousness: big5Results.C.score,
+        neuroticism: big5Results.N.score,
+        openness: big5Results.O.score
+      },
+      dominantTraits: getDominantTraits(big5Results),
+      narrative: generateNarrative(big5Results)
+    },
+    analysis: {
+      summary: generateNarrative(big5Results),
+      strengths: getDominantTraits(big5Results).map(trait => getTraitDescription(trait).high),
+      developmentAreas: [],
+      recommendations: []
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  // Update invite status
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Big5 assessment completed successfully',
+    data: { attempt, results: big5Results, report }
+  });
+}
+
+/**
+ * Handle DISC submit — delegates to DISC scoring and report generation
+ */
+async function handleDiscSubmit(req, res, attempt, assessment) {
+  const { calculateDISCScores, generateNarrativeReport } = require('../services/discScoringService');
+
+  // DiscTest sends formattedResponses as array in body
+  const responses = req.body.responses;
+  if (!responses || !Array.isArray(responses)) {
+    throw new ApiError(400, 'Invalid DISC responses format');
+  }
+
+  const totalQuestionsCount = assessment.questions?.length || responses.length;
+  const discResults = calculateDISCScores(responses, totalQuestionsCount);
+
+  // Update attempt with results
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.discResults = discResults;
+  attempt.answeredQuestions = attempt.answers.length;
+
+  // Deduct test slot
+  await deductTestSlot(attempt, assessment);
+
+  await attempt.save();
+
+  // Resolve who conducted the assessment
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  // Generate DISC report
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'disc',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    scores: {
+      byTrait: {
+        D: { score: discResults.normalizedScores.D, percentage: discResults.percentages.D },
+        I: { score: discResults.normalizedScores.I, percentage: discResults.percentages.I },
+        S: { score: discResults.normalizedScores.S, percentage: discResults.percentages.S },
+        C: { score: discResults.normalizedScores.C, percentage: discResults.percentages.C }
+      }
+    },
+    dimensions: {
+      DISC: {
+        D: { rawScore: discResults.rawScores.D, score: discResults.normalizedScores.D, percentage: discResults.percentages.D },
+        I: { rawScore: discResults.rawScores.I, score: discResults.normalizedScores.I, percentage: discResults.percentages.I },
+        S: { rawScore: discResults.rawScores.S, score: discResults.normalizedScores.S, percentage: discResults.percentages.S },
+        C: { rawScore: discResults.rawScores.C, score: discResults.normalizedScores.C, percentage: discResults.percentages.C }
+      },
+      dominantTraits: [discResults.dominant, discResults.secondary],
+      pattern: discResults.pattern
+    },
+    analysis: discResults.analysis
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  // Update invite status
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'DISC assessment completed successfully',
+    data: { attempt, results: discResults, report }
+  });
+}
+
+/**
+ * Deduct test slot from unlock pool
+ */
+async function deductTestSlot(attempt, assessment) {
+  if (attempt.creditDeducted) return;
+  const shouldDeduct = !attempt.isPublicAttempt || attempt.invite;
+  if (!shouldDeduct) return;
+
+  attempt.creditDeducted = true;
+  const orgId = attempt.organization?.toString();
+  if (!orgId) return;
+
+  const unlockEntry = assessment.unlockedBy?.find(
+    u => u.organization.toString() === orgId
+  );
+  if (!unlockEntry) return;
+
+  unlockEntry.testsUsed += 1;
+
+  const { Organization } = require('../models');
+  const organization = await Organization.findById(orgId);
+  if (organization) {
+    let creditCost = assessment.creditCostPerTest;
+    if (creditCost == null) {
+      creditCost = organization.credits?.creditCost?.[assessment.category] ?? 5;
+    }
+    organization.credits.locked = Math.max(0, (organization.credits.locked || 0) - creditCost);
+    organization.credits.used += creditCost;
+    await organization.save();
+  }
+
+  await assessment.save();
+}
 
 module.exports = {
   getAttempts,

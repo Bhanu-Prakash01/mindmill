@@ -12,15 +12,10 @@ const getAssessments = asyncHandler(async (req, res) => {
 
   let query = {};
 
-  // SuperAdmin sees all assessments
-  // Admins see ALL published assessments from SuperAdmin (blurred if not unlocked)
+  // Admins and Users see ALL published assessments from SuperAdmin (blurred if not unlocked)
   // No org filter — assessments are visible across all orgs
-  if (req.user.role === 'user') {
-    // Regular users shouldn't use this endpoint (they use my-assignments)
-    if (!req.user.organization) {
-      return res.json({ success: true, data: { assessments: [], totalPages: 0, currentPage: 1, total: 0 } });
-    }
-    query.organization = req.user.organization._id;
+  if (req.user.role === 'user' && !req.user.organization) {
+    return res.json({ success: true, data: { assessments: [], pagination: { total: 0, page: 1, pages: 0, limit } } });
   }
 
   if (search) {
@@ -56,11 +51,13 @@ const getAssessments = asyncHandler(async (req, res) => {
 
   const count = await Assessment.countDocuments(query);
 
-  // Enrich assessments with lock/unlock status for admin users
+  // Enrich assessments with lock/unlock status for admin and regular users
   let enrichedAssessments = assessments;
-  if (req.user.role === 'admin' && req.user.organization) {
+  if (['admin', 'user'].includes(req.user.role) && req.user.organization) {
     const orgId = req.user.organization._id.toString();
-    enrichedAssessments = assessments.map(assessment => {
+    const { TestTakerInvite } = require('../models');
+
+    enrichedAssessments = await Promise.all(assessments.map(async (assessment) => {
       const obj = assessment.toObject();
       const unlockEntry = assessment.unlockedBy?.find(
         u => u.organization.toString() === orgId
@@ -74,11 +71,20 @@ const getAssessments = asyncHandler(async (req, res) => {
       }
 
       if (unlockEntry) {
+        const activeInvitesCount = await TestTakerInvite.countDocuments({
+          assessment: obj._id,
+          organization: orgId,
+          status: { $in: ['pending', 'email_sent', 'started'] }
+        });
+        
+        const assignedCount = obj.assignedUsers ? obj.assignedUsers.length : 0;
+        const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assignedCount;
+
         obj.isLocked = false;
         obj.orgUnlockInfo = {
           testsAllowed: unlockEntry.testsAllowed,
           testsUsed: unlockEntry.testsUsed,
-          testsRemaining: Math.max(0, unlockEntry.testsAllowed - (obj.assignedUsers?.length || 0)),
+          testsRemaining: Math.max(0, unlockEntry.testsAllowed - totalLocked),
           unlockedAt: unlockEntry.unlockedAt
         };
       } else {
@@ -87,8 +93,29 @@ const getAssessments = asyncHandler(async (req, res) => {
         obj.orgUnlockInfo = null;
       }
       obj.effectiveCreditCost = effectiveCreditCost;
+
+      // Add member allocation info for regular users
+      const userId = req.user._id.toString();
+      const memberAlloc = (assessment.memberAllocations || []).find(
+        a => a.organization.toString() === orgId && a.member.toString() === userId
+      );
+      if (memberAlloc) {
+        const myActiveInvites = await TestTakerInvite.countDocuments({
+          assessment: obj._id,
+          organization: orgId,
+          invitedBy: req.user._id,
+          status: { $in: ['pending', 'email_sent', 'started'] }
+        });
+        obj.memberAllocation = {
+          testsAllowed: Number(memberAlloc.testsAllowed) || 0,
+          testsDistributed: Number(memberAlloc.testsDistributed) || 0,
+          testsRemaining: Math.max(0, (Number(memberAlloc.testsAllowed) || 0) - (Number(memberAlloc.testsDistributed) || 0)),
+          activeInvites: myActiveInvites
+        };
+      }
+
       return obj;
-    });
+    }));
   }
 
   res.json({
@@ -420,7 +447,8 @@ const togglePublish = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin)
  */
 const assignAssessment = asyncHandler(async (req, res) => {
-  const { userIds = [], groupIds = [] } = req.body;
+  const { userIds = [], groupIds = [], memberSlots = {} } = req.body;
+  // memberSlots = { userId: numberOfSlots, ... }
 
   const assessment = await Assessment.findById(req.params.id);
 
@@ -475,8 +503,9 @@ const assignAssessment = asyncHandler(async (req, res) => {
     }
   }
 
-  // Check unlocked test slot availability for newly assigned users (skip for superadmin)
-  if (allNewUserIds.length > 0 && req.user.role !== 'superadmin' && req.user.organization) {
+  // Handle member slot allocations
+  const slotEntries = Object.entries(memberSlots).filter(([, slots]) => slots > 0);
+  if (slotEntries.length > 0 && req.user.role !== 'superadmin' && req.user.organization) {
     const orgId = req.user.organization._id;
 
     const unlockEntry = assessment.unlockedBy?.find(
@@ -487,40 +516,165 @@ const assignAssessment = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Assessment not unlocked for your organization. Please unlock it first.');
     }
 
-    const slotsAvailable = unlockEntry.testsAllowed - unlockEntry.testsUsed;
-    const currentlyAssignedCount = assessment.assignedUsers.length - allNewUserIds.length;
-    const freeSlots = slotsAvailable - currentlyAssignedCount;
+    // Calculate total new slots being requested
+    const newSlotsTotal = slotEntries.reduce((sum, [, slots]) => sum + parseInt(slots), 0);
 
-    if (freeSlots < allNewUserIds.length) {
-      throw new ApiError(403, `Not enough test slots. ${freeSlots} free slot(s) available but trying to assign ${allNewUserIds.length} more user(s). Unlock more tests or unassign unused slots first.`);
+    // Calculate already-allocated slots (for members NOT in this request)
+    const existingAllocs = (assessment.memberAllocations || [])
+      .filter(a => a.organization.toString() === orgId.toString());
+
+    const notInRequest = existingAllocs
+      .filter(a => !slotEntries.some(([memberId]) => memberId === a.member.toString()));
+
+    const otherMembersAllocated = notInRequest.reduce((sum, a) => sum + a.testsAllowed, 0);
+
+    // Available for new allocations
+    const available = unlockEntry.testsAllowed - otherMembersAllocated;
+    if (newSlotsTotal > available) {
+      throw new ApiError(403,
+        `Cannot allocate ${newSlotsTotal} slots. Only ${Math.max(0, available)} available for allocation.`
+      );
+    }
+
+    // Apply allocations
+    for (const [memberId, slots] of slotEntries) {
+      // Auto-assign user if not already in assignedUsers
+      if (!assessment.assignedUsers.map(u => u.toString()).includes(memberId)) {
+        assessment.assignedUsers.push(memberId);
+        await User.findByIdAndUpdate(memberId, {
+          $addToSet: { assignedAssessments: assessment._id }
+        });
+      }
+
+      const existingAlloc = existingAllocs.find(
+        a => a.member.toString() === memberId
+      );
+
+      if (existingAlloc) {
+        // Don't reduce below distributed count
+        if (parseInt(slots) < existingAlloc.testsDistributed) {
+          throw new ApiError(400,
+            `Cannot set ${slots} slots for member who already distributed ${existingAlloc.testsDistributed}. Minimum: ${existingAlloc.testsDistributed}.`
+          );
+        }
+        existingAlloc.testsAllowed = parseInt(slots);
+        existingAlloc.allocatedBy = req.user._id;
+        existingAlloc.allocatedAt = new Date();
+      } else {
+        assessment.memberAllocations.push({
+          organization: orgId,
+          member: memberId,
+          testsAllowed: parseInt(slots),
+          testsDistributed: 0,
+          allocatedBy: req.user._id,
+          allocatedAt: new Date()
+        });
     }
   }
 
+  // Auto-publish when allocations are made
+  if (!assessment.isPublished) {
+    assessment.isPublished = true;
+  }
+
   await assessment.save();
+  } else if (allNewUserIds.length > 0 && req.user.role !== 'superadmin' && req.user.organization) {
+    // Legacy check: if no memberSlots provided, check basic slot availability
+    const orgId = req.user.organization._id;
+
+    const unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId.toString()
+    );
+
+    if (unlockEntry) {
+      const { TestTakerInvite } = require('../models');
+      const activeInvitesCount = await TestTakerInvite.countDocuments({
+        assessment: assessment._id,
+        organization: orgId,
+        status: { $in: ['pending', 'email_sent', 'started'] }
+      });
+
+      const currentlyAssignedCount = assessment.assignedUsers.length - allNewUserIds.length;
+      const totalLocked = unlockEntry.testsUsed + activeInvitesCount + currentlyAssignedCount;
+      const freeSlots = Math.max(0, unlockEntry.testsAllowed - totalLocked);
+
+      if (freeSlots < allNewUserIds.length) {
+        throw new ApiError(403, `Not enough test slots. ${freeSlots} free slot(s) available but trying to assign ${allNewUserIds.length} more user(s). Unlock more tests or unassign unused slots first.`);
+      }
+    }
+
+    // Auto-publish when members are assigned (so it shows on their dashboard)
+    if (!assessment.isPublished && allNewUserIds.length > 0) {
+      assessment.isPublished = true;
+    }
+
+    await assessment.save();
+  } else {
+    // Auto-publish on slot updates too
+    if (!assessment.isPublished && Object.keys(memberSlots).length > 0) {
+      assessment.isPublished = true;
+    }
+    await assessment.save();
+  }
 
   // Calculate unlock stats for the response
   let unlockStats = null;
+  let allocations = [];
   if (req.user.role !== 'superadmin' && req.user.organization) {
     const orgId = req.user.organization._id;
     const unlockEntry = assessment.unlockedBy?.find(
       u => u.organization.toString() === orgId.toString()
     );
     if (unlockEntry) {
-      const testsLocked = Math.max(0, assessment.assignedUsers.length - unlockEntry.testsUsed);
-      const testsRemaining = Math.max(0, unlockEntry.testsAllowed - assessment.assignedUsers.length);
+      const { TestTakerInvite } = require('../models');
+      const activeInvitesCount = await TestTakerInvite.countDocuments({
+        assessment: assessment._id,
+        organization: orgId,
+        status: { $in: ['pending', 'email_sent', 'started'] }
+      });
+      const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assessment.assignedUsers.length;
+      
+      const testsLocked = activeInvitesCount + assessment.assignedUsers.length;
+      const testsRemaining = Math.max(0, unlockEntry.testsAllowed - totalLocked);
       unlockStats = {
         testsAllowed: unlockEntry.testsAllowed,
         testsUsed: unlockEntry.testsUsed,
         testsRemaining,
         testsLocked
       };
+
+      // Return member allocations with member info
+      const memberAllocs = (assessment.memberAllocations || [])
+        .filter(a => a.organization.toString() === orgId.toString());
+
+      const allocMemberIds = memberAllocs.map(a => a.member);
+      const allocMembers = await User.find({ _id: { $in: allocMemberIds } })
+        .select('firstName lastName email');
+      const memberMap = {};
+      allocMembers.forEach(m => { memberMap[m._id.toString()] = m; });
+
+      allocations = memberAllocs.map(a => {
+        const member = memberMap[a.member.toString()];
+        return {
+          _id: a._id,
+          member: member ? {
+            _id: member._id,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            email: member.email
+          } : null,
+          testsAllowed: a.testsAllowed,
+          testsDistributed: a.testsDistributed,
+          testsRemaining: Math.max(0, a.testsAllowed - a.testsDistributed)
+        };
+      });
     }
   }
 
   res.json({
     success: true,
     message: 'Assessment assigned successfully',
-    data: { assessment, unlockStats }
+    data: { assessment, unlockStats, allocations }
   });
 });
 
@@ -598,6 +752,21 @@ const unassignAssessment = asyncHandler(async (req, res) => {
     }
   }
 
+  // Clean up memberAllocations for removed users (only if they haven't distributed any tests)
+  if (usersBeingRemoved.size > 0 && req.user.organization) {
+    const orgId = req.user.organization._id.toString();
+    const removedIds = [...usersBeingRemoved].map(id => id.toString());
+
+    assessment.memberAllocations = (assessment.memberAllocations || []).filter(alloc => {
+      if (alloc.organization.toString() !== orgId) return true;
+      if (removedIds.includes(alloc.member.toString())) {
+        // Only remove if no tests have been distributed
+        return alloc.testsDistributed > 0;
+      }
+      return true;
+    });
+  }
+
   // Refund credits for unassigned users who never attempted (skip for superadmin)
   if (usersBeingRemoved.size > 0 && req.user.role !== 'superadmin' && req.user.organization) {
     const orgId = req.user.organization._id;
@@ -646,8 +815,16 @@ const unassignAssessment = asyncHandler(async (req, res) => {
       u => u.organization.toString() === orgId.toString()
     );
     if (unlockEntry) {
-      const testsLocked = Math.max(0, assessment.assignedUsers.length - unlockEntry.testsUsed);
-      const testsRemaining = Math.max(0, unlockEntry.testsAllowed - assessment.assignedUsers.length);
+      const { TestTakerInvite } = require('../models');
+      const activeInvitesCount = await TestTakerInvite.countDocuments({
+        assessment: assessment._id,
+        organization: orgId,
+        status: { $in: ['pending', 'email_sent', 'started'] }
+      });
+      const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assessment.assignedUsers.length;
+      
+      const testsLocked = activeInvitesCount + assessment.assignedUsers.length;
+      const testsRemaining = Math.max(0, unlockEntry.testsAllowed - totalLocked);
       unlockStats = {
         testsAllowed: unlockEntry.testsAllowed,
         testsUsed: unlockEntry.testsUsed,
@@ -672,8 +849,28 @@ const unassignAssessment = asyncHandler(async (req, res) => {
 const getMyAssignments = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status } = req.query;
 
+  const userId = req.user._id;
+  const orgId = req.user.organization?._id?.toString() || req.user.organization?.toString();
+
+  // Find assessments where this user has a memberAllocation (DB query, not relying on user.assignedAssessments)
+  const allocatedAssessmentIds = orgId ? await Assessment.distinct('_id', {
+    'memberAllocations': {
+      $elemMatch: {
+        organization: orgId,
+        member: userId
+      }
+    },
+    isPublished: true,
+    isActive: true
+  }) : [];
+
+  // Combine with user's assignedAssessments
+  const assignedIds = (req.user.assignedAssessments || []).map(id => id.toString());
+  const allocIds = allocatedAssessmentIds.map(id => id.toString());
+  const allAssessmentIds = [...new Set([...assignedIds, ...allocIds])];
+
   let query = {
-    _id: { $in: req.user.assignedAssessments || [] },
+    _id: { $in: allAssessmentIds },
     isPublished: true,
     isActive: true
   };
@@ -692,7 +889,7 @@ const getMyAssignments = asyncHandler(async (req, res) => {
       status: 'completed'
     }).distinct('assessment');
     query._id = {
-      $in: req.user.assignedAssessments || [],
+      $in: allAssessmentIds,
       $nin: completedAttempts
     };
   }
@@ -713,7 +910,8 @@ const getMyAssignments = asyncHandler(async (req, res) => {
     assessment: { $in: assessments.map(a => a._id) }
   });
 
-  const assessmentsWithStatus = assessments.map(assessment => {
+  const { TestTakerInvite } = require('../models');
+  const assessmentsWithStatus = await Promise.all(assessments.map(async (assessment) => {
     const attempt = attempts.find(a => a.assessment.toString() === assessment._id.toString());
     const obj = {
       ...assessment.toObject(),
@@ -728,21 +926,52 @@ const getMyAssignments = asyncHandler(async (req, res) => {
         u => u.organization.toString() === orgId
       );
       if (unlockEntry) {
+        const activeInvitesCount = await TestTakerInvite.countDocuments({
+          assessment: obj._id,
+          organization: orgId,
+          status: { $in: ['pending', 'email_sent', 'started'] }
+        });
+        
+        const assignedCount = obj.assignedUsers ? obj.assignedUsers.length : 0;
+        const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assignedCount;
+
         obj.orgUnlockInfo = {
           testsAllowed: unlockEntry.testsAllowed,
           testsUsed: unlockEntry.testsUsed,
-          testsRemaining: Math.max(0, unlockEntry.testsAllowed - (obj.assignedUsers?.length || 0))
+          testsRemaining: Math.max(0, unlockEntry.testsAllowed - totalLocked)
+        };
+      }
+
+      // Add member allocation info
+      const userId = req.user._id?.toString();
+      const memberAlloc = (assessment.memberAllocations || []).find(
+        a => a.organization.toString() === orgId && a.member.toString() === userId
+      );
+      if (memberAlloc) {
+        const myActiveInvites = await TestTakerInvite.countDocuments({
+          assessment: obj._id,
+          organization: orgId,
+          invitedBy: req.user._id,
+          status: { $in: ['pending', 'email_sent', 'started'] }
+        });
+        obj.memberAllocation = {
+          testsAllowed: Number(memberAlloc.testsAllowed) || 0,
+          testsDistributed: Number(memberAlloc.testsDistributed) || 0,
+          testsRemaining: Math.max(0, (Number(memberAlloc.testsAllowed) || 0) - (Number(memberAlloc.testsDistributed) || 0)),
+          activeInvites: myActiveInvites
         };
       }
     }
 
     return obj;
-  }).filter(a => a.orgUnlockInfo); // Only show unlocked assessments to users
+  }));
+
+  const filteredAssessments = assessmentsWithStatus.filter(a => a.orgUnlockInfo || a.memberAllocation); // Only show unlocked/allocated assessments to users
 
   res.json({
     success: true,
     data: {
-      assessments: assessmentsWithStatus,
+      assessments: filteredAssessments,
       pagination: {
         total: count,
         page: parseInt(page),
@@ -851,7 +1080,8 @@ const generatePublicLink = asyncHandler(async (req, res) => {
   assessment.publicExpiresAt = expiresAt;
   await assessment.save();
 
-  const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/take/${token}`;
+  const category = assessment.category || 'general';
+  const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/take/${category}/${token}`;
 
   res.json({
     success: true,
@@ -1025,6 +1255,7 @@ const getAssessmentByInviteToken = asyncHandler(async (req, res) => {
         _id: invite._id,
         testTakerName: invite.testTakerName,
         testTakerEmail: invite.testTakerEmail,
+        testTakerPhone: invite.testTakerPhone,
         status: invite.status,
         expiresAt: invite.expiresAt
       },
@@ -1212,6 +1443,345 @@ const getAssessmentPurchases = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Allocate test slots to members
+ * @route   POST /api/assessments/:id/allocate
+ * @access  Private (Admin)
+ */
+const allocateToMembers = asyncHandler(async (req, res) => {
+  const { allocations } = req.body;
+  // allocations = [{ memberId, testsAllowed }, ...]
+
+  if (!Array.isArray(allocations) || allocations.length === 0) {
+    throw new ApiError(400, 'allocations array is required with at least one entry');
+  }
+
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  if (!req.user.organization) {
+    throw new ApiError(400, 'You must belong to an organization');
+  }
+
+  const orgId = req.user.organization._id;
+
+  // Verify assessment is unlocked for this org
+  const unlockEntry = assessment.unlockedBy?.find(
+    u => u.organization.toString() === orgId.toString()
+  );
+
+  if (!unlockEntry) {
+    throw new ApiError(403, 'Assessment is not unlocked for your organization');
+  }
+
+  // Verify all members belong to the same organization and are assigned
+  const memberIds = allocations.map(a => a.memberId);
+  const members = await User.find({
+    _id: { $in: memberIds },
+    organization: orgId,
+    role: 'user',
+    isActive: true
+  });
+
+  if (members.length !== memberIds.length) {
+    throw new ApiError(400, 'One or more members not found or not in your organization');
+  }
+
+  // Auto-assign members who aren't in assignedUsers yet
+  const assignedUserIds = (assessment.assignedUsers || []).map(u => u.toString());
+  const unassignedMembers = memberIds.filter(id => !assignedUserIds.includes(id.toString()));
+  if (unassignedMembers.length > 0) {
+    // Add unassigned members to assignedUsers and update their user documents
+    for (const memberId of unassignedMembers) {
+      assessment.assignedUsers.push(memberId);
+    }
+    await User.updateMany(
+      { _id: { $in: unassignedMembers } },
+      { $addToSet: { assignedAssessments: assessment._id } }
+    );
+  }
+
+  // Calculate how many slots are already committed (other members' allocations + invites + assigned users)
+  const existingAllocations = (assessment.memberAllocations || [])
+    .filter(a => a.organization.toString() === orgId.toString());
+
+  const otherMembersAllocated = existingAllocations
+    .filter(a => !memberIds.includes(a.member.toString()))
+    .reduce((sum, a) => sum + a.testsAllowed, 0);
+
+  const newAllocationTotal = allocations.reduce((sum, a) => sum + a.testsAllowed, 0);
+
+  // Total available from unlock
+  const totalAvailable = unlockEntry.testsAllowed;
+
+  // Already distributed by these members
+  const membersDistributed = existingAllocations
+    .filter(a => memberIds.includes(a.member.toString()))
+    .reduce((sum, a) => sum + a.testsDistributed, 0);
+
+  // Check if new allocation exceeds available slots
+  if (otherMembersAllocated + newAllocationTotal > totalAvailable) {
+    const availableForMemberAlloc = totalAvailable - otherMembersAllocated;
+    throw new ApiError(403,
+      `Cannot allocate ${newAllocationTotal} slots. Only ${Math.max(0, availableForMemberAlloc)} slots available for new allocations (${totalAvailable} total - ${otherMembersAllocated} already allocated to other members).`
+    );
+  }
+
+  // Apply allocations — update existing or create new
+  for (const alloc of allocations) {
+    const existing = existingAllocations.find(
+      a => a.member.toString() === alloc.memberId.toString()
+    );
+
+    if (existing) {
+      // Don't allow reducing below already-distributed count
+      if (alloc.testsAllowed < existing.testsDistributed) {
+        throw new ApiError(400,
+          `Cannot set ${alloc.testsAllowed} slots for a member who already distributed ${existing.testsDistributed}. Set at least ${existing.testsDistributed}.`
+        );
+      }
+      existing.testsAllowed = alloc.testsAllowed;
+      existing.allocatedBy = req.user._id;
+      existing.allocatedAt = new Date();
+    } else {
+      assessment.memberAllocations.push({
+        organization: orgId,
+        member: alloc.memberId,
+        testsAllowed: alloc.testsAllowed,
+        testsDistributed: 0,
+        allocatedBy: req.user._id,
+        allocatedAt: new Date()
+      });
+    }
+  }
+
+  await assessment.save();
+
+  // Return updated allocations with member info
+  const updatedAllocations = assessment.memberAllocations
+    .filter(a => a.organization.toString() === orgId.toString());
+
+  const enrichedAllocations = await Promise.all(
+    updatedAllocations.map(async (alloc) => {
+      const member = members.find(m => m._id.toString() === alloc.member.toString())
+        || await User.findById(alloc.member).select('firstName lastName email');
+      return {
+        _id: alloc._id,
+        member: member ? {
+          _id: member._id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          email: member.email
+        } : null,
+        testsAllowed: alloc.testsAllowed,
+        testsDistributed: alloc.testsDistributed,
+        testsRemaining: Math.max(0, alloc.testsAllowed - alloc.testsDistributed),
+        allocatedAt: alloc.allocatedAt
+      };
+    })
+  );
+
+  res.json({
+    success: true,
+    message: 'Slots allocated to members successfully',
+    data: {
+      allocations: enrichedAllocations,
+      orgSummary: {
+        totalUnlocked: unlockEntry.testsAllowed,
+        allocatedToMembers: updatedAllocations.reduce((s, a) => s + a.testsAllowed, 0),
+        unallocated: Math.max(0, unlockEntry.testsAllowed - updatedAllocations.reduce((s, a) => s + a.testsAllowed, 0))
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Get member allocations for an assessment
+ * @route   GET /api/assessments/:id/allocations
+ * @access  Private (Admin)
+ */
+const getAllocations = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  if (!req.user.organization) {
+    throw new ApiError(400, 'You must belong to an organization');
+  }
+
+  const orgId = req.user.organization._id;
+
+  const unlockEntry = assessment.unlockedBy?.find(
+    u => u.organization.toString() === orgId.toString()
+  );
+
+  const allocations = (assessment.memberAllocations || [])
+    .filter(a => a.organization.toString() === orgId.toString());
+
+  // Populate member info
+  const memberIds = allocations.map(a => a.member);
+  const members = await User.find({ _id: { $in: memberIds } })
+    .select('firstName lastName email role');
+
+  const memberMap = {};
+  members.forEach(m => { memberMap[m._id.toString()] = m; });
+
+  // Count invites per member for this assessment
+  const invites = await TestTakerInvite.aggregate([
+    {
+      $match: {
+        assessment: assessment._id,
+        organization: orgId,
+        status: { $in: ['pending', 'email_sent', 'started'] }
+      }
+    },
+    {
+      $group: {
+        _id: '$invitedBy',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const inviteMap = {};
+  invites.forEach(i => { inviteMap[i._id.toString()] = i.count; });
+
+  const enrichedAllocations = allocations.map(alloc => {
+    const member = memberMap[alloc.member.toString()];
+    return {
+      _id: alloc._id,
+      member: member ? {
+        _id: member._id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email
+      } : null,
+      testsAllowed: alloc.testsAllowed,
+      testsDistributed: alloc.testsDistributed,
+      testsRemaining: Math.max(0, alloc.testsAllowed - alloc.testsDistributed),
+      activeInvites: inviteMap[alloc.member.toString()] || 0,
+      allocatedAt: alloc.allocatedAt
+    };
+  });
+
+  const totalAllocated = allocations.reduce((s, a) => s + a.testsAllowed, 0);
+
+  res.json({
+    success: true,
+    data: {
+      allocations: enrichedAllocations,
+      orgSummary: {
+        totalUnlocked: unlockEntry?.testsAllowed || 0,
+        allocatedToMembers: totalAllocated,
+        unallocated: Math.max(0, (unlockEntry?.testsAllowed || 0) - totalAllocated)
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Remove member allocation
+ * @route   DELETE /api/assessments/:id/allocations/:allocId
+ * @access  Private (Admin)
+ */
+const removeAllocation = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  if (!req.user.organization) {
+    throw new ApiError(400, 'You must belong to an organization');
+  }
+
+  const orgId = req.user.organization._id;
+  const allocId = req.params.allocId;
+
+  const allocIndex = (assessment.memberAllocations || []).findIndex(
+    a => a._id.toString() === allocId && a.organization.toString() === orgId.toString()
+  );
+
+  if (allocIndex === -1) {
+    throw new ApiError(404, 'Allocation not found');
+  }
+
+  const alloc = assessment.memberAllocations[allocIndex];
+
+  // Check if member has distributed any slots — if so, warn
+  if (alloc.testsDistributed > 0) {
+    throw new ApiError(400,
+      `Cannot remove allocation. This member has already distributed ${alloc.testsDistributed} test(s) to test takers. Cancel those invites first.`
+    );
+  }
+
+  assessment.memberAllocations.splice(allocIndex, 1);
+  await assessment.save();
+
+  res.json({
+    success: true,
+    message: 'Member allocation removed successfully'
+  });
+});
+
+/**
+ * @desc    Get my allocation info for a specific assessment (Member)
+ * @route   GET /api/assessments/:id/my-allocation
+ * @access  Private (User)
+ */
+const getMyAllocation = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  if (!req.user.organization) {
+    throw new ApiError(400, 'You must belong to an organization');
+  }
+
+  const orgId = req.user.organization._id;
+  const userId = req.user._id;
+
+  const allocation = (assessment.memberAllocations || []).find(
+    a => a.organization.toString() === orgId.toString() &&
+         a.member.toString() === userId.toString()
+  );
+
+  if (!allocation) {
+    return res.json({
+      success: true,
+      data: {
+        allocated: false,
+        testsAllowed: 0,
+        testsDistributed: 0,
+        testsRemaining: 0
+      }
+    });
+  }
+
+  // Count active invites by this user for this assessment
+  const activeInvites = await TestTakerInvite.countDocuments({
+    assessment: assessment._id,
+    organization: orgId,
+    invitedBy: userId,
+    status: { $in: ['pending', 'email_sent', 'started'] }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      allocated: true,
+      testsAllowed: allocation.testsAllowed,
+      testsDistributed: allocation.testsDistributed,
+      testsRemaining: Math.max(0, allocation.testsAllowed - allocation.testsDistributed),
+      activeInvites,
+      allocatedAt: allocation.allocatedAt
+    }
+  });
+});
+
 module.exports = {
   getAssessments,
   getAssessment,
@@ -1231,5 +1801,9 @@ module.exports = {
   revokePublicLink,
   unlockAssessment,
   refundUnattempted,
-  getAssessmentPurchases
+  getAssessmentPurchases,
+  allocateToMembers,
+  getAllocations,
+  removeAllocation,
+  getMyAllocation
 };

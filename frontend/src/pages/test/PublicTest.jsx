@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const PublicTest = () => {
-  const { token } = useParams();
+  const { token, category: urlCategory } = useParams();
   const navigate = useNavigate();
 
   const [assessment, setAssessment] = useState(null);
@@ -27,10 +27,18 @@ const PublicTest = () => {
   const [testTakerEmail, setTestTakerEmail] = useState('');
   const [testTakerPhone, setTestTakerPhone] = useState('');
   const [isInviteLink, setIsInviteLink] = useState(false);
+  const [autoStarting, setAutoStarting] = useState(false);
 
   useEffect(() => {
     fetchAssessmentByToken();
   }, [token]);
+
+  // Auto-start assessment for invite links
+  useEffect(() => {
+    if (isInviteLink && assessment && !autoStarting) {
+      autoStartInviteAssessment();
+    }
+  }, [isInviteLink, assessment]);
 
   const fetchAssessmentByToken = async () => {
     try {
@@ -68,6 +76,40 @@ const PublicTest = () => {
     }
   };
 
+  const autoStartInviteAssessment = async () => {
+    try {
+      setAutoStarting(true);
+
+      const response = await attemptService.startInviteAttempt(token, {
+        testTakerName: invite?.testTakerName || '',
+        testTakerEmail: invite?.testTakerEmail || '',
+        testTakerPhone: invite?.testTakerPhone || ''
+      });
+
+      // response = { success, data: { attempt, assessment, questions } }
+      const attemptData = response?.data?.attempt;
+      const assessmentData = response?.data?.assessment || assessment;
+      const category = assessmentData?.category;
+
+      if (attemptData) {
+        const cat = urlCategory || category;
+        if (cat === 'big5') {
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/big5/${attemptData._id}`);
+        } else if (cat === 'disc') {
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/disc/${attemptData._id}`);
+        } else {
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/test/${attemptData._id}`);
+        }
+      } else {
+        setError('Unexpected response from server. Please try again.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to start assessment');
+    } finally {
+      setAutoStarting(false);
+    }
+  };
+
   const handleStartTest = async () => {
     if (!testTakerName.trim()) {
       alert('Please enter your name');
@@ -98,18 +140,22 @@ const PublicTest = () => {
         });
       }
 
-      if (response.data?.data?.attempt || response.data?.attempt) {
-        const attemptData = response.data?.data?.attempt || response.data?.attempt;
-        const assessmentData = response.data?.data?.assessment || response.data?.assessment || assessment;
-        const category = assessmentData?.category;
+      // response = { success, data: { attempt, assessment, questions } }
+      const attemptData = response?.data?.attempt;
+      const assessmentData = response?.data?.assessment || assessment;
+      const category = assessmentData?.category;
 
-        if (category === 'big5') {
-          navigate(`/take/${token}/big5/${attemptData._id}`);
-        } else if (category === 'disc') {
-          navigate(`/take/${token}/disc/${attemptData._id}`);
+      if (attemptData) {
+        const cat = urlCategory || category;
+        if (cat === 'big5') {
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/big5/${attemptData._id}`);
+        } else if (cat === 'disc') {
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/disc/${attemptData._id}`);
         } else {
-          navigate(`/take/${token}/test/${attemptData._id}`);
+          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/test/${attemptData._id}`);
         }
+      } else {
+        alert('Unexpected response from server. Please try again.');
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to start assessment');
@@ -159,6 +205,18 @@ const PublicTest = () => {
         <div className="p-6 space-y-6">
           <p className="text-gray-600 text-center">{assessment?.description}</p>
 
+          {/* Auto-start loading state for invite links */}
+          {isInviteLink && (
+            <div className="text-center py-8 space-y-4">
+              <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto" />
+              <p className="text-lg font-semibold text-gray-900">Starting your assessment...</p>
+              <p className="text-sm text-gray-500">Please wait while we prepare your test.</p>
+            </div>
+          )}
+
+          {/* Manual form for public (non-invite) links */}
+          {!isInviteLink && (
+            <>
           {assessment?.instructions && (
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-900 mb-2">Instructions</h3>
@@ -234,7 +292,7 @@ const PublicTest = () => {
               />
             </div>
 
-            {assessment?.requirePasscode && !isInviteLink && (
+            {assessment?.requirePasscode && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Passcode
@@ -283,6 +341,8 @@ const PublicTest = () => {
               'Start Assessment'
             )}
           </button>
+            </>
+          )}
         </div>
 
         <div className="bg-gray-50 px-6 py-4 text-center text-sm text-gray-500">

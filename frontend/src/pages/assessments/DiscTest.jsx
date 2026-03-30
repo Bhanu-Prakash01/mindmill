@@ -158,13 +158,17 @@ const DiscTest = () => {
       const attemptData = attemptRes.data?.attempt;
       setAttemptId(attemptData?._id);
       setAssessment(attemptData?.assessment);
-      
+
+      // Extract and sort questions from the populated assessment
+      const sortedQuestions = (attemptData?.assessment?.questions || []).sort((a, b) => a.order - b.order);
+      setQuestions(sortedQuestions);
+
       if (attemptData?.expiresAt) {
         const expiresAt = new Date(attemptData.expiresAt).getTime();
         const now = Date.now();
         setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
       }
-      
+
       // Initialize responses
       const initialResponses = {};
       for (let idx = 0; idx < 28; idx++) {
@@ -174,7 +178,7 @@ const DiscTest = () => {
         };
       }
       setResponses(initialResponses);
-      
+
       requestFullscreen();
       setLoading(false);
     } catch (err) {
@@ -290,13 +294,15 @@ const DiscTest = () => {
     setSubmitting(true);
     try {
       // Format responses for professional DISC scoring (MOST/LEAST format)
-      const formattedResponses = Object.entries(responses).map(([order, r]) => ({
-        questionId: r.questionId,
-        answers: [
-          { trait: r.most.trait, score: 1, type: 'most' },
-          { trait: r.least.trait, score: -1, type: 'least' }
-        ]
-      }));
+      const formattedResponses = Object.entries(responses)
+        .filter(([_, r]) => r.most?.trait && r.least?.trait)
+        .map(([order, r]) => ({
+          questionId: r.questionId,
+          answers: [
+            { trait: r.most.trait, score: 1, type: 'most' },
+            { trait: r.least.trait, score: -1, type: 'least' }
+          ]
+        }));
 
       let res;
       if (isPublicAccess) {

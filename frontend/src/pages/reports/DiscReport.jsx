@@ -34,6 +34,8 @@ const DiscReport = () => {
  const { attemptId, orgSlug } = useParams();
  const navigate = useNavigate();
  const [report, setReport] = useState(null);
+ const [testTaker, setTestTaker] = useState(null);
+ const [completedAt, setCompletedAt] = useState(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
 
@@ -47,9 +49,15 @@ const DiscReport = () => {
  const response = await attemptService.getAttempt(attemptId);
  const attempt = response.data?.attempt;
 
- if (attempt && attempt.discResults) {
- setReport(attempt.discResults);
- } else {
+  if (attempt && attempt.discResults) {
+  setReport(attempt.discResults);
+  setTestTaker({
+    name: attempt.testTakerName || null,
+    email: attempt.testTakerEmail || null,
+    phone: attempt.testTakerPhone || null
+  });
+  setCompletedAt(attempt.completedAt);
+  } else {
  setError('DISC results not found for this attempt');
  }
  } catch (err) {
@@ -175,12 +183,44 @@ const DiscReport = () => {
  {/* Report Title */}
  <div className="text-center pb-8 border-b border-gray-200 ">
  <h1 className="text-3xl font-bold text-gray-900 mb-2">
- DISC Personality Profile
+  DISC Personality Profile
  </h1>
  <p className="text-xl text-gray-600 ">
- {pattern}
+  {pattern}
  </p>
  </div>
+
+ {/* Test Taker Details */}
+ {testTaker && (testTaker.name || testTaker.email) && (
+ <div className="bg-white rounded-xl p-6 border border-gray-200">
+  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Candidate Details</h2>
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  {testTaker.name && (
+   <div>
+   <p className="text-xs text-gray-400 mb-0.5">Name</p>
+   <p className="text-sm font-medium text-gray-900">{testTaker.name}</p>
+   </div>
+  )}
+  {testTaker.email && (
+   <div>
+   <p className="text-xs text-gray-400 mb-0.5">Email</p>
+   <p className="text-sm font-medium text-gray-900">{testTaker.email}</p>
+   </div>
+  )}
+  {testTaker.phone && (
+   <div>
+   <p className="text-xs text-gray-400 mb-0.5">Phone</p>
+   <p className="text-sm font-medium text-gray-900">{testTaker.phone}</p>
+   </div>
+  )}
+  </div>
+  {completedAt && (
+  <p className="text-xs text-gray-400 mt-3">
+   Completed on {new Date(completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+  </p>
+  )}
+ </div>
+ )}
 
  {/* Main Pattern Display */}
  <div className={`${traitBgColors[dominant]} rounded-2xl p-8 text-center`}>

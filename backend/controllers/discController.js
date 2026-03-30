@@ -99,9 +99,9 @@ const getDiscResults = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Check permissions
-  if (attempt.user.toString() !== req.user._id.toString() && 
-      req.user.role !== 'admin' && 
+  // Check permissions — allow public/invite-based attempts (user is null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+      req.user.role !== 'admin' &&
       req.user.role !== 'superadmin') {
     throw new ApiError(403, 'Access denied');
   }
@@ -122,7 +122,12 @@ const getDiscResults = asyncHandler(async (req, res) => {
     data: {
       results: attempt.discResults,
       narrativeReport,
-      completedAt: attempt.completedAt
+      completedAt: attempt.completedAt,
+      testTaker: {
+        name: attempt.testTakerName || null,
+        email: attempt.testTakerEmail || null,
+        phone: attempt.testTakerPhone || null
+      }
     }
   });
 });
@@ -260,12 +265,24 @@ const getDiscComparison = asyncHandler(async (req, res) => {
 async function generateDiscReport(attempt, assessment, discResults) {
   const narrativeReport = generateNarrativeReport(discResults);
 
+  // Resolve who conducted the assessment
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const { TestTakerInvite } = require('../models');
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
   const report = await Report.create({
     attempt: attempt._id,
     user: attempt.user,
+    conductedBy,
     assessment: attempt.assessment,
     organization: attempt.organization,
     type: 'disc',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
     scores: {
       byTrait: {
         D: { score: discResults.normalizedScores.D, percentage: discResults.percentages.D },

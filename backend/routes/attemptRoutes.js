@@ -15,27 +15,31 @@ const {
   requestReportAccess,
   abandonAttempt
 } = require('../controllers/attemptController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, optionalAuth } = require('../middleware/authMiddleware');
 const { idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 
-// Public routes (no auth required)
-router.post('/public/:assessmentId/start', startPublicAttempt);
-router.post('/invite/:token/start', startInviteAttempt);
-router.get('/public/attempt/:id', getPublicAttempt);
+// ============================================================
+// PUBLIC ROUTES - No authentication required
+// Use optionalAuth so unauthenticated users can access
+// ============================================================
 
-// Protected routes
-router.use(authMiddleware);
+router.post('/public/:assessmentId/start', optionalAuth, startPublicAttempt);
+router.post('/invite/:token/start', optionalAuth, startInviteAttempt);
+router.get('/public/attempt/:id', optionalAuth, getPublicAttempt);
 
-router.get('/', paginationValidation, getAttempts);
-router.get('/:id', idParamValidation, getAttempt);
+// ============================================================
+// PROTECTED ROUTES - Authentication required
+// ============================================================
 
-router.post('/assessments/:assessmentId/start', startAttempt);
-router.post('/assessments/:assessmentId/verify-passcode', verifyPasscode);
-router.post('/:id/answer', idParamValidation, saveAnswer);
-router.post('/:id/submit', idParamValidation, submitAttempt);
-router.post('/:id/abandon', idParamValidation, abandonAttempt);
-router.post('/:id/auto-save', idParamValidation, autoSave);
-router.post('/:id/proctoring-log', idParamValidation, logProctoringEvent);
-router.post('/:id/request-report', idParamValidation, requestReportAccess);
+router.get('/', authMiddleware, paginationValidation, getAttempts);
+router.get('/:id', authMiddleware, idParamValidation, getAttempt);
+router.post('/assessments/:assessmentId/start', authMiddleware, startAttempt);
+router.post('/assessments/:assessmentId/verify-passcode', authMiddleware, verifyPasscode);
+router.post('/:id/answer', optionalAuth, idParamValidation, saveAnswer);
+router.post('/:id/submit', optionalAuth, idParamValidation, submitAttempt);
+router.post('/:id/abandon', authMiddleware, idParamValidation, abandonAttempt);
+router.post('/:id/auto-save', optionalAuth, idParamValidation, autoSave);
+router.post('/:id/proctoring-log', optionalAuth, idParamValidation, logProctoringEvent);
+router.post('/:id/request-report', authMiddleware, idParamValidation, requestReportAccess);
 
 module.exports = router;

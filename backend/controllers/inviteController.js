@@ -44,16 +44,21 @@ const createInvite = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Assessment is not unlocked for your organization. Admin must unlock it first.');
   }
 
-  // Count existing invites for this assessment+org to check slot availability
-  const existingInviteCount = await TestTakerInvite.countDocuments({
-    assessment: assessmentId,
-    organization: orgId,
-    status: { $in: ['pending', 'email_sent', 'started'] }
-  });
+  // Check if user is a member (not admin/superadmin) — enforce member allocation
+  if (req.user.role === 'user') {
+    const memberAlloc = (assessment.memberAllocations || []).find(
+      a => a.organization.toString() === orgId && a.member.toString() === req.user._id.toString()
+    );
 
-  const slotsAvailable = unlockEntry.testsAllowed - unlockEntry.testsUsed;
-  if (existingInviteCount >= slotsAvailable) {
-    throw new ApiError(403, `No test slots remaining. ${slotsAvailable} slots available, ${existingInviteCount} active invites.`);
+    if (!memberAlloc) {
+      throw new ApiError(403, 'You have not been allocated any test slots for this assessment. Contact your admin.');
+    }
+
+    if (memberAlloc.testsDistributed >= memberAlloc.testsAllowed) {
+      throw new ApiError(403,
+        `You have used all your allocated test slots (${memberAlloc.testsAllowed}). Contact your admin for more.`
+      );
+    }
   }
 
   // Check for duplicate invite (same email for same assessment)
@@ -78,9 +83,21 @@ const createInvite = asyncHandler(async (req, res) => {
     testTakerPhone: testTakerPhone.trim()
   });
 
-  // Build test link
+  // Increment member's testsDistributed if they have an allocation
+  if (req.user.role === 'user') {
+    const memberAllocIndex = (assessment.memberAllocations || []).findIndex(
+      a => a.organization.toString() === orgId && a.member.toString() === req.user._id.toString()
+    );
+    if (memberAllocIndex !== -1) {
+      assessment.memberAllocations[memberAllocIndex].testsDistributed += 1;
+      await assessment.save();
+    }
+  }
+
+  // Build test link with category
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const testLink = `${frontendUrl}/take/${invite.token}`;
+  const category = assessment.category || 'general';
+  const testLink = `${frontendUrl}/take/${category}/${invite.token}`;
 
   // Send email
   let emailSent = false;
@@ -89,9 +106,12 @@ const createInvite = asyncHandler(async (req, res) => {
       to: invite.testTakerEmail,
       testTakerName: invite.testTakerName,
       assessmentTitle: assessment.title,
+      assessmentCategory: category,
       organizationName: req.user.organization?.name || 'Organization',
       testLink,
-      instructions: assessment.instructions
+      instructions: assessment.instructions,
+      timeLimit: assessment.timeBound?.enabled ? assessment.timeBound.durationMinutes : null,
+      totalQuestions: assessment.totalQuestions || assessment.questions?.length || 0
     });
     emailSent = true;
     invite.status = 'email_sent';
@@ -168,7 +188,7 @@ const getInvites = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get invite statistics
+ * @desc    Get invite statistics (Admin - org-wide)
  * @route   GET /api/invites/stats
  * @access  Private (Admin)
  */
@@ -180,6 +200,48 @@ const getInviteStats = asyncHandler(async (req, res) => {
 
   const stats = await TestTakerInvite.aggregate([
     { $match: { organization: orgId } },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const statusCounts = {
+    pending: 0,
+    email_sent: 0,
+    started: 0,
+    completed: 0,
+    expired: 0
+  };
+
+  stats.forEach(s => {
+    statusCounts[s._id] = s.count;
+  });
+
+  const totalInvites = Object.values(statusCounts).reduce((sum, c) => sum + c, 0);
+
+  res.json({
+    success: true,
+    data: {
+      totalInvites,
+      ...statusCounts,
+      completionRate: totalInvites > 0 ? Math.round((statusCounts.completed / totalInvites) * 100) : 0
+    }
+  });
+});
+
+/**
+ * @desc    Get invite statistics (User - their own invites only)
+ * @route   GET /api/invites/my-stats
+ * @access  Private (User)
+ */
+const getMyInviteStats = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const stats = await TestTakerInvite.aggregate([
+    { $match: { invitedBy: userId } },
     {
       $group: {
         _id: '$status',
@@ -295,6 +357,23 @@ const cancelInvite = asyncHandler(async (req, res) => {
   invite.status = 'expired';
   await invite.save();
 
+  // Decrement member's testsDistributed if the inviter was a member
+  const inviter = await require('../models').User.findById(invite.invitedBy);
+  if (inviter && inviter.role === 'user') {
+    const assessment = await Assessment.findById(invite.assessment);
+    if (assessment) {
+      const orgId = invite.organization.toString();
+      const memberAllocIndex = (assessment.memberAllocations || []).findIndex(
+        a => a.organization.toString() === orgId && a.member.toString() === invite.invitedBy.toString()
+      );
+      if (memberAllocIndex !== -1) {
+        assessment.memberAllocations[memberAllocIndex].testsDistributed =
+          Math.max(0, assessment.memberAllocations[memberAllocIndex].testsDistributed - 1);
+        await assessment.save();
+      }
+    }
+  }
+
   res.json({
     success: true,
     message: 'Invite cancelled successfully',
@@ -303,13 +382,12 @@ const cancelInvite = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Resend invitation email
+ * @desc    Resend invite email
  * @route   POST /api/invites/:id/resend
  * @access  Private (Admin, User who created it)
  */
 const resendInvite = asyncHandler(async (req, res) => {
-  const invite = await TestTakerInvite.findById(req.params.id)
-    .populate('assessment', 'title category instructions');
+  const invite = await TestTakerInvite.findById(req.params.id);
 
   if (!invite) {
     throw new ApiError(404, 'Invite not found');
@@ -322,37 +400,63 @@ const resendInvite = asyncHandler(async (req, res) => {
     }
   }
 
-  if (!['pending', 'email_sent', 'expired'].includes(invite.status)) {
-    throw new ApiError(400, 'Cannot resend invite with status: ' + invite.status);
+  if (req.user.role === 'admin') {
+    if (invite.organization.toString() !== req.user.organization?._id?.toString()) {
+      throw new ApiError(403, 'Access denied');
+    }
   }
 
+  // Can only resend if invite is pending or email_sent
+  if (!['pending', 'email_sent'].includes(invite.status)) {
+    throw new ApiError(400, 'Can only resend invites that are pending or already sent');
+  }
+
+  // Get assessment details
+  const assessment = await Assessment.findById(invite.assessment);
+  if (!assessment) {
+    throw new ApiError(404, 'Assessment not found');
+  }
+
+  // Build test link with category
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const testLink = `${frontendUrl}/take/${invite.token}`;
+  const category = assessment.category || 'general';
+  const testLink = `${frontendUrl}/take/${category}/${invite.token}`;
 
-  await sendTestInvite({
-    to: invite.testTakerEmail,
-    testTakerName: invite.testTakerName,
-    assessmentTitle: invite.assessment.title,
-    organizationName: req.user.organization?.name || 'Organization',
-    testLink,
-    instructions: invite.assessment.instructions
-  });
+  // Send email
+  try {
+    await sendTestInvite({
+      to: invite.testTakerEmail,
+      testTakerName: invite.testTakerName,
+      assessmentTitle: assessment.title,
+      assessmentCategory: category,
+      organizationName: req.user.organization?.name || 'Organization',
+      testLink,
+      instructions: assessment.instructions,
+      timeLimit: assessment.timeBound?.enabled ? assessment.timeBound.durationMinutes : null,
+      totalQuestions: assessment.totalQuestions || assessment.questions?.length || 0
+    });
+    
+    // Update invite status
+    invite.status = 'email_sent';
+    invite.emailSentAt = new Date();
+    await invite.save();
 
-  invite.status = 'email_sent';
-  invite.emailSentAt = new Date();
-  await invite.save();
-
-  res.json({
-    success: true,
-    message: 'Invitation email resent successfully',
-    data: { invite }
-  });
+    res.json({
+      success: true,
+      message: 'Invite email resent successfully',
+      data: { invite }
+    });
+  } catch (emailError) {
+    console.error('Failed to resend invite email:', emailError.message);
+    throw new ApiError(500, 'Failed to send invite email. Please try again later.');
+  }
 });
 
 module.exports = {
   createInvite,
   getInvites,
   getInviteStats,
+  getMyInviteStats,
   getAssessmentInvites,
   cancelInvite,
   resendInvite

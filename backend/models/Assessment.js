@@ -194,6 +194,15 @@ const assessmentSchema = new mongoose.Schema({
     testsUsed: { type: Number, default: 0 },
     unlockedAt: { type: Date, default: Date.now },
     creditsLocked: { type: Number, default: 0 }
+  }],
+  // Per-member slot allocations within an organization
+  memberAllocations: [{
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    testsAllowed: { type: Number, required: true, min: 0 },
+    testsDistributed: { type: Number, default: 0, min: 0 },
+    allocatedAt: { type: Date, default: Date.now },
+    allocatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }]
 }, {
   timestamps: true
@@ -206,6 +215,7 @@ assessmentSchema.index({ createdBy: 1 });
 assessmentSchema.index({ isActive: 1, isPublished: 1 });
 assessmentSchema.index({ title: 'text', description: 'text' });
 assessmentSchema.index({ 'unlockedBy.organization': 1 });
+assessmentSchema.index({ 'memberAllocations.organization': 1, 'memberAllocations.member': 1 });
 
 // Pre-save middleware to update total questions count
 assessmentSchema.pre('save', function(next) {

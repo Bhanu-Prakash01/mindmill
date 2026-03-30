@@ -31,6 +31,8 @@ const Big5Report = () => {
  const [traitDetails, setTraitDetails] = useState(null);
  const [narrative, setNarrative] = useState('');
  const [dominantTraits, setDominantTraits] = useState([]);
+ const [testTaker, setTestTaker] = useState(null);
+ const [completedAt, setCompletedAt] = useState(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
 
@@ -47,12 +49,14 @@ const Big5Report = () => {
  });
  const data = await response.json();
 
- if (data.success) {
- setResults(data.data.results);
- setTraitDetails(data.data.traitDetails);
- setNarrative(data.data.narrative);
- setDominantTraits(data.data.dominantTraits);
- } else {
+  if (data.success) {
+  setResults(data.data.results);
+  setTraitDetails(data.data.traitDetails);
+  setNarrative(data.data.narrative);
+  setDominantTraits(data.data.dominantTraits);
+  setTestTaker(data.data.testTaker);
+  setCompletedAt(data.data.completedAt);
+  } else {
  throw new Error(data.message);
  }
  } catch (err) {
@@ -192,12 +196,44 @@ const Big5Report = () => {
  {/* Title */}
  <div className="text-center mb-8">
  <h1 className="text-3xl font-bold text-gray-900 mb-2">
- Your Big Five Personality Profile
+ Big Five Personality Profile
  </h1>
  <p className="text-gray-600 max-w-2xl mx-auto">
  {narrative}
  </p>
  </div>
+
+ {/* Test Taker Details */}
+ {testTaker && (testTaker.name || testTaker.email) && (
+ <div className="bg-white rounded-xl p-6 border border-gray-200 mb-8">
+ <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Candidate Details</h2>
+ <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+ {testTaker.name && (
+ <div>
+ <p className="text-xs text-gray-400 mb-0.5">Name</p>
+ <p className="text-sm font-medium text-gray-900">{testTaker.name}</p>
+ </div>
+ )}
+ {testTaker.email && (
+ <div>
+ <p className="text-xs text-gray-400 mb-0.5">Email</p>
+ <p className="text-sm font-medium text-gray-900">{testTaker.email}</p>
+ </div>
+ )}
+ {testTaker.phone && (
+ <div>
+ <p className="text-xs text-gray-400 mb-0.5">Phone</p>
+ <p className="text-sm font-medium text-gray-900">{testTaker.phone}</p>
+ </div>
+ )}
+ </div>
+ {completedAt && (
+ <p className="text-xs text-gray-400 mt-3">
+ Completed on {new Date(completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+ </p>
+ )}
+ </div>
+ )}
 
  {/* Charts Section */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

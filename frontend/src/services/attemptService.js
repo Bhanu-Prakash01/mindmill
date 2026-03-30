@@ -1,4 +1,4 @@
-import api from './api';
+import api, { publicApi } from './api';
 
 export const attemptService = {
  startAttempt: async (assessmentId, passcode = null) => {
@@ -7,12 +7,12 @@ export const attemptService = {
  },
 
   startPublicAttempt: async (assessmentId, data = {}) => {
-    const response = await api.post(`/attempts/public/${assessmentId}/start`, data);
+    const response = await publicApi.post(`/attempts/public/${assessmentId}/start`, data);
     return response.data;
   },
 
   startInviteAttempt: async (token, data = {}) => {
-    const response = await api.post(`/attempts/invite/${token}/start`, data);
+    const response = await publicApi.post(`/attempts/invite/${token}/start`, data);
     return response.data;
   },
 

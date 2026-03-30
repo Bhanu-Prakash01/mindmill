@@ -193,7 +193,7 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Delete user (soft delete by deactivating)
+ * @desc    Delete user permanently
  * @route   DELETE /api/users/:id
  * @access  Private (Admin, SuperAdmin)
  */
@@ -219,13 +219,11 @@ const deleteUser = asyncHandler(async (req, res) => {
     }
   }
 
-  // Soft delete by deactivating
-  user.isActive = false;
-  await user.save();
+  await User.findByIdAndDelete(req.params.id);
 
   res.json({
     success: true,
-    message: 'User deactivated successfully'
+    message: 'User deleted successfully'
   });
 });
 

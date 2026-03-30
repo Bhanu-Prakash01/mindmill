@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { inviteService } from '../../services';
-import InviteTestTakerModal from '../../components/InviteTestTakerModal';
+import { testTakerService } from '../../services';
+import AddTestTakerModal from '../../components/AddTestTakerModal';
+import BulkImportModal from '../../components/BulkImportModal';
 import {
   Send,
   Plus,
@@ -12,7 +13,9 @@ import {
   Mail,
   Loader2,
   Search,
-  Filter
+  Filter,
+  Upload,
+  Download
 } from 'lucide-react';
 
 const statusConfig = {
@@ -23,12 +26,13 @@ const statusConfig = {
   expired: { label: 'Expired', color: 'bg-red-100 text-red-700', icon: XCircle }
 };
 
-const Invites = () => {
+const TestTakers = () => {
   const { user } = useAuth();
-  const [invites, setInvites] = useState([]);
+  const [testTakers, setTestTakers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -37,22 +41,22 @@ const Invites = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
-    fetchInvites();
+    fetchTestTakers();
     if (isAdmin) fetchStats();
   }, [page, statusFilter, search]);
 
-  const fetchInvites = async () => {
+  const fetchTestTakers = async () => {
     try {
       setLoading(true);
       const params = { page, limit: 20 };
       if (statusFilter) params.status = statusFilter;
       if (search) params.search = search;
 
-      const response = await inviteService.getInvites(params);
-      setInvites(response.data?.invites || []);
+      const response = await testTakerService.getInvites(params);
+      setTestTakers(response.data?.invites || []);
       setPagination(response.data?.pagination);
     } catch (err) {
-      console.error('Error fetching invites:', err);
+      console.error('Error fetching test takers:', err);
     } finally {
       setLoading(false);
     }
@@ -60,7 +64,7 @@ const Invites = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await inviteService.getInviteStats();
+      const response = await testTakerService.getInviteStats();
       setStats(response.data);
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -68,20 +72,20 @@ const Invites = () => {
   };
 
   const handleCancel = async (id) => {
-    if (!confirm('Are you sure you want to cancel this invite?')) return;
+    if (!confirm('Are you sure you want to remove this test taker?')) return;
     try {
-      await inviteService.cancelInvite(id);
-      fetchInvites();
+      await testTakerService.cancelInvite(id);
+      fetchTestTakers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to cancel invite');
+      alert(err.response?.data?.message || 'Failed to remove test taker');
     }
   };
 
   const handleResend = async (id) => {
     try {
-      await inviteService.resendInvite(id);
+      await testTakerService.resendInvite(id);
       alert('Email resent successfully');
-      fetchInvites();
+      fetchTestTakers();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to resend email');
     }
@@ -97,16 +101,32 @@ const Invites = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Test Invitations</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Test Takers</h1>
           <p className="text-gray-500 mt-1">Manage test taker invitations</p>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Invite Test Taker
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowBulkImport(true)}
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Bulk Import
+          </button>
+          <button
+            onClick={() => testTakerService.exportInvites({ format: 'csv', ...(statusFilter ? { status: statusFilter } : {}) })}
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Test Taker
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards (Admin only) */}
@@ -159,7 +179,7 @@ const Invites = () => {
           <option value="expired">Expired</option>
         </select>
         <button
-          onClick={fetchInvites}
+          onClick={fetchTestTakers}
           className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
@@ -167,7 +187,7 @@ const Invites = () => {
         </button>
       </div>
 
-      {/* Invites Table */}
+      {/* Test Takers Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -190,64 +210,64 @@ const Invites = () => {
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
                   </td>
                 </tr>
-              ) : invites.length === 0 ? (
+              ) : testTakers.length === 0 ? (
                 <tr>
                   <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center">
                     <Send className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No invitations found</p>
+                    <p className="text-gray-500">No test takers found</p>
                     <button
-                      onClick={() => setShowInviteModal(true)}
+                      onClick={() => setShowAddModal(true)}
                       className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
                     >
-                      Send your first invite
+                      Add your first test taker
                     </button>
                   </td>
                 </tr>
               ) : (
-                invites.map((invite) => {
-                  const StatusIcon = statusConfig[invite.status]?.icon || Clock;
+                testTakers.map((testTaker) => {
+                  const StatusIcon = statusConfig[testTaker.status]?.icon || Clock;
                   return (
-                    <tr key={invite._id} className="hover:bg-gray-50">
+                    <tr key={testTaker._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{invite.testTakerName}</div>
-                        <div className="text-sm text-gray-500">{invite.testTakerEmail}</div>
-                        <div className="text-xs text-gray-400">{invite.testTakerPhone}</div>
+                        <div className="text-sm font-medium text-gray-900">{testTaker.testTakerName}</div>
+                        <div className="text-sm text-gray-500">{testTaker.testTakerEmail}</div>
+                        <div className="text-xs text-gray-400">{testTaker.testTakerPhone}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{invite.assessment?.title}</div>
-                        <div className="text-xs text-gray-500 capitalize">{invite.assessment?.category}</div>
+                        <div className="text-sm text-gray-900">{testTaker.assessment?.title}</div>
+                        <div className="text-xs text-gray-500 capitalize">{testTaker.assessment?.category}</div>
                       </td>
                       {isAdmin && (
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">
-                            {invite.invitedBy?.firstName} {invite.invitedBy?.lastName}
+                            {testTaker.invitedBy?.firstName} {testTaker.invitedBy?.lastName}
                           </div>
                         </td>
                       )}
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[invite.status]?.color}`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[testTaker.status]?.color}`}>
                           <StatusIcon className="w-3 h-3" />
-                          {statusConfig[invite.status]?.label}
+                          {statusConfig[testTaker.status]?.label}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(invite.createdAt).toLocaleDateString()}
+                        {new Date(testTaker.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {['pending', 'email_sent', 'expired'].includes(invite.status) && (
+                          {['pending', 'email_sent', 'expired'].includes(testTaker.status) && (
                             <>
                               <button
-                                onClick={() => handleResend(invite._id)}
+                                onClick={() => handleResend(testTaker._id)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 title="Resend email"
                               >
                                 <RefreshCw className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleCancel(invite._id)}
+                                onClick={() => handleCancel(testTaker._id)}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Cancel invite"
+                                title="Remove test taker"
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -291,13 +311,25 @@ const Invites = () => {
         )}
       </div>
 
-      {/* Invite Modal */}
-      {showInviteModal && (
-        <InviteTestTakerModal
-          onClose={() => setShowInviteModal(false)}
+      {/* Add Test Taker Modal */}
+      {showAddModal && (
+        <AddTestTakerModal
+          onClose={() => setShowAddModal(false)}
           onSuccess={() => {
-            setShowInviteModal(false);
-            fetchInvites();
+            setShowAddModal(false);
+            fetchTestTakers();
+            if (isAdmin) fetchStats();
+          }}
+        />
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <BulkImportModal
+          onClose={() => setShowBulkImport(false)}
+          onSuccess={() => {
+            setShowBulkImport(false);
+            fetchTestTakers();
             if (isAdmin) fetchStats();
           }}
         />
@@ -306,4 +338,4 @@ const Invites = () => {
   );
 };
 
-export default Invites;
+export default TestTakers;

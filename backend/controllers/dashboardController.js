@@ -1,4 +1,4 @@
-const { User, Organization, Assessment, Attempt, SupportTicket, CreditRequest } = require('../models');
+const { User, Organization, Assessment, Attempt, SupportTicket, CreditRequest, TestTakerInvite } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 
 /**
@@ -275,77 +275,134 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
  */
 const getUserDashboard = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  const orgId = req.user.organization?._id;
 
-  // Get attempts
-  const attempts = await Attempt.find({ user: userId })
+  // Get invite stats for this user
+  const inviteStats = await TestTakerInvite.aggregate([
+    { $match: { invitedBy: userId } },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const statusCounts = {
+    pending: 0,
+    email_sent: 0,
+    started: 0,
+    completed: 0,
+    expired: 0
+  };
+
+  inviteStats.forEach(s => {
+    statusCounts[s._id] = s.count;
+  });
+
+  const totalSent = Object.values(statusCounts).reduce((sum, c) => sum + c, 0);
+
+  // Get recent invites sent by this user
+  const recentInvites = await TestTakerInvite.find({ invitedBy: userId })
     .populate('assessment', 'title category')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(5);
 
-  const completedAttempts = attempts.filter(a => a.status === 'completed' && a.assessment);
-  const inProgressAttempts = attempts.filter(a => a.status === 'in-progress' && a.assessment);
+  // Get assessments available for sending invites (unlocked for org or allocated to member)
+  let unlockedAssessments = [];
+  if (orgId) {
+    // Find assessments where the org has an unlock entry OR this member has an allocation
+    const allAssessments = await Assessment.find({
+      isActive: true,
+      isPublished: true,
+      $or: [
+        { 'unlockedBy.organization': orgId },
+        { 'memberAllocations': { $elemMatch: { organization: orgId, member: userId } } }
+      ]
+    });
 
-  // Calculate stats
-  const totalAssigned = await Assessment.countDocuments({
-    assignedUsers: userId,
+    unlockedAssessments = await Promise.all(allAssessments.map(async (a) => {
+      const unlockEntry = a.unlockedBy?.find(
+        u => u.organization?.toString() === orgId.toString()
+      );
+
+      // Check member allocation
+      const memberAlloc = (a.memberAllocations || []).find(
+        ma => ma.organization?.toString() === orgId.toString() && ma.member?.toString() === userId.toString()
+      );
+
+      const memberAllocation = memberAlloc ? {
+        testsAllowed: Number(memberAlloc.testsAllowed) || 0,
+        testsDistributed: Number(memberAlloc.testsDistributed) || 0,
+        testsRemaining: Math.max(0, (Number(memberAlloc.testsAllowed) || 0) - (Number(memberAlloc.testsDistributed) || 0))
+      } : null;
+
+      let slotsRemaining = 0;
+      if (unlockEntry) {
+        const activeInvitesCount = await TestTakerInvite.countDocuments({
+          assessment: a._id,
+          organization: orgId,
+          status: { $in: ['pending', 'email_sent', 'started'] }
+        });
+        const assignedCount = a.assignedUsers ? a.assignedUsers.length : 0;
+        const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assignedCount;
+        slotsRemaining = Math.max(0, unlockEntry.testsAllowed - totalLocked);
+      }
+
+      return {
+        _id: a._id,
+        title: a.title,
+        category: a.category,
+        testsAllowed: unlockEntry?.testsAllowed || 0,
+        testsUsed: unlockEntry?.testsUsed || 0,
+        slotsRemaining,
+        memberAllocation
+      };
+    }));
+    unlockedAssessments = unlockedAssessments.filter(a => {
+      // Always show if member has an allocation entry (even if slots exhausted — they need to see usage)
+      if (a.memberAllocation) return true;
+      // Show if org has remaining general slots
+      return a.slotsRemaining > 0;
+    });
+  }
+
+  // Get my assigned assessments (from assignedAssessments AND memberAllocations)
+  const allocatedAssessmentIds = orgId ? await Assessment.distinct('_id', {
+    'memberAllocations': {
+      $elemMatch: {
+        organization: orgId,
+        member: userId
+      }
+    },
+    isPublished: true,
+    isActive: true
+  }) : [];
+
+  const assignedIds = (req.user.assignedAssessments || []).map(id => id.toString());
+  const allocIds = allocatedAssessmentIds.map(id => id.toString());
+  const allMyAssessmentIds = [...new Set([...assignedIds, ...allocIds])];
+
+  const myAssignedAssessments = await Assessment.find({
+    _id: { $in: allMyAssessmentIds },
     isActive: true,
     isPublished: true
-  });
-  const totalCompleted = completedAttempts.length;
-  const totalInProgress = inProgressAttempts.length;
-
-  // Calculate average score
-  const averageScore = completedAttempts.length > 0
-    ? (completedAttempts.reduce((sum, a) => sum + a.percentage, 0) / completedAttempts.length).toFixed(1)
-    : 0;
-
-  // Calculate average completion time
-  const averageTimeSpent = completedAttempts.length > 0
-    ? Math.round(completedAttempts.reduce((sum, a) => sum + a.timeSpent, 0) / completedAttempts.length)
-    : 0;
-
-  // Get recent results
-  const recentResults = completedAttempts
-    .slice(0, 5)
-    .map(attempt => ({
-      id: attempt._id,
-      assessment: attempt.assessment,
-      score: attempt.percentage,
-      passed: attempt.passed,
-      completedAt: attempt.completedAt
-    }));
-
-  // Get performance by category
-  const categoryPerformance = {};
-  completedAttempts.forEach(attempt => {
-    const category = attempt.assessment?.category || 'Unknown';
-    if (category !== 'Unknown') {
-      if (!categoryPerformance[category]) {
-        categoryPerformance[category] = { total: 0, count: 0 };
-      }
-      categoryPerformance[category].total += attempt.percentage;
-      categoryPerformance[category].count += 1;
-    }
-  });
-
-  const performanceByCategory = Object.entries(categoryPerformance).map(([category, data]) => ({
-    category,
-    averageScore: (data.total / data.count).toFixed(1),
-    attempts: data.count
-  }));
+  }).select('title category timeBound totalQuestions');
 
   res.json({
     success: true,
     data: {
       stats: {
-        totalAssigned,
-        totalCompleted,
-        totalInProgress,
-        averageScore,
-        averageTimeSpent
+        totalSent,
+        pending: statusCounts.pending + statusCounts.email_sent,
+        started: statusCounts.started,
+        completed: statusCounts.completed,
+        expired: statusCounts.expired,
+        completionRate: totalSent > 0 ? Math.round((statusCounts.completed / totalSent) * 100) : 0
       },
-      inProgressAttempts,
-      recentResults,
-      performanceByCategory
+      recentInvites,
+      availableAssessments: unlockedAssessments,
+      myAssignedAssessments
     }
   });
 });

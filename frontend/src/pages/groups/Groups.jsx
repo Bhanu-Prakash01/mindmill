@@ -260,7 +260,12 @@ const Groups = () => {
                         className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5 hover:text-indigo-600 transition-colors"
                       >
                         <Users className="w-2.5 h-2.5" />
-                        <span>{group.members?.length || 0} participants</span>
+                        <span>
+                          {group.groupType === 'contacts'
+                            ? `${group.contacts?.length || 0} contacts`
+                            : `${group.members?.length || 0} participants`
+                          }
+                        </span>
                       </button>
                       {group.moderator && (
                         <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 mt-0.5">
@@ -303,10 +308,10 @@ const Groups = () => {
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`${orgPrefix}/groups/${group._id}/members`); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm"
-                      title="Manage Members"
+                      title={group.groupType === 'contacts' ? 'Manage Contacts' : 'Manage Members'}
                     >
                       <Users className="w-3.5 h-3.5" />
-                      <span>Members</span>
+                      <span>{group.groupType === 'contacts' ? 'Contacts' : 'Members'}</span>
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSelectedGroup(group); setShowEditModal(true); }}

@@ -4,6 +4,24 @@ const mongoose = require('mongoose');
 require('./Organization');
 require('./User');
 
+const contactSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Contact name is required'],
+    trim: true
+  },
+  email: {
+    type: String,
+    required: [true, 'Contact email is required'],
+    lowercase: true,
+    trim: true
+  },
+  phone: {
+    type: String,
+    default: ''
+  }
+}, { _id: true });
+
 const groupSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -17,6 +35,13 @@ const groupSchema = new mongoose.Schema({
   icon: {
     type: String,
     default: ''
+  },
+  groupType: {
+    type: String,
+    enum: ['team', 'contacts'],
+    default: 'team'
+    // 'team' = admin manages org members (existing behavior)
+    // 'contacts' = member manages test taker contacts
   },
   organization: {
     type: mongoose.Schema.Types.ObjectId,
@@ -32,6 +57,8 @@ const groupSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  // Contact list for 'contacts' type groups (test takers)
+  contacts: [contactSchema],
   moderator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -49,5 +76,6 @@ const groupSchema = new mongoose.Schema({
 groupSchema.index({ organization: 1 });
 groupSchema.index({ createdBy: 1 });
 groupSchema.index({ members: 1 });
+groupSchema.index({ groupType: 1, createdBy: 1 });
 
 module.exports = mongoose.model('Group', groupSchema);

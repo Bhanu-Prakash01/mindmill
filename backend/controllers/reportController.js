@@ -40,8 +40,9 @@ const getReports = asyncHandler(async (req, res) => {
   // Fetch full data only for valid reports with pagination
   let reports = await Report.find({ ...query, _id: { $in: validReportIds } })
     .populate('user', 'firstName lastName email')
+    .populate('conductedBy', 'firstName lastName email')
     .populate('assessment', 'title category')
-    .populate('attempt', 'status percentage completedAt')
+    .populate('attempt', 'status percentage completedAt timeSpent testTakerName testTakerEmail testTakerPhone')
     .sort({ generatedAt: -1 })
     .limit(limit * 1)
     .skip((page - 1) * limit);

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { assessmentService, groupService, userService } from '../services';
-import { X, Users, UserCheck, Search, Check, AlertTriangle, Info, FileText, CheckCircle, Lock, Unlock } from 'lucide-react';
+import {
+  X, Users, UserCheck, Search, Check, AlertTriangle, Info, FileText,
+  CheckCircle, Lock, Unlock, Plus, Minus, Coins, Loader2
+} from 'lucide-react';
 
 const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('users');
@@ -10,8 +13,15 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const [assignedGroups, setAssignedGroups] = useState(assessment.assignedGroups || []);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+
+  // Slot allocation state: { userId: slotCount }
+  const [memberSlots, setMemberSlots] = useState({});
+  // Existing allocations loaded from API: { userId: { testsAllowed, testsDistributed, _id } }
+  const [existingAllocs, setExistingAllocs] = useState({});
+
   const [unlockStats, setUnlockStats] = useState(assessment.orgUnlockInfo ? {
     testsAllowed: assessment.orgUnlockInfo.testsAllowed,
     testsUsed: assessment.orgUnlockInfo.testsUsed,
@@ -21,15 +31,32 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
   useEffect(() => {
     fetchData('');
+    fetchAllocations();
   }, []);
 
-  // Sync state if assessment prop updates from parent
   useEffect(() => {
     if (assessment) {
       setAssignedUsers(assessment.assignedUsers || []);
       setAssignedGroups(assessment.assignedGroups || []);
     }
   }, [assessment]);
+
+  const fetchAllocations = async () => {
+    try {
+      const res = await assessmentService.getAllocations(assessment._id);
+      if (res.success) {
+        const allocMap = {};
+        (res.data.allocations || []).forEach(a => {
+          if (a.member?._id) {
+            allocMap[a.member._id] = a;
+          }
+        });
+        setExistingAllocs(allocMap);
+      }
+    } catch (err) {
+      console.error('Error fetching allocations:', err);
+    }
+  };
 
   const fetchData = async (search = '') => {
     setLoading(true);
@@ -47,9 +74,8 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
     }
   };
 
-  // Debounced search for server-side search
   const [serverSearchQuery, setServerSearchQuery] = useState('');
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData(serverSearchQuery);
@@ -59,13 +85,23 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
   const handleUnassignUsers = async (userIds) => {
     setSaving(true);
+    setError(null);
     try {
       const res = await assessmentService.unassign(assessment._id, userIds, []);
       setAssignedUsers(assignedUsers.filter(u => !userIds.includes(u._id || u)));
       if (res.data?.unlockStats) setUnlockStats(res.data.unlockStats);
+      // Clear local slot state for removed users
+      const newSlots = { ...memberSlots };
+      userIds.forEach(id => delete newSlots[id]);
+      setMemberSlots(newSlots);
+      // Remove from existing allocs
+      const newAllocs = { ...existingAllocs };
+      userIds.forEach(id => delete newAllocs[id]);
+      setExistingAllocs(newAllocs);
       onSuccess?.();
     } catch (error) {
       console.error('Error unassigning users:', error);
+      setError(error.response?.data?.message || 'Failed to unassign');
     } finally {
       setSaving(false);
     }
@@ -73,6 +109,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
   const handleUnassignGroups = async (groupIds) => {
     setSaving(true);
+    setError(null);
     try {
       const res = await assessmentService.unassign(assessment._id, [], groupIds);
       setAssignedGroups(assignedGroups.filter(g => !groupIds.includes(g._id || g)));
@@ -80,6 +117,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
       onSuccess?.();
     } catch (error) {
       console.error('Error unassigning groups:', error);
+      setError(error.response?.data?.message || 'Failed to unassign');
     } finally {
       setSaving(false);
     }
@@ -120,14 +158,40 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
     }
   };
 
+  const setSlotValue = (userId, value) => {
+    const alloc = existingAllocs[userId];
+    const minVal = alloc?.testsDistributed || 0;
+    const clamped = Math.max(minVal, Math.max(0, value));
+    setMemberSlots(prev => ({ ...prev, [userId]: clamped }));
+  };
+
+  const getSlotValue = (userId) => {
+    if (memberSlots[userId] !== undefined) return memberSlots[userId];
+    return existingAllocs[userId]?.testsAllowed ?? 0;
+  };
+
+  // Total slots being assigned (new selections + edited existing)
+  const totalNewSlots = selectedUserIds.reduce((sum, id) => {
+    return sum + (memberSlots[id] || 0);
+  }, 0);
+
   const handleAssignSelected = async () => {
     if (selectedUserIds.length === 0 && selectedGroupIds.length === 0) return;
-    
+
     setSaving(true);
+    setError(null);
     try {
+      // Build memberSlots for only selected users with slot > 0
+      const slotsToSend = {};
+      selectedUserIds.forEach(id => {
+        if (memberSlots[id] > 0) {
+          slotsToSend[id] = memberSlots[id];
+        }
+      });
+
       let res;
       if (selectedUserIds.length > 0) {
-        res = await assessmentService.assignToUsers(assessment._id, selectedUserIds);
+        res = await assessmentService.assignToUsers(assessment._id, selectedUserIds, slotsToSend);
         const newUsers = users.filter(u => selectedUserIds.includes(u._id));
         setAssignedUsers(prev => [...prev, ...newUsers]);
       }
@@ -137,12 +201,48 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
         setAssignedGroups(prev => [...prev, ...newGroups]);
       }
       if (res?.data?.unlockStats) setUnlockStats(res.data.unlockStats);
+      if (res?.data?.allocations) {
+        const allocMap = {};
+        res.data.allocations.forEach(a => {
+          if (a.member?._id) allocMap[a.member._id] = a;
+        });
+        setExistingAllocs(prev => ({ ...prev, ...allocMap }));
+      }
       setSelectedUserIds([]);
       setSelectedGroupIds([]);
+      setMemberSlots({});
       onSuccess?.();
-    } catch (error) {
-      console.error('Error assigning:', error);
-      alert(error.response?.data?.message || 'Failed to assign');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to assign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Update slots for an already-assigned member
+  const handleUpdateSlots = async (userId) => {
+    const slots = memberSlots[userId];
+    if (slots === undefined) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await assessmentService.assignToUsers(assessment._id, [], { [userId]: slots });
+      if (res?.data?.allocations) {
+        const allocMap = {};
+        res.data.allocations.forEach(a => {
+          if (a.member?._id) allocMap[a.member._id] = a;
+        });
+        setExistingAllocs(prev => ({ ...prev, ...allocMap }));
+      }
+      // Clear pending change
+      setMemberSlots(prev => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      onSuccess?.();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update slots');
     } finally {
       setSaving(false);
     }
@@ -151,7 +251,6 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const isUserSelected = (userId) => selectedUserIds.includes(userId);
   const isGroupSelected = (groupId) => selectedGroupIds.includes(groupId);
 
-  // Filter out already assigned users/groups and admin/superadmin roles
   const availableUsers = users.filter(u =>
     !assignedUserIds.includes(u._id) &&
     u.role !== 'admin' &&
@@ -172,16 +271,12 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                Assign Assessment
-              </h2>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {assessment.title}
-              </p>
+              <h2 className="text-lg font-bold text-gray-900">Assign & Allocate</h2>
+              <p className="text-xs text-gray-600 mt-0.5">{assessment.title}</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white rounded-lg transition-all"
           >
             <X className="w-5 h-5" />
@@ -190,22 +285,6 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
         {/* Info banner */}
         <div className="mx-5 mt-3 space-y-2">
-          {assessment.isPublished ? (
-            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-              <span className="font-medium">
-                This assessment is published. Assigned users will have immediate access to it.
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
-              <Info className="h-4 w-4 shrink-0 text-blue-600" />
-              <span className="font-medium">
-                This is a draft. You can assign users now, but they will only see it once it is published.
-              </span>
-            </div>
-          )}
-
           {/* Unlock stats */}
           {unlockStats && (
             <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
@@ -214,8 +293,20 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                   <Unlock className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Remaining</p>
-                  <p className="text-sm font-bold text-emerald-700">{unlockStats.testsRemaining}</p>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Unlocked</p>
+                  <p className="text-sm font-bold text-emerald-700">{unlockStats.testsAllowed}</p>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-gray-200" />
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                  <Coins className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Allocated</p>
+                  <p className="text-sm font-bold text-indigo-700">
+                    {Object.values(existingAllocs).reduce((s, a) => s + (a.testsAllowed || 0), 0)}
+                  </p>
                 </div>
               </div>
               <div className="w-px h-8 bg-gray-200" />
@@ -224,20 +315,20 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                   <Lock className="w-4 h-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Locked</p>
-                  <p className="text-sm font-bold text-amber-700">{unlockStats.testsLocked}</p>
-                </div>
-              </div>
-              <div className="w-px h-8 bg-gray-200" />
-              <div className="flex items-center gap-2 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-gray-500" />
-                </div>
-                <div>
                   <p className="text-[11px] text-gray-500 uppercase tracking-wide">Used</p>
-                  <p className="text-sm font-bold text-gray-700">{unlockStats.testsUsed}</p>
+                  <p className="text-sm font-bold text-amber-700">
+                    {Object.values(existingAllocs).reduce((s, a) => s + (a.testsDistributed || 0), 0)}
+                  </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
             </div>
           )}
         </div>
@@ -253,7 +344,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
             }`}
           >
             <UserCheck className={`w-4 h-4 ${activeTab === 'users' ? 'animate-pulse' : ''}`} />
-            Individual Users
+            Members
             {assignedUsers.length > 0 && (
               <span className={`ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
                 activeTab === 'users' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'
@@ -291,7 +382,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder={activeTab === 'users' ? "Search users..." : "Search groups..."}
+                  placeholder={activeTab === 'users' ? "Search members..." : "Search groups..."}
                   value={serverSearchQuery}
                   onChange={(e) => setServerSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -301,13 +392,13 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                Available {activeTab === 'users' ? 'Users' : 'Groups'}
+                Available {activeTab === 'users' ? 'Members' : 'Groups'}
               </h3>
               <button
                 onClick={activeTab === 'users' ? selectAllUsers : selectAllGroups}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
               >
-                {activeTab === 'users' 
+                {activeTab === 'users'
                   ? (selectedUserIds.length === availableUsers.length ? 'Deselect All' : 'Select All')
                   : (selectedGroupIds.length === availableGroups.length ? 'Deselect All' : 'Select All')
                 }
@@ -324,37 +415,72 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                   availableUsers.length === 0 ? (
                     <div className="text-center py-8">
                       <UserCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">No available users found</p>
+                      <p className="text-gray-500 text-sm">No available members</p>
                     </div>
                   ) : (
                     availableUsers.map((user) => (
                       <div
                         key={user._id}
-                        onClick={() => toggleUserSelection(user._id)}
-                        className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                        className={`group rounded-lg border-2 transition-all ${
                           isUserSelected(user._id)
-                            ? 'bg-indigo-100 border-2 border-indigo-400 shadow-sm'
-                            : 'bg-gray-50 hover:bg-indigo-50 hover:shadow-sm border-2 border-transparent'
+                            ? 'bg-indigo-50 border-indigo-400 shadow-sm'
+                            : 'bg-gray-50 hover:bg-indigo-50/50 hover:shadow-sm border-transparent'
                         }`}
                       >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                          isUserSelected(user._id)
-                            ? 'bg-indigo-600 border-indigo-600'
-                            : 'border-gray-300 bg-white'
-                        }`}>
-                          {isUserSelected(user._id) && <Check className="w-3 h-3 text-white" />}
+                        <div
+                          onClick={() => toggleUserSelection(user._id)}
+                          className="flex items-center gap-3 p-3 cursor-pointer"
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                            isUserSelected(user._id)
+                              ? 'bg-indigo-600 border-indigo-600'
+                              : 'border-gray-300 bg-white'
+                          }`}>
+                            {isUserSelected(user._id) && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <span className="text-xs font-bold text-white">
+                              {user.firstName?.[0]}{user.lastName?.[0]}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 truncate">
+                              {user.firstName} {user.lastName}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                          </div>
                         </div>
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-sm">
-                          <span className="text-xs font-bold text-white">
-                            {user.firstName?.[0]}{user.lastName?.[0]}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-900">
-                            {user.firstName} {user.lastName}
-                          </p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                        </div>
+                        {/* Slot input for selected users */}
+                        {isUserSelected(user._id) && (
+                          <div className="flex items-center gap-2 px-3 pb-2.5 -mt-1">
+                            <Coins className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                            <span className="text-[11px] text-gray-500 flex-shrink-0">Test slots:</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) - 1); }}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <input
+                                type="number"
+                                min={0}
+                                value={memberSlots[user._id] ?? 0}
+                                onChange={(e) => setSlotValue(user._id, parseInt(e.target.value) || 0)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-12 text-center text-xs font-bold border border-gray-200 rounded py-1 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) + 1); }}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))
                   )
@@ -362,7 +488,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                   availableGroups.length === 0 ? (
                     <div className="text-center py-8">
                       <Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">No available groups found</p>
+                      <p className="text-gray-500 text-sm">No available groups</p>
                     </div>
                   ) : (
                     availableGroups.map((group) => (
@@ -386,12 +512,8 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                           <Users className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-900">
-                            {group.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {group.members?.length || 0} members
-                          </p>
+                          <p className="text-xs font-semibold text-gray-900">{group.name}</p>
+                          <p className="text-xs text-gray-500">{group.members?.length || 0} members</p>
                         </div>
                       </div>
                     ))
@@ -405,7 +527,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
           <div className="p-4 overflow-y-auto bg-gradient-to-b from-gray-50 to-white">
             <h3 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              Assigned {activeTab === 'users' ? 'Users' : 'Groups'}
+              Assigned {activeTab === 'users' ? 'Members' : 'Groups'}
             </h3>
 
             <div className="space-y-1.5">
@@ -413,34 +535,107 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                 assignedUsers.length === 0 ? (
                   <div className="text-center py-8">
                     <UserCheck className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No users assigned yet</p>
+                    <p className="text-gray-500 text-sm">No members assigned yet</p>
                   </div>
                 ) : (
-                  assignedUsers.map((user) => (
-                    <div
-                      key={user._id || user}
-                      className="flex items-center justify-between p-3 bg-white border border-green-200 rounded-lg shadow-sm hover:shadow-md transition-all"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-sm">
-                          <Check className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-900">
-                            {user.firstName ? `${user.firstName} ${user.lastName}` : 'User'}
-                          </p>
-                          {user.email && <p className="text-xs text-gray-500">{user.email}</p>}
+                  assignedUsers.map((user) => {
+                    const userId = user._id || user;
+                    const alloc = existingAllocs[userId];
+                    const hasPendingChange = memberSlots[userId] !== undefined;
+                    const slotVal = getSlotValue(userId);
+
+                    return (
+                      <div
+                        key={userId}
+                        className={`p-3 rounded-lg border transition-all ${
+                          hasPendingChange
+                            ? 'border-amber-300 bg-amber-50/50'
+                            : 'border-green-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                              <Check className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">
+                                {user.firstName ? `${user.firstName} ${user.lastName}` : 'User'}
+                              </p>
+                              {user.email && <p className="text-xs text-gray-500 truncate">{user.email}</p>}
+                              {alloc && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-emerald-600">
+                                    {alloc.testsDistributed} used
+                                  </span>
+                                  <span className="text-[10px] text-gray-400">/</span>
+                                  <span className="text-[10px] text-indigo-600">
+                                    {alloc.testsAllowed} total
+                                  </span>
+                                  {alloc.testsRemaining > 0 && (
+                                    <span className="text-[10px] text-amber-600">
+                                      ({alloc.testsRemaining} remaining)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                            {/* Slot controls for already-assigned */}
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setSlotValue(userId, slotVal - 1)}
+                                disabled={slotVal <= (alloc?.testsDistributed || 0)}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <input
+                                type="number"
+                                min={alloc?.testsDistributed || 0}
+                                value={slotVal}
+                                onChange={(e) => setSlotValue(userId, parseInt(e.target.value) || 0)}
+                                className="w-11 text-center text-xs font-bold border border-gray-200 rounded py-1 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSlotValue(userId, slotVal + 1)}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                            {/* Save slot update */}
+                            {hasPendingChange && (
+                              <button
+                                onClick={() => handleUpdateSlots(userId)}
+                                disabled={saving}
+                                className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-lg transition-all"
+                                title="Save slot change"
+                              >
+                                {saving ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
+                            {/* Unassign */}
+                            <button
+                              onClick={() => handleUnassignUsers([userId])}
+                              disabled={saving}
+                              className="p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                              title="Unassign"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleUnassignUsers([user._id || user])}
-                        disabled={saving}
-                        className="p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                    );
+                  })
                 )
               ) : (
                 assignedGroups.length === 0 ? (
@@ -459,13 +654,9 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                           <Check className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-900">
-                            {group.name || 'Group'}
-                          </p>
+                          <p className="text-xs font-semibold text-gray-900">{group.name || 'Group'}</p>
                           {group.members && (
-                            <p className="text-xs text-gray-500">
-                              {group.members.length} members
-                            </p>
+                            <p className="text-xs text-gray-500">{group.members.length} members</p>
                           )}
                         </div>
                       </div>
@@ -484,13 +675,13 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Footer with selection summary */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-indigo-50">
           {(selectedUserIds.length > 0 || selectedGroupIds.length > 0) ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-gray-700">
                 <span className="font-bold text-indigo-700">
-                  {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''}
+                  {selectedUserIds.length} member{selectedUserIds.length !== 1 ? 's' : ''}
                 </span>
                 {selectedUserIds.length > 0 && selectedGroupIds.length > 0 && (
                   <span className="text-gray-400 mx-1">+</span>
@@ -500,16 +691,25 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                     {selectedGroupIds.length} group{selectedGroupIds.length !== 1 ? 's' : ''}
                   </span>
                 )}
+                {totalNewSlots > 0 && (
+                  <>
+                    <span className="text-gray-400 mx-1">|</span>
+                    <span className="font-bold text-emerald-700">
+                      {totalNewSlots} slot{totalNewSlots !== 1 ? 's' : ''}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
                     setSelectedUserIds([]);
                     setSelectedGroupIds([]);
+                    setMemberSlots({});
                   }}
                   className="px-4 py-2 text-xs text-gray-600 hover:text-gray-800 font-medium transition-all"
                 >
-                  Clear Selection
+                  Clear
                 </button>
                 <button
                   onClick={handleAssignSelected}
@@ -517,9 +717,9 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                   className="px-5 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-2"
                 >
                   {saving ? (
-                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    'Assign Selected'
+                    'Assign & Allocate'
                   )}
                 </button>
               </div>

@@ -155,13 +155,17 @@ const Big5Test = () => {
   const attemptData = attemptRes.data?.attempt;
   setCurrentAttemptId(attemptData?._id);
   setAssessment(attemptData?.assessment);
-  
+
+  // Extract and sort questions from the populated assessment
+  const sortedQuestions = (attemptData?.assessment?.questions || []).sort((a, b) => a.order - b.order);
+  setQuestions(sortedQuestions);
+
   if (attemptData?.expiresAt) {
   const expiresAt = new Date(attemptData.expiresAt).getTime();
   const now = Date.now();
   setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
   }
-  
+
   requestFullscreen();
   setLoading(false);
   } catch (err) {

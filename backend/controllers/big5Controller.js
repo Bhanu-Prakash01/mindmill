@@ -95,9 +95,9 @@ const getBig5Results = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Check permissions
-  if (attempt.user.toString() !== req.user._id.toString() && 
-      req.user.role !== 'admin' && 
+  // Check permissions — allow public/invite-based attempts (user is null)
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+      req.user.role !== 'admin' &&
       req.user.role !== 'superadmin') {
     throw new ApiError(403, 'Access denied');
   }
@@ -126,7 +126,12 @@ const getBig5Results = asyncHandler(async (req, res) => {
       traitDetails,
       dominantTraits: getDominantTraits(attempt.big5Results),
       narrative: generateNarrative(attempt.big5Results),
-      completedAt: attempt.completedAt
+      completedAt: attempt.completedAt,
+      testTaker: {
+        name: attempt.testTakerName || null,
+        email: attempt.testTakerEmail || null,
+        phone: attempt.testTakerPhone || null
+      }
     }
   });
 });
@@ -262,12 +267,24 @@ async function generateBig5Report(attempt, assessment, big5Results) {
   const dominantTraits = getDominantTraits(big5Results);
   const narrative = generateNarrative(big5Results);
 
+  // Resolve who conducted the assessment
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const { TestTakerInvite } = require('../models');
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
   const report = await Report.create({
     attempt: attempt._id,
     user: attempt.user,
+    conductedBy,
     assessment: attempt.assessment,
     organization: attempt.organization,
     type: 'big5',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
     scores: {
       byTrait: {
         E: big5Results.E,

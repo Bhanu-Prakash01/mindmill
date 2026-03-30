@@ -6,10 +6,13 @@ const {
   getDiscAnalytics,
   getDiscComparison
 } = require('../controllers/discController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, optionalAuth } = require('../middleware/authMiddleware');
 const { isAdmin } = require('../middleware/roleMiddleware');
 
-// All routes require authentication
+// Public route - DISC results (works for invite-based attempts too)
+router.get('/attempts/:attemptId/disc/results', optionalAuth, getDiscResults);
+
+// All other routes require authentication
 router.use(authMiddleware);
 
 // Submit DISC assessment
@@ -17,9 +20,6 @@ router.post(
   '/assessments/:assessmentId/disc/submit',
   submitDisc
 );
-
-// Get DISC results for an attempt
-router.get('/attempts/:attemptId/disc/results', getDiscResults);
 
 // Get DISC analytics (admin only)
 router.get('/disc/analytics', isAdmin, getDiscAnalytics);

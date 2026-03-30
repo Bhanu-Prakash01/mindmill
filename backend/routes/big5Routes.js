@@ -6,11 +6,14 @@ const {
   getBig5Analytics,
   getBig5Comparison
 } = require('../controllers/big5Controller');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, optionalAuth } = require('../middleware/authMiddleware');
 const { isAdmin } = require('../middleware/roleMiddleware');
 const { validateBig5Responses } = require('../middleware/big5Validation');
 
-// All routes require authentication
+// Public route - Big5 results (works for invite-based attempts too)
+router.get('/attempts/:attemptId/big5/results', optionalAuth, getBig5Results);
+
+// All other routes require authentication
 router.use(authMiddleware);
 
 // Submit Big5 assessment
@@ -19,9 +22,6 @@ router.post(
   validateBig5Responses,
   submitBig5
 );
-
-// Get Big5 results for an attempt
-router.get('/attempts/:attemptId/big5/results', getBig5Results);
 
 // Get Big5 analytics (admin only)
 router.get('/big5/analytics', isAdmin, getBig5Analytics);

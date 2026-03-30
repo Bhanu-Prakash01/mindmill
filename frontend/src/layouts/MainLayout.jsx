@@ -38,10 +38,10 @@ const MainLayout = () => {
  { name: 'Dashboard', href: `${orgPrefix}/`, icon: LayoutDashboard },
  ...(isAdmin ? [
  { name: 'Users', href: `${orgPrefix}/users`, icon: Users },
- { name: 'Groups', href: `${orgPrefix}/groups`, icon: UsersRound }
  ] : []),
+ { name: 'Groups', href: `${orgPrefix}/groups`, icon: UsersRound },
  { name: 'Assessments', href: `${orgPrefix}/assessments`, icon: FileText },
- { name: 'Invites', href: `${orgPrefix}/invites`, icon: Send },
+ { name: 'Test Takers', href: `${orgPrefix}/test-takers`, icon: Send },
  { name: 'Reports', href: `${orgPrefix}/reports`, icon: BarChart3 },
  ...(isAdmin ? [{ name: 'Credits', href: `${orgPrefix}/credits`, icon: CreditCard }] : []),
  { name: 'Support', href: `${orgPrefix}/support`, icon: HelpCircle },

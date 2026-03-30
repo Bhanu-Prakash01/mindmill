@@ -38,8 +38,8 @@ import DiscReport from './pages/reports/DiscReport';
 // Credits
 import Credits from './pages/credits/Credits';
 
-// Invites
-import Invites from './pages/invites/Invites';
+// Test Takers
+import TestTakers from './pages/test-takers/TestTakers';
 
 // Support
 import Support from './pages/support/Support';
@@ -157,6 +157,11 @@ const AppRoutes = () => {
    <Route path="/take/:token/big5/:attemptId" element={<Big5Test />} />
    <Route path="/take/:token/disc/:attemptId" element={<DiscTest />} />
    <Route path="/take/:token/test/:attemptId" element={<TakeTest />} />
+   {/* Category-prefixed invite URLs (e.g., /take/big5/{token}) */}
+   <Route path="/take/:category/:token" element={<PublicTest />} />
+   <Route path="/take/:category/:token/big5/:attemptId" element={<Big5Test />} />
+   <Route path="/take/:category/:token/disc/:attemptId" element={<DiscTest />} />
+   <Route path="/take/:category/:token/test/:attemptId" element={<TakeTest />} />
 
     {/* SuperAdmin Routes (at root, auth required) */}
     <Route
@@ -229,18 +234,18 @@ const AppRoutes = () => {
    </ProtectedRoute>
    }
    />
-   <Route
-   path="groups"
-   element={
-   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
-   <Groups />
-   </ProtectedRoute>
-   }
-   />
-   <Route
-   path="groups/:id/members"
-   element={
-   <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+    <Route
+    path="groups"
+    element={
+    <ProtectedRoute allowedRoles={['admin', 'superadmin', 'user']}>
+    <Groups />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="groups/:id/members"
+    element={
+    <ProtectedRoute allowedRoles={['admin', 'superadmin', 'user']}>
    <GroupMembers />
    </ProtectedRoute>
    }
@@ -340,12 +345,12 @@ const AppRoutes = () => {
    }
    />
 
-   {/* Invites */}
+   {/* Test Takers */}
    <Route
-   path="invites"
+   path="test-takers"
    element={
    <ProtectedRoute>
-   <Invites />
+   <TestTakers />
    </ProtectedRoute>
    }
    />

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { assessmentService, inviteService, organizationService } from '../services';
+import { X, Send, AlertCircle, CheckCircle, Loader2, Lock, Unlock } from 'lucide-react';
+import { assessmentService, testTakerService, organizationService } from '../services';
 
-const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess }) => {
+const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess }) => {
   const [assessments, setAssessments] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState(passedAssessment || null);
   const [form, setForm] = useState({
@@ -14,26 +14,45 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
   const [loadingAssessments, setLoadingAssessments] = useState(!passedAssessment);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [myAllocation, setMyAllocation] = useState(null);
 
   useEffect(() => {
     if (!passedAssessment) {
       fetchAssessments();
+    } else {
+      fetchMyAllocation(passedAssessment._id);
     }
   }, [passedAssessment]);
+
+  const fetchMyAllocation = async (assessmentId) => {
+    try {
+      const res = await assessmentService.getMyAllocation(assessmentId);
+      if (res.success) {
+        setMyAllocation(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching allocation:', err);
+    }
+  };
 
   const fetchAssessments = async () => {
     try {
       setLoadingAssessments(true);
       const response = await assessmentService.getAssessments({ status: 'active', limit: 50 });
       const allAssessments = response.data?.assessments || [];
-      // Filter to only unlocked assessments
-      const unlocked = allAssessments.filter(a => !a.isLocked);
+      // Filter to only unlocked assessments (has orgUnlockInfo or memberAllocation with remaining slots)
+      const unlocked = allAssessments.filter(a => !a.isLocked || a.memberAllocation);
       setAssessments(unlocked);
     } catch (err) {
       console.error('Error fetching assessments:', err);
     } finally {
       setLoadingAssessments(false);
     }
+  };
+
+  const handleSelectAssessment = (assessment) => {
+    setSelectedAssessment(assessment);
+    fetchMyAllocation(assessment._id);
   };
 
   const handleSubmit = async (e) => {
@@ -48,7 +67,7 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
     setSuccess(null);
 
     try {
-      const response = await inviteService.createInvite({
+      const response = await testTakerService.createInvite({
         assessmentId: selectedAssessment._id,
         testTakerName: form.testTakerName.trim(),
         testTakerEmail: form.testTakerEmail.trim(),
@@ -56,14 +75,14 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
       });
 
       if (response.success) {
-        setSuccess(response.data?.emailSent ? 'Invite sent successfully! Email delivered.' : 'Invite created but email delivery failed. You can resend later.');
+        setSuccess(response.data?.emailSent ? 'Test taker added successfully! Email delivered.' : 'Test taker added but email delivery failed. You can resend later.');
         setForm({ testTakerName: '', testTakerEmail: '', testTakerPhone: '' });
         setTimeout(() => {
           onSuccess?.();
         }, 2000);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send invite');
+      setError(err.response?.data?.message || 'Failed to add test taker');
     } finally {
       setLoading(false);
     }
@@ -75,7 +94,7 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Invite Test Taker</h2>
+            <h2 className="text-xl font-bold text-gray-900">Add Test Taker</h2>
             <p className="text-sm text-gray-500 mt-1">Send an assessment invitation via email</p>
           </div>
           <button
@@ -106,7 +125,7 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
                 value={selectedAssessment?._id || ''}
                 onChange={(e) => {
                   const a = assessments.find(a => a._id === e.target.value);
-                  setSelectedAssessment(a);
+                  handleSelectAssessment(a);
                 }}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
               >
@@ -131,15 +150,30 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
           </div>
         )}
 
-        {/* Slot Info */}
-        {selectedAssessment?.orgUnlockInfo && (
+        {/* Slot Info - Member Allocation (priority) or Org Unlock */}
+        {myAllocation?.allocated ? (
+          <div className="bg-emerald-50 rounded-lg p-3 mb-5 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <p className="text-sm text-emerald-700">
+              <span className="font-semibold">{myAllocation.testsRemaining}</span> of {myAllocation.testsAllowed} allocated slots remaining
+              {myAllocation.activeInvites > 0 && <span> ({myAllocation.activeInvites} active test takers)</span>}
+            </p>
+          </div>
+        ) : selectedAssessment?.orgUnlockInfo ? (
           <div className="bg-indigo-50 rounded-lg p-3 mb-5 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-indigo-600 flex-shrink-0" />
             <p className="text-sm text-indigo-700">
               {Math.max(0, selectedAssessment.orgUnlockInfo.testsRemaining)} test slots remaining
             </p>
           </div>
-        )}
+        ) : selectedAssessment ? (
+          <div className="bg-amber-50 rounded-lg p-3 mb-5 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm text-amber-700">
+              No slots allocated to you for this assessment. Contact your admin.
+            </p>
+          </div>
+        ) : null}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -223,7 +257,7 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  Send Invite
+                  Send Invitation
                 </>
               )}
             </button>
@@ -234,4 +268,4 @@ const InviteTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess
   );
 };
 
-export default InviteTestTakerModal;
+export default AddTestTakerModal;

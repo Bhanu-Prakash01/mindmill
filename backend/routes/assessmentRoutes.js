@@ -19,7 +19,11 @@ const {
   revokePublicLink,
   unlockAssessment,
   refundUnattempted,
-  getAssessmentPurchases
+  getAssessmentPurchases,
+  allocateToMembers,
+  getAllocations,
+  removeAllocation,
+  getMyAllocation
 } = require('../controllers/assessmentController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
@@ -53,5 +57,13 @@ router.post('/:id/assign', isAdmin, idParamValidation, assignAssessment);
 router.post('/:id/unassign', isAdmin, idParamValidation, unassignAssessment);
 router.post('/:id/generate-link', isAdmin, idParamValidation, generatePublicLink);
 router.delete('/:id/revoke-link', isAdmin, idParamValidation, revokePublicLink);
+
+// Member allocation routes (Admin)
+router.post('/:id/allocate', isAdmin, idParamValidation, allocateToMembers);
+router.get('/:id/allocations', isAdmin, idParamValidation, getAllocations);
+router.delete('/:id/allocations/:allocId', isAdmin, idParamValidation, removeAllocation);
+
+// Member's own allocation view (any authenticated user)
+router.get('/:id/my-allocation', idParamValidation, getMyAllocation);
 
 module.exports = router;

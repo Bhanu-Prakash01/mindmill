@@ -94,9 +94,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/assessments', assessmentRoutes);
+app.use('/api/attempts', attemptRoutes); // Must be before questionRoutes (which has catch-all auth middleware on /api)
 app.use('/api', questionRoutes); // Question routes include /assessments/:id/questions
 app.use('/api/question-banks', questionBankRoutes); // Question bank management for super admin
-app.use('/api/attempts', attemptRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/credits', creditRoutes);
 app.use('/api/support', supportRoutes);

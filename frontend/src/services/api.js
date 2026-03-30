@@ -41,19 +41,46 @@ api.interceptors.request.use(
   }
 );
 
+// Public API routes that should NOT trigger a login redirect on 401
+const PUBLIC_API_PREFIXES = [
+  '/assessments/public/',
+  '/assessments/invite/',
+  '/attempts/public/',
+  '/attempts/invite/',
+];
+
+const isPublicRoute = (url = '') =>
+  PUBLIC_API_PREFIXES.some((prefix) => url.includes(prefix));
+
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const requestUrl = error.config?.url || '';
+      if (!isPublicRoute(requestUrl)) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
+/**
+ * Public API instance — NEVER sends an Authorization header.
+ * Use for invite links and public test routes so that a stale
+ * admin/user token in localStorage never pollutes a public request
+ * and never triggers a spurious 401 → login redirect.
+ */
+const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Export for use in components
-export { orgSlug, getOrgSlugFromPath };
+export { orgSlug, getOrgSlugFromPath, publicApi };
 export default api;

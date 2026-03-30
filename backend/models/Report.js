@@ -62,7 +62,13 @@ const reportSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'User is required']
+    default: null
+  },
+  // Member/admin who conducted the assessment
+  conductedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   assessment: {
     type: mongoose.Schema.Types.ObjectId,
@@ -78,6 +84,19 @@ const reportSchema = new mongoose.Schema({
     type: String,
     enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5'],
     required: [true, 'Report type is required']
+  },
+  // Test taker details (from invite or user account)
+  testTakerName: {
+    type: String,
+    default: null
+  },
+  testTakerEmail: {
+    type: String,
+    default: null
+  },
+  testTakerPhone: {
+    type: String,
+    default: null
   },
   generatedAt: {
     type: Date,
@@ -147,9 +166,9 @@ const reportSchema = new mongoose.Schema({
     developmentAreas: [{ type: String }],
     recommendations: [{ type: String }],
     careerSuggestions: [{ type: String }],
-    workStyle: { type: String, default: '' },
-    teamFit: { type: String, default: '' },
-    leadershipStyle: { type: String, default: '' }
+    workStyle: { type: mongoose.Schema.Types.Mixed, default: '' },
+    teamFit: { type: mongoose.Schema.Types.Mixed, default: '' },
+    leadershipStyle: { type: mongoose.Schema.Types.Mixed, default: '' }
   },
   // Detailed breakdown
   questionAnalysis: [{

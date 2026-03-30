@@ -129,26 +129,27 @@ const TakeTest = () => {
  }
  };
 
- const fetchPublicAssessment = async () => {
- try {
- const attemptRes = await attemptService.getPublicAttempt(attemptId);
- const attemptData = attemptRes.data?.attempt;
- setAttempt(attemptData);
- setAssessment(attemptData?.assessment);
- 
- if (attemptData?.expiresAt) {
- const expiresAt = new Date(attemptData.expiresAt).getTime();
- const now = Date.now();
- setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
- }
- 
- requestFullscreen();
- setLoading(false);
- } catch (err) {
- setError(err.response?.data?.message || 'Failed to load assessment');
- setLoading(false);
- }
- };
+  const fetchPublicAssessment = async () => {
+  try {
+  const attemptRes = await attemptService.getPublicAttempt(attemptId);
+  const attemptData = attemptRes.data?.attempt;
+  setAttempt(attemptData);
+  setAssessment(attemptData?.assessment);
+  setQuestions(attemptData?.assessment?.questions || []);
+
+  if (attemptData?.expiresAt) {
+  const expiresAt = new Date(attemptData.expiresAt).getTime();
+  const now = Date.now();
+  setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+  }
+
+  requestFullscreen();
+  setLoading(false);
+  } catch (err) {
+  setError(err.response?.data?.message || 'Failed to load assessment');
+  setLoading(false);
+  }
+  };
 
  const requestFullscreen = () => {
  const elem = document.documentElement;

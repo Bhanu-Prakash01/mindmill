@@ -1,4 +1,4 @@
-import api from './api';
+import api, { publicApi } from './api';
 
 export const assessmentService = {
  getAssessments: async (params = {}) => {
@@ -51,10 +51,10 @@ export const assessmentService = {
   return response.data;
  },
 
- assignToUsers: async (id, userIds) => {
-  const response = await api.post(`/assessments/${id}/assign`, { userIds });
-  return response.data;
- },
+  assignToUsers: async (id, userIds, memberSlots = {}) => {
+    const response = await api.post(`/assessments/${id}/assign`, { userIds, memberSlots });
+    return response.data;
+  },
 
  assignToGroups: async (id, groupIds) => {
   const response = await api.post(`/assessments/${id}/assign`, { groupIds });
@@ -107,12 +107,12 @@ export const assessmentService = {
  },
 
   getPublicAssessment: async (token) => {
-    const response = await api.get(`/assessments/public/${token}`);
+    const response = await publicApi.get(`/assessments/public/${token}`);
     return response.data;
   },
 
   getAssessmentByInviteToken: async (token) => {
-    const response = await api.get(`/assessments/invite/${token}`);
+    const response = await publicApi.get(`/assessments/invite/${token}`);
     return response.data;
   },
 
@@ -128,6 +128,26 @@ export const assessmentService = {
 
   getAssessmentPurchases: async (id) => {
     const response = await api.get(`/assessments/${id}/purchases`);
+    return response.data;
+  },
+
+  allocateToMembers: async (id, allocations) => {
+    const response = await api.post(`/assessments/${id}/allocate`, { allocations });
+    return response.data;
+  },
+
+  getAllocations: async (id) => {
+    const response = await api.get(`/assessments/${id}/allocations`);
+    return response.data;
+  },
+
+  removeAllocation: async (id, allocId) => {
+    const response = await api.delete(`/assessments/${id}/allocations/${allocId}`);
+    return response.data;
+  },
+
+  getMyAllocation: async (id) => {
+    const response = await api.get(`/assessments/${id}/my-allocation`);
     return response.data;
   },
 };
