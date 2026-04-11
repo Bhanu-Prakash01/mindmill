@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import UserAvatar from '../../components/UserAvatar';
 
 const EMPTY_FORM = {
   salutation: '',
@@ -357,11 +358,12 @@ const UserManagement = () => {
  <tr key={user._id} className="hover:bg-gray-50 ">
  <td className="px-6 py-4">
  <div className="flex items-center">
- <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
- <span className="text-indigo-600 font-medium">
- {user.firstName[0]}{user.lastName[0]}
- </span>
- </div>
+ <UserAvatar
+  name={user.firstName}
+  lastName={user.lastName}
+  email={user.email}
+  size={40}
+ />
   <div className="ml-4">
     <div className="text-sm font-medium text-gray-900 ">
       {user.salutation && `${user.salutation} `}{user.firstName}{user.lastName ? ` ${user.lastName}` : ''}
@@ -411,7 +413,9 @@ const UserManagement = () => {
  >
  <Edit2 className="w-4 h-4" />
  </button>
- {currentUser?.role === 'superadmin' && user._id !== currentUser?._id && (
+ {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && 
+  user._id !== currentUser?._id && 
+  !(currentUser?.role === 'admin' && (user.role === 'superadmin' || user.role === 'admin')) && (
  <button
  onClick={() => handleDeleteUser(user._id)}
  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

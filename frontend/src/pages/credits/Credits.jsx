@@ -274,7 +274,7 @@ const Credits = () => {
 
   {/* Credit Cost Reference */}
   <div className="bg-white rounded-xl border border-gray-200 p-6">
-  <h2 className="text-lg font-semibold text-gray-900 mb-4">Credit Cost by Assessment Type</h2>
+  <h2 className="text-lg font-semibold text-gray-900 mb-4">Credit Consumption by Assessment Type</h2>
   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
     <div className="p-3 bg-indigo-50 rounded-lg text-center">
       <p className="text-sm text-gray-600">Psychometric/Big5/DISC</p>

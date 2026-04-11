@@ -18,6 +18,14 @@ import {
  Sparkles
 } from 'lucide-react';
 
+// Category → Subcategory mapping
+const SUBCATEGORY_MAP = {
+  psychometric: ['FIRO-B', 'DISC', 'MBTI', 'Hogan'],
+  personality: ['Big5', 'Value Assessment'],
+  cognitive: ['Reasoning'],
+  aptitude: ['Situational Judgement'],
+};
+
 // Big5 trait configuration for question positions
 const BIG5_CONFIG = {
  E: { name: 'Extraversion', pos: [1,11,21,31,41], neg: [6,16,26,36,46] },
@@ -773,6 +781,7 @@ const AssessmentForm = () => {
  setFormData({
  ...formData,
  category,
+ subCategory: '', // Reset subcategory when category changes
  // Auto-configure Big5 settings
  ...(category === 'big5' ? {
  isLockedStructure: true,
@@ -794,7 +803,9 @@ const AssessmentForm = () => {
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  >
  <option value="psychometric">Psychometric</option>
+ <option value="personality">Personality</option>
  <option value="cognitive">Cognitive</option>
+ <option value="aptitude">Aptitude</option>
  <option value="situational">Situational</option>
  <option value="professional">Professional</option>
  <option value="big5">Big Five Personality (BFPT-50)</option>
@@ -833,6 +844,18 @@ const AssessmentForm = () => {
  <label className="block text-sm font-medium text-gray-700 mb-1">
  Sub Category
  </label>
+ {SUBCATEGORY_MAP[formData.category] ? (
+ <select
+ value={formData.subCategory}
+ onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+ >
+ <option value="">Select Sub Category</option>
+ {SUBCATEGORY_MAP[formData.category].map((sub) => (
+ <option key={sub} value={sub}>{sub}</option>
+ ))}
+ </select>
+ ) : (
  <input
  type="text"
  value={formData.subCategory}
@@ -840,6 +863,7 @@ const AssessmentForm = () => {
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  placeholder="e.g., DISC, MBTI, Numerical Reasoning"
  />
+ )}
  </div>
 
  <div>
@@ -1450,7 +1474,7 @@ const AssessmentForm = () => {
 
  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
  <div>
- <h3 className="text-sm font-medium text-gray-900 ">Credit Cost Per Test</h3>
+ <h3 className="text-sm font-medium text-gray-900 ">Credit Consumption Per Test</h3>
  <p className="text-sm text-gray-500 ">Override category default cost (leave blank for default)</p>
  </div>
  <div className="flex items-center gap-2">
