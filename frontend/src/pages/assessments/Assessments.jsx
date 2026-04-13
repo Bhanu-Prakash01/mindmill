@@ -13,8 +13,8 @@ import {
   Edit2,
   Trash2,
   Copy,
-  Eye,
-  EyeOff,
+  FileCheck,
+  FileX,
   Clock,
   Users,
   BarChart3,
@@ -64,11 +64,25 @@ const CATEGORY_META = {
       'Psychometric assessments are standardized tools used to objectively measure an individual\'s mental capabilities, personality traits, and behavioral style. They provide employers with reliable data to support hiring decisions, talent development, and team building—going beyond what interviews alone can reveal.',
     acknowledgement: 'Based on validated psychometric measurement standards',
   },
+  personality: {
+    image: '/assessment_big5.png',
+    inspiredBy: 'Personality Assessment',
+    description:
+      'Personality assessments measure enduring traits, values, and behavioral tendencies that shape how individuals interact with the world. These tools—including value assessments and trait-based models—help organizations understand cultural fit, motivation drivers, and interpersonal compatibility for better team composition.',
+    acknowledgement: null,
+  },
   situational: {
     image: '/assessment_situational.png',
     inspiredBy: 'Situational Judgment Test',
     description:
       'Situational Judgment Tests (SJTs) present realistic work-related scenarios to assess how candidates respond to workplace challenges. They measure judgment, decision-making, and alignment with organizational values—making them a powerful predictor of job performance across roles.',
+    acknowledgement: null,
+  },
+  aptitude: {
+    image: '/assessment_situational.png',
+    inspiredBy: 'Aptitude Assessment',
+    description:
+      'Aptitude assessments evaluate an individual\'s potential to perform tasks and solve problems in specific domains. These tests measure innate abilities including situational judgment, logical reasoning, and practical decision-making skills that predict job success and training readiness.',
     acknowledgement: null,
   },
   professional: {
@@ -107,7 +121,6 @@ const Assessments = () => {
   const [verifying, setVerifying] = useState(false);
   const [assignmentModal, setAssignmentModal] = useState({ show: false, assessment: null });
   const [shareModal, setShareModal] = useState({ show: false, assessment: null });
-  const [publicLinkModal, setPublicLinkModal] = useState({ show: false, assessment: null, loading: false, link: null });
   const [unlockModal, setUnlockModal] = useState({ show: false, assessment: null });
   const [testTakerModal, setTestTakerModal] = useState({ show: false, assessment: null });
   const [purchasesModal, setPurchasesModal] = useState({ show: false, assessment: null });
@@ -159,22 +172,31 @@ const Assessments = () => {
     }
   };
 
-  const filteredAssessments = assessments.filter((assessment) => {
-    const matchesSearch =
-      assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assessment.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || assessment.category === filterCategory;
-    const matchesStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'published' && assessment.isPublished) ||
-      (filterStatus === 'draft' && !assessment.isPublished);
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filteredAssessments = assessments
+    .filter((assessment) => {
+      const matchesSearch =
+        assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        assessment.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = filterCategory === 'all' || assessment.category === filterCategory;
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'published' && assessment.isPublished) ||
+        (filterStatus === 'draft' && !assessment.isPublished);
+      return matchesSearch && matchesCategory && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Unlocked assessments first (isLocked = false), then locked (isLocked = true)
+      // If both have same status, sort by createdAt descending
+      if (a.isLocked === b.isLocked) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return a.isLocked ? 1 : -1;
+    });
 
   const getTestRoute = (assessmentId, category) => {
-    if (category === 'big5') return `${orgPrefix}/assessments/${assessmentId}/big5`;
-    if (category === 'disc') return `${orgPrefix}/assessments/${assessmentId}/disc`;
-    return `${orgPrefix}/assessments/${assessmentId}/take`;
+    if (category === 'big5') return `${orgPrefix}/assessments/${assessmentId}/big5/terms`;
+    if (category === 'disc') return `${orgPrefix}/assessments/${assessmentId}/disc/terms`;
+    return `${orgPrefix}/assessments/${assessmentId}/terms`;
   };
 
   const handleVerifyPasscode = async (e) => {
@@ -202,17 +224,6 @@ const Assessments = () => {
     }
   };
 
-  const handleGeneratePublicLink = async (assessment) => {
-    setPublicLinkModal({ show: true, assessment, loading: true, link: null });
-    try {
-      const response = await assessmentService.generatePublicLink(assessment._id);
-      setPublicLinkModal({ show: true, assessment, loading: false, link: response.data });
-    } catch (error) {
-      setPublicLinkModal({ show: false, assessment: null, loading: false, link: null });
-      alert(error.response?.data?.message || 'Failed to generate public link');
-    }
-  };
-
   const handleRefundUnattempted = async (assessment) => {
     const testsLocked = Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo?.testsUsed || 0));
     if (testsLocked <= 0) {
@@ -226,16 +237,6 @@ const Assessments = () => {
       fetchAssessments();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to refund unattempted tests');
-    }
-  };
-
-  const handleRevokePublicLink = async () => {
-    try {
-      await assessmentService.revokePublicLink(publicLinkModal.assessment._id);
-      setPublicLinkModal({ show: false, assessment: null, loading: false, link: null });
-      fetchAssessments();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to revoke link');
     }
   };
 
@@ -289,7 +290,9 @@ const Assessments = () => {
         >
           <option value="all">All Categories</option>
           <option value="psychometric">Psychometric</option>
+          <option value="personality">Personality</option>
           <option value="cognitive">Cognitive</option>
+          <option value="aptitude">Aptitude</option>
           <option value="situational">Situational</option>
           <option value="professional">Professional</option>
           <option value="big5">Big Five Personality</option>
@@ -357,12 +360,12 @@ const Assessments = () => {
                 {/* Published badge (top-right) */}
                 <div className="absolute top-3 right-3">
                   {assessment.isPublished ? (
-                    <span className="bg-white rounded-full p-0.5 shadow" title="Published">
-                      <CheckCircle className="w-6 h-6 text-green-500" />
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold shadow">
+                      Published
                     </span>
                   ) : (
-                    <span className="bg-white rounded-full p-0.5 shadow" title="Draft">
-                      <XCircle className="w-6 h-6 text-gray-400" />
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold shadow">
+                      Draft
                     </span>
                   )}
                 </div>
@@ -490,10 +493,10 @@ const Assessments = () => {
                         </button>
                         <button
                           onClick={() => handleTogglePublish(assessment._id)}
-                          className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${assessment.isPublished ? 'text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}
                           title={assessment.isPublished ? 'Unpublish' : 'Publish'}
                         >
-                          {assessment.isPublished ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {assessment.isPublished ? <FileX className="w-4 h-4" /> : <FileCheck className="w-4 h-4" />}
                         </button>
                         <button
                           onClick={() => setAssignmentModal({ show: true, assessment })}
@@ -511,13 +514,6 @@ const Assessments = () => {
                             <Share2 className="w-4 h-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => handleGeneratePublicLink(assessment)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Generate Public Link"
-                        >
-                          <LinkIcon className="w-4 h-4" />
-                        </button>
                         <button
                           onClick={() => handleToggleMute(assessment._id)}
                           className={`p-2 rounded-lg transition-colors ${assessment.isMuted ? 'text-green-600 hover:bg-green-50' : 'text-gray-500 hover:bg-gray-100'}`}
@@ -560,13 +556,6 @@ const Assessments = () => {
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => handleGeneratePublicLink(assessment)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Share"
-                        >
-                          <LinkIcon className="w-4 h-4" />
-                        </button>
                         {assessment.orgUnlockInfo && Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo.testsUsed || 0)) > 0 && (
                           <button
                             onClick={() => handleRefundUnattempted(assessment)}
@@ -676,17 +665,6 @@ const Assessments = () => {
         />
       )}
 
-      {/* Public Link Modal */}
-      {publicLinkModal.show && publicLinkModal.assessment && (
-        <PublicLinkModal
-          assessment={publicLinkModal.assessment}
-          link={publicLinkModal.link}
-          loading={publicLinkModal.loading}
-          onClose={() => setPublicLinkModal({ show: false, assessment: null, loading: false, link: null })}
-          onRevoke={handleRevokePublicLink}
-        />
-      )}
-
       {/* Share Passcode Modal */}
       {shareModal.show && shareModal.assessment && (
         <SharePasscodeModal
@@ -792,93 +770,6 @@ const SharePasscodeModal = ({ assessment, onClose }) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-// Public Link Modal Component
-const PublicLinkModal = ({ assessment, link, loading, onClose, onRevoke }) => {
-  const [copied, setCopied] = React.useState(false);
-
-  const handleCopyLink = () => {
-    if (link?.publicUrl) {
-      navigator.clipboard.writeText(link.publicUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <LinkIcon className="w-6 h-6 text-blue-600" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900">Public Test Link</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <XCircle className="w-5 h-5" />
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Generating link...</p>
-          </div>
-        ) : link ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
-              <p className="text-gray-900 font-medium">{assessment.title}</p>
-            </div>
-
-            <div className="p-4 bg-green-50 rounded-lg border-2 border-green-200">
-              <label className="block text-sm font-medium text-green-800 mb-2">Public Link</label>
-              <div className="flex items-center gap-3">
-                <code className="flex-1 text-sm text-green-700 bg-white px-3 py-2 rounded border border-green-200 break-all">
-                  {link.publicUrl}
-                </code>
-                <button
-                  onClick={handleCopyLink}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap"
-                >
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <p className="text-xs text-green-600 mt-2">
-                Expires: {new Date(link.expiresAt).toLocaleDateString()}
-              </p>
-            </div>
-
-            <div className="text-sm text-gray-500">
-              <p className="mb-2">Share this link with test takers. They can access the assessment without logging in.</p>
-              <p>The test taker will need to enter their name before starting.</p>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={onRevoke}
-                className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                Revoke Link
-              </button>
-              <button
-                onClick={handleCopyLink}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Copy & Close
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>Failed to generate link. Please try again.</p>
-          </div>
-        )}
       </div>
     </div>
   );

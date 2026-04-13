@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, AlertCircle, CheckCircle, Loader2, Lock, Unlock } from 'lucide-react';
 import { assessmentService, testTakerService, organizationService } from '../services';
+import { useAuth } from '../context/AuthContext';
 
 const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess }) => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'superadmin';
   const [assessments, setAssessments] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState(passedAssessment || null);
   const [form, setForm] = useState({
     testTakerName: '',
     testTakerEmail: '',
-    testTakerPhone: ''
+    testTakerPhone: '',
+    expiresAt: ''
   });
   const [loading, setLoading] = useState(false);
   const [loadingAssessments, setLoadingAssessments] = useState(!passedAssessment);
@@ -40,9 +44,13 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
       setLoadingAssessments(true);
       const response = await assessmentService.getAssessments({ status: 'active', limit: 50 });
       const allAssessments = response.data?.assessments || [];
-      // Filter to only unlocked assessments (has orgUnlockInfo or memberAllocation with remaining slots)
-      const unlocked = allAssessments.filter(a => !a.isLocked || a.memberAllocation);
-      setAssessments(unlocked);
+      
+      if (isSuperAdmin) {
+        setAssessments(allAssessments);
+      } else {
+        const unlocked = allAssessments.filter(a => !a.isLocked || a.memberAllocation);
+        setAssessments(unlocked);
+      }
     } catch (err) {
       console.error('Error fetching assessments:', err);
     } finally {
@@ -52,7 +60,9 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
 
   const handleSelectAssessment = (assessment) => {
     setSelectedAssessment(assessment);
-    fetchMyAllocation(assessment._id);
+    if (!isSuperAdmin) {
+      fetchMyAllocation(assessment._id);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -67,16 +77,27 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
     setSuccess(null);
 
     try {
-      const response = await testTakerService.createInvite({
+      const payload = {
         assessmentId: selectedAssessment._id,
         testTakerName: form.testTakerName.trim(),
         testTakerEmail: form.testTakerEmail.trim(),
         testTakerPhone: form.testTakerPhone.trim()
-      });
+      };
+
+      // Add expiresAt if provided
+      if (form.expiresAt) {
+        payload.expiresAt = form.expiresAt;
+      }
+
+      const response = await testTakerService.createInvite(payload);
 
       if (response.success) {
-        setSuccess(response.data?.emailSent ? 'Test taker added successfully! Email delivered.' : 'Test taker added but email delivery failed. You can resend later.');
-        setForm({ testTakerName: '', testTakerEmail: '', testTakerPhone: '' });
+        if (response.data?.emailSent) {
+          setSuccess('Test taker added successfully! Email delivered.');
+        } else {
+          setError(`Email not sent. Please provide a valid email address. Test taker added with pending status - you can resend later.`);
+        }
+        setForm({ testTakerName: '', testTakerEmail: '', testTakerPhone: '', expiresAt: '' });
         setTimeout(() => {
           onSuccess?.();
         }, 2000);
@@ -132,7 +153,7 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
                 <option value="">Choose an assessment...</option>
                 {assessments.map(a => (
                   <option key={a._id} value={a._id}>
-                    {a.title} ({a.category}) - {a.effectiveCreditCost || 5} credits/test
+                    {a.title} ({a.category})
                   </option>
                 ))}
               </select>
@@ -150,8 +171,15 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
           </div>
         )}
 
-        {/* Slot Info - Member Allocation (priority) or Org Unlock */}
-        {myAllocation?.allocated ? (
+        {/* Slot Info */}
+        {isSuperAdmin ? (
+          <div className="bg-indigo-50 rounded-lg p-3 mb-5 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+            <p className="text-sm text-indigo-700">
+              Direct Mindmil test - no slot restrictions
+            </p>
+          </div>
+        ) : myAllocation?.allocated ? (
           <div className="bg-emerald-50 rounded-lg p-3 mb-5 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <p className="text-sm text-emerald-700">
@@ -217,6 +245,19 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
               placeholder="+91 9876543210"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expire Date (Optional)
+            </label>
+            <input
+              type="datetime-local"
+              value={form.expiresAt}
+              onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Leave empty to use default 30 days</p>
           </div>
 
           {/* Error */}

@@ -26,6 +26,8 @@ import AssessmentForm from './pages/assessments/AssessmentForm';
 // Test Taking
 import TakeTest from './pages/test/TakeTest';
 import PublicTest from './pages/test/PublicTest';
+import TestTermsAndConditions from './pages/test/TestTermsAndConditions';
+import ThankYou from './pages/ThankYou';
 import Big5Test from './pages/assessments/Big5Test';
 import DiscTest from './pages/assessments/DiscTest';
 
@@ -34,6 +36,8 @@ import Reports from './pages/reports/Reports';
 import ReportDetail from './pages/reports/ReportDetail';
 import Big5Report from './pages/reports/Big5Report';
 import DiscReport from './pages/reports/DiscReport';
+import ComprehensiveDiscReport from './pages/reports/ComprehensiveDiscReport';
+import ComprehensiveBig5Report from './pages/reports/ComprehensiveBig5Report';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -162,6 +166,11 @@ const AppRoutes = () => {
    <Route path="/take/:category/:token/big5/:attemptId" element={<Big5Test />} />
    <Route path="/take/:category/:token/disc/:attemptId" element={<DiscTest />} />
    <Route path="/take/:category/:token/test/:attemptId" element={<TakeTest />} />
+   {/* Terms & Conditions before test (public) */}
+   <Route path="/take/:token/terms/:attemptId" element={<TestTermsAndConditions />} />
+   <Route path="/take/:category/:token/terms/:attemptId" element={<TestTermsAndConditions />} />
+   {/* Thank You page (after test submission) */}
+   <Route path="/thank-you" element={<ThankYou />} />
 
     {/* SuperAdmin Routes (at root, auth required) */}
     <Route
@@ -174,14 +183,17 @@ const AppRoutes = () => {
     <Route path="/dashboard/superadmin" element={<SuperAdminDashboard />} />
     <Route path="/users" element={<Users />} />
     <Route path="/groups" element={<Groups />} />
-    <Route path="/groups/:id/members" element={<GroupMembers />} />
-    <Route path="/assessments" element={<Assessments />} />
+<Route path="/groups/:id/members" element={<GroupMembers />} />
+     <Route path="/test-takers" element={<TestTakers />} />
+     <Route path="/assessments" element={<Assessments />} />
     <Route path="/assessments/create" element={<AssessmentForm />} />
     <Route path="/assessments/:id" element={<AssessmentForm />} />
-    <Route path="/reports" element={<Reports />} />
-    <Route path="/reports/:id" element={<ReportDetail />} />
-    <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
-    <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+     <Route path="/reports" element={<Reports />} />
+     <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
+     <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+     <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
+     <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
+     <Route path="/reports/:id" element={<ReportDetail />} />
     <Route path="/credits" element={<Credits />} />
     <Route path="/support" element={<Support />} />
     <Route path="/support/:id" element={<TicketDetail />} />
@@ -300,6 +312,22 @@ const AppRoutes = () => {
    </ProtectedRoute>
    }
    />
+   <Route
+   path="assessments/:id/terms"
+   element={
+   <ProtectedRoute>
+   <TestTermsAndConditions />
+   </ProtectedRoute>
+   }
+   />
+   <Route
+   path="assessments/:id/:category/terms"
+   element={
+   <ProtectedRoute>
+   <TestTermsAndConditions />
+   </ProtectedRoute>
+   }
+   />
 
    {/* Reports */}
    <Route
@@ -310,49 +338,55 @@ const AppRoutes = () => {
    </ProtectedRoute>
    }
    />
-   <Route
-   path="reports/:id"
-   element={
-   <ProtectedRoute>
-   <ReportDetail />
-   </ProtectedRoute>
-   }
-   />
-   <Route
-   path="reports/big5/:attemptId"
-   element={
-   <ProtectedRoute>
-   <Big5Report />
-   </ProtectedRoute>
-   }
-   />
-   <Route
-   path="reports/disc/:attemptId"
-   element={
-   <ProtectedRoute>
-   <DiscReport />
-   </ProtectedRoute>
-   }
-   />
+    <Route
+    path="reports/big5/:attemptId"
+    element={
+    <ProtectedRoute>
+    <Big5Report />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="reports/disc/:attemptId"
+    element={
+    <ProtectedRoute>
+    <DiscReport />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="reports/disc/comprehensive/:attemptId"
+    element={
+    <ProtectedRoute>
+    <ComprehensiveDiscReport />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="reports/big5/comprehensive/:attemptId"
+    element={
+    <ProtectedRoute>
+    <ComprehensiveBig5Report />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="reports/:id"
+    element={
+    <ProtectedRoute>
+    <ReportDetail />
+    </ProtectedRoute>
+    }
+    />
 
-   {/* Credits */}
-   <Route
-   path="credits"
-   element={
-   <ProtectedRoute>
-   <Credits />
-   </ProtectedRoute>
-   }
-   />
-
-   {/* Test Takers */}
-   <Route
-   path="test-takers"
-   element={
-   <ProtectedRoute>
-   <TestTakers />
-   </ProtectedRoute>
-   }
+{/* Credits */}
+    <Route
+    path="credits"
+    element={
+    <ProtectedRoute>
+    <Credits />
+    </ProtectedRoute>
+    }
    />
 
    {/* Support */}

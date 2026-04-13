@@ -15,7 +15,8 @@ import {
   Users,
   UsersRound,
   BarChart3,
-  CreditCard
+  CreditCard,
+  Send
 } from 'lucide-react';
 
 const SuperAdminLayout = () => {
@@ -34,6 +35,7 @@ const SuperAdminLayout = () => {
     { name: 'Dashboard', href: '/dashboard/superadmin', icon: LayoutDashboard },
     { name: 'Users', href: '/users', icon: Users },
     { name: 'Groups', href: '/groups', icon: UsersRound },
+    { name: 'Test Takers', href: '/test-takers', icon: Send },
     { name: 'Assessments', href: '/assessments', icon: FileText },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Credits', href: '/credits', icon: CreditCard },

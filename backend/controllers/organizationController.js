@@ -284,7 +284,7 @@ const updateBanner = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin)
  */
 const updatePublicProfile = asyncHandler(async (req, res) => {
-  const { headline, about, website, linkedin, location, industry, companySize } = req.body;
+  const { headline, about, bestHRPractices, awardsAccolades, website, linkedin, location, industry, companySize, moderatorName } = req.body;
 
   let organization = await Organization.findById(req.params.id);
 
@@ -301,9 +301,12 @@ const updatePublicProfile = asyncHandler(async (req, res) => {
   organization = await Organization.findByIdAndUpdate(
     req.params.id,
     {
+      moderatorName: moderatorName || organization.moderatorName,
       publicProfile: {
         headline,
         about,
+        bestHRPractices,
+        awardsAccolades,
         website,
         linkedin,
         location,
@@ -355,6 +358,7 @@ const getPublicProfile = asyncHandler(async (req, res) => {
         logo: organization.logo,
         banner: organization.banner,
         primaryColor: organization.primaryColor,
+        moderatorName: organization.moderatorName,
         publicProfile: organization.publicProfile,
         publishedAssessments
       }

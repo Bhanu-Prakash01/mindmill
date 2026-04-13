@@ -7,7 +7,9 @@ const {
   getSharedReport,
   toggleVisibility,
   addAdminNotes,
-  downloadReport
+  downloadReport,
+  previewDiscReport,
+  previewBig5Report
 } = require('../controllers/reportController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { optionalAuth } = require('../middleware/authMiddleware');
@@ -28,5 +30,9 @@ router.post('/:id/share', idParamValidation, shareReport);
 // Admin only routes
 router.put('/:id/visibility', isAdmin, idParamValidation, toggleVisibility);
 router.put('/:id/notes', isAdmin, idParamValidation, addAdminNotes);
+
+// Preview routes (Admin only)
+router.get('/preview/disc', authMiddleware, isAdmin, previewDiscReport);
+router.get('/preview/big5', authMiddleware, isAdmin, previewBig5Report);
 
 module.exports = router;

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DISC Personality Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy:      #0F172A;
+      --navy-mid:  #1E293B;
+      --slate:     #475569;
+      --muted:     #64748B;
+      --border:    #E2E8F0;
+      --surface:   #F8FAFC;
+      --accent:    {{dominantColor}};
+    }
+
+    html { font-size: 10.5px; }
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: var(--navy);
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ─────────────────────────────────── */
+    .page {
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child { page-break-after: avoid; break-after: avoid; }
+
+    @page { size: A4; margin: 0; }
+    @media print {
+      .page { page-break-after: always; }
+      .page:last-child { page-break-after: avoid; }
+    }
+
+    /* ── COVER (page 1) ─────────────────────────────── */
+    .cover {
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      height: 297mm;
+    }
+    .cover-accent-bar { height: 5px; background: {{dominantColor}}; }
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 44px 52px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover-diagonal {
+      position: absolute; top: 0; right: 0;
+      width: 42%; height: 100%;
+      background: {{dominantGradient}};
+      opacity: 0.10;
+      clip-path: polygon(25% 0, 100% 0, 100% 100%, 0% 100%);
+    }
+    .cover-stripe {
+      position: absolute; right: 0; top: 0; bottom: 0;
+      width: 4px; background: {{dominantGradient}};
+    }
+    .cover-logo-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 60px;
+    }
+    .cover-logo {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px; font-weight: 700; color: #fff;
+    }
+    .cover-logo span { color: {{dominantColor}}; }
+    .cover-tag {
+      font-size: 8px; font-weight: 500; letter-spacing: 2.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.4);
+    }
+    .cover-badge {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 32px; padding: 7px 16px 7px 7px;
+      margin-bottom: 24px; width: fit-content;
+    }
+    .cover-badge .disc-dot {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: {{dominantGradient}};
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff;
+    }
+    .cover-badge span {
+      font-size: 9px; font-weight: 500; letter-spacing: 1px;
+      color: rgba(255,255,255,0.65);
+    }
+    .cover-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px; line-height: 1.1; color: #fff;
+      margin-bottom: 10px; letter-spacing: -0.5px;
+    }
+    .cover-headline em { font-style: italic; color: {{dominantColor}}; }
+    .cover-sub {
+      font-size: 13px; font-weight: 400;
+      color: rgba(255,255,255,0.5); margin-bottom: 44px;
+    }
+    .cover-stats {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 2px; margin-bottom: 44px;
+    }
+    .cs-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px 12px; text-align: center;
+    }
+    .cs-item:first-child { border-radius: 10px 0 0 10px; }
+    .cs-item:last-child  { border-radius: 0 10px 10px 0; }
+    .cs-letter {
+      width: 32px; height: 32px; border-radius: 50%;
+      margin: 0 auto 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #fff;
+    }
+    .cs-letter.d { background: linear-gradient(135deg,#EF4444,#DC2626); }
+    .cs-letter.i { background: linear-gradient(135deg,#F59E0B,#D97706); }
+    .cs-letter.s { background: linear-gradient(135deg,#10B981,#059669); }
+    .cs-letter.c { background: linear-gradient(135deg,#3B82F6,#2563EB); }
+    .cs-pct {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 22px; font-weight: 700; color: #fff; line-height: 1;
+    }
+    .cs-lbl {
+      font-size: 7.5px; font-weight: 500; letter-spacing: 1.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.38); margin-top: 3px;
+    }
+    .cover-bottom {
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    .cover-pattern-pill {
+      background: {{dominantColor}}; border-radius: 10px; padding: 14px 22px;
+    }
+    .cpp-label {
+      font-size: 7px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: rgba(255,255,255,0.65); margin-bottom: 3px;
+    }
+    .cpp-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 700; color: #fff;
+    }
+    .cover-meta { text-align: right; }
+    .cover-meta p { font-size: 8.5px; color: rgba(255,255,255,0.32); line-height: 1.7; }
+    .cover-meta .meta-date { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.55); }
+
+    /* ── INNER PAGE CHROME ──────────────────────────── */
+    .inner-page {
+      height: 297mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .ph {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 13px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .ph-left { display: flex; align-items: center; gap: 9px; }
+    .ph-logo { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); }
+    .ph-sep  { width: 1px; height: 12px; background: var(--border); }
+    .ph-title{ font-size: 9px; font-weight: 500; color: var(--muted); }
+    .ph-right{ display: flex; align-items: center; gap: 10px; }
+    .ph-name { font-size: 9px; font-weight: 600; color: var(--navy-mid); }
+    .ph-pg   { font-size: 8px; color: var(--muted); background: var(--border); border-radius: 16px; padding: 2px 8px; }
+
+    .pc { flex: 1; padding: 22px 28px; overflow: hidden; }
+
+    .pf {
+      padding: 9px 28px;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .pf p { font-size: 7.5px; color: var(--muted); }
+
+    /* ── TYPOGRAPHY ─────────────────────────────────── */
+    .sec-lbl {
+      font-size: 8px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+    }
+    .sec-hd {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 17px; font-weight: 700; color: var(--navy);
+      line-height: 1.2; margin-bottom: 16px;
+    }
+    .sec-hd span { color: var(--accent); }
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    /* ── PAGE 2: EXEC SUMMARY ───────────────────────── */
+    .exec-hero {
+      background: var(--navy); border-radius: 12px;
+      padding: 22px 26px; margin-bottom: 16px;
+      position: relative; overflow: hidden;
+    }
+    .exec-hero::before {
+      content: ''; position: absolute;
+      top: -30px; right: -30px; width: 160px; height: 160px;
+      border-radius: 50%; background: var(--accent); opacity: 0.08;
+    }
+    .exec-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .exec-pattern {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px; line-height: 1; color: var(--accent); letter-spacing: -2px;
+    }
+    .exec-arch { text-align: right; }
+    .exec-arch .ea-lbl {
+      font-size: 7.5px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: rgba(255,255,255,0.38); margin-bottom: 3px;
+    }
+    .exec-arch .ea-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.82);
+    }
+    .exec-hero p {
+      font-size: 11px; line-height: 1.8;
+      color: rgba(255,255,255,0.78); font-weight: 300;
+    }
+
+    .cand-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px; margin-bottom: 16px;
+    }
+    .cand-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px; padding: 12px 14px;
+    }
+    .ci-lbl {
+      font-size: 7.5px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+    }
+    .ci-val { font-size: 11px; font-weight: 600; color: var(--navy); }
+
+    /* Score rings */
+    .score-rings {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 12px; margin-bottom: 16px;
+    }
+    .ring-card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 10px; text-align: center;
+    }
+    .ring-wrap {
+      width: 68px; height: 68px; margin: 0 auto 10px; position: relative;
+    }
+    .ring-svg { width: 68px; height: 68px; transform: rotate(-90deg); }
+    .ring-bg  { fill: none; stroke: #E2E8F0; stroke-width: 5.5; }
+    .ring-fill{ fill: none; stroke-width: 5.5; stroke-linecap: round; }
+    .ring-label {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .ring-letter { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; line-height: 1; }
+    .ring-pct    { font-size: 8px; font-weight: 600; color: var(--muted); }
+    .rc-name     { font-size: 9.5px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+    .rc-tag      { font-size: 7.5px; color: var(--muted); }
+    .ring-card.d .ring-fill { stroke: #EF4444; }
+    .ring-card.d .ring-letter { color: #EF4444; }
+    .ring-card.i .ring-fill { stroke: #F59E0B; }
+    .ring-card.i .ring-letter { color: #F59E0B; }
+    .ring-card.s .ring-fill { stroke: #10B981; }
+    .ring-card.s .ring-letter { color: #10B981; }
+    .ring-card.c .ring-fill { stroke: #3B82F6; }
+    .ring-card.c .ring-letter { color: #3B82F6; }
+
+    /* Radar */
+    .radar-section {
+      background: var(--navy); border-radius: 12px;
+      padding: 20px 24px;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .radar-svg-wrap { flex-shrink: 0; }
+    .radar-legend   { flex: 1; }
+    .rl-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .rl-item:last-child { border-bottom: none; }
+    .rl-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .rl-name { font-size: 9.5px; font-weight: 600; color: rgba(255,255,255,0.78); flex: 1; }
+    .rl-pct  { font-size: 10px; font-weight: 700; width: 32px; text-align: right; }
+    .rl-bar-wrap { width: 70px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .rl-bar      { height: 100%; border-radius: 2px; }
+
+    /* ── PAGE 3: TRAIT BREAKDOWN ────────────────────── */
+    .trait-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .tdc {
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .tdc-head {
+      padding: 14px 16px 12px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .tdc-badge {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .tdc-info { flex: 1; }
+    .tdc-name { font-size: 13px; font-weight: 700; margin-bottom: 1px; }
+    .tdc-tag  { font-size: 8.5px; color: var(--muted); }
+    .tdc-score{ font-family: 'DM Sans', sans-serif; font-size: 26px; font-weight: 700; line-height: 1; text-align: right; }
+    .tdc-body { padding: 0 16px 16px; }
+    .tdc-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .tdc-bar-bg { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .tdc-bar-fill { height: 100%; border-radius: 4px; }
+    .tdc-pct-label { font-size: 8.5px; font-weight: 600; color: var(--muted); width: 26px; text-align: right; }
+    .tdc-desc { font-size: 9.5px; color: var(--slate); line-height: 1.65; margin-bottom: 10px; }
+    .tdc-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .kw-chip {
+      font-size: 8px; font-weight: 500; border-radius: 16px;
+      padding: 3px 9px; border: 1px solid currentColor;
+    }
+
+    .hb {
+      border-radius: 10px; padding: 14px 18px;
+      border-left: 3px solid var(--accent); background: var(--surface);
+    }
+    .hb-lbl {
+      font-size: 7.5px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 5px;
+    }
+    .hb-txt { font-size: 10.5px; color: var(--navy-mid); line-height: 1.75; }
+
+    /* ── PAGE 4: DEEP DIVE ──────────────────────────── */
+    .profile-banner {
+      background: {{dominantGradient}};
+      border-radius: 12px; padding: 20px 24px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .pb-big-letter {
+      font-family: 'DM Serif Display', serif;
+      font-size: 64px; line-height: 1;
+      color: rgba(255,255,255,0.18); flex-shrink: 0;
+    }
+    .pb-lbl {
+      font-size: 7.5px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 3px;
+    }
+    .pb-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px;
+    }
+    .pb-detail { font-size: 10px; color: rgba(255,255,255,0.7); }
+    .narrative p {
+      font-size: 10.5px; color: var(--slate); line-height: 1.85; margin-bottom: 12px;
+    }
+    .narrative p:last-child { margin-bottom: 0; }
+    .pull-quote {
+      background: var(--navy); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 16px;
+    }
+    .pull-quote p {
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px; font-style: italic;
+      color: rgba(255,255,255,0.82); line-height: 1.65;
+    }
+    .pq-src {
+      font-size: 8px; font-weight: 500; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent); margin-top: 8px;
+    }
+
+    /* ── PAGE 5: STRENGTHS & DEVELOPMENT ───────────── */
+    .sd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel-card { border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+    .panel-head {
+      padding: 13px 16px; display: flex; align-items: center; gap: 9px;
+    }
+    .ph-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .ph-title-txt { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; }
+    .ph-sub   { font-size: 8px; color: var(--muted); }
+    .panel-body { padding: 0 16px 16px; }
+    .strength-panel .panel-head { background: #F0FDF4; border-bottom: 1px solid #DCFCE7; }
+    .strength-panel .ph-title-txt { color: #16A34A; }
+    .growth-panel   .panel-head { background: #FFFBEB; border-bottom: 1px solid #FDE68A; }
+    .growth-panel   .ph-title-txt { color: #D97706; }
+    .item-list { list-style: none; }
+    .item-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+      font-size: 10px; color: var(--navy-mid); line-height: 1.5;
+    }
+    .item-list li:last-child { border-bottom: none; }
+    .il-icon {
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; font-weight: 700; margin-top: 1px;
+    }
+    .strength-panel .il-icon { background: #DCFCE7; color: #16A34A; }
+    .growth-panel   .il-icon { background: #FEF3C7; color: #D97706; }
+    .roles-grid {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px;
+    }
+    .role-chip {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 9px 10px;
+      font-size: 9px; font-weight: 500; color: var(--slate);
+      text-align: center; line-height: 1.35;
+    }
+
+    /* ── PAGE 6: WORK STYLE ─────────────────────────── */
+    .pref-cards {
+      display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px;
+    }
+    .pref-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 13px 15px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .pc-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: {{dominantColor}};
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .pc-lbl { font-size: 7.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+    .pc-val { font-size: 11px; font-weight: 600; color: var(--navy); }
+    .ns { margin-bottom: 14px; }
+    .ns-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .ns-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .ns-title { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--navy); }
+    .ns p { font-size: 10px; color: var(--slate); line-height: 1.8; padding-left: 15px; }
+
+    /* ── PAGE 7: CAREER & INTERVIEW ─────────────────── */
+    .career-grid {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-bottom: 16px;
+    }
+    .career-card {
+      background: var(--navy); border-radius: 10px;
+      padding: 14px; text-align: center;
+    }
+    .cc-num {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 18px; font-weight: 700; color: var(--accent); margin-bottom: 5px;
+    }
+    .cc-title { font-size: 9.5px; font-weight: 600; color: #fff; line-height: 1.4; }
+    .lb-banner {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+    }
+    .lb-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .lb-block .lb-title {
+      font-size: 10px; font-weight: 700; color: var(--navy);
+      margin-bottom: 6px; padding-bottom: 5px;
+      border-bottom: 2px solid var(--accent); display: inline-block;
+    }
+    .lb-block p { font-size: 9.5px; color: var(--slate); line-height: 1.75; }
+    .tips-list { list-style: none; }
+    .tips-list li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+      font-size: 10px; color: var(--navy-mid); line-height: 1.45;
+    }
+    .tips-list li:last-child { border-bottom: none; }
+    .tip-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: 8.5px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* ── PAGE 8: ROADMAP ────────────────────────────── */
+    .roadmap-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;
+    }
+    .rmap-card {
+      border-radius: 10px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .rmap-head {
+      padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .rmap-badge {
+      font-family: 'DM Sans', sans-serif; font-size: 9.5px; font-weight: 700;
+      border-radius: 16px; padding: 2px 9px;
+    }
+    .rmap-title { font-size: 10px; font-weight: 700; color: var(--navy); }
+    .rmap-card.short .rmap-head { background: #EFF6FF; }
+    .rmap-card.short .rmap-badge { background: #DBEAFE; color: #1D4ED8; }
+    .rmap-card.long  .rmap-head { background: #F5F3FF; }
+    .rmap-card.long  .rmap-badge { background: #EDE9FE; color: #6D28D9; }
+    .rmap-body { padding: 10px 14px; }
+    .rmap-item {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 7px 0; border-bottom: 1px solid var(--border);
+      font-size: 9.5px; color: var(--navy-mid); line-height: 1.5;
+    }
+    .rmap-item:last-child { border-bottom: none; }
+    .ri-arr { font-size: 9px; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .motive-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;
+    }
+    .motive-card { border-radius: 10px; padding: 14px; }
+    .motive-card.pos { background: #F0FDF4; border: 1px solid #BBF7D0; }
+    .motive-card.neg { background: #FFF7ED; border: 1px solid #FED7AA; }
+    .mc-title { font-size: 9px; font-weight: 700; margin-bottom: 10px; }
+    .motive-card.pos .mc-title { color: #16A34A; }
+    .motive-card.neg .mc-title { color: #EA580C; }
+    .motive-list { list-style: none; }
+    .motive-list li {
+      font-size: 9.5px; color: var(--slate);
+      padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.06);
+      display: flex; align-items: flex-start; gap: 6px; line-height: 1.45;
+    }
+    .motive-list li:last-child { border-bottom: none; }
+    .ml-sym { font-size: 8.5px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .motive-card.pos .ml-sym { color: #16A34A; }
+    .motive-card.neg .ml-sym { color: #EA580C; }
+    .closing-banner {
+      background: {{dominantGradient}}; border-radius: 12px; padding: 20px 24px;
+    }
+    .cb-lbl {
+      font-size: 7.5px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 8px;
+    }
+    .closing-banner p {
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px; font-style: italic;
+      color: rgba(255,255,255,0.9); line-height: 1.75;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ▌PAGE 1 — COVER ▐ -->
+<div class="page cover">
+  <div class="cover-accent-bar"></div>
+  <div class="cover-body">
+    <div class="cover-diagonal"></div>
+    <div class="cover-stripe"></div>
+    <div class="cover-logo-row">
+      <div class="cover-logo">Mind<span>Mill</span></div>
+      <div class="cover-tag">Personality Assessment Report</div>
+    </div>
+    <div class="cover-badge">
+      <div class="disc-dot">D</div>
+      <span>DISC BEHAVIORAL PROFILE</span>
+    </div>
+    <div class="cover-headline">
+      {{candidateName}}<br>
+      <em>{{patternName}}</em>
+    </div>
+    <div class="cover-sub">Primary: {{dominantName}} &nbsp;·&nbsp; Pattern: {{pattern}}</div>
+    <div class="cover-stats">
+      <div class="cs-item"><div class="cs-letter d">D</div><div class="cs-pct">{{dScore}}%</div><div class="cs-lbl">Dominance</div></div>
+      <div class="cs-item"><div class="cs-letter i">I</div><div class="cs-pct">{{iScore}}%</div><div class="cs-lbl">Influence</div></div>
+      <div class="cs-item"><div class="cs-letter s">S</div><div class="cs-pct">{{sScore}}%</div><div class="cs-lbl">Steadiness</div></div>
+      <div class="cs-item"><div class="cs-letter c">C</div><div class="cs-pct">{{cScore}}%</div><div class="cs-lbl">Conscientiousness</div></div>
+    </div>
+    <div class="cover-bottom">
+      <div class="cover-pattern-pill">
+        <div class="cpp-label">Personality Pattern</div>
+        <div class="cpp-name">{{pattern}} — {{patternName}}</div>
+      </div>
+      <div class="cover-meta">
+        <p class="meta-date">{{assessmentDate}}</p>
+        <p>{{candidateEmail}}</p>
+        <p>Confidential — For Internal Use Only</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▌PAGE 2 — EXECUTIVE SUMMARY ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">2 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Overview</div>
+    <div class="sec-hd">Executive <span>Summary</span></div>
+    <div class="exec-hero">
+      <div class="exec-top">
+        <div class="exec-pattern">{{pattern}}</div>
+        <div class="exec-arch">
+          <div class="ea-lbl">Archetype</div>
+          <div class="ea-name">{{patternArchetype}}</div>
+        </div>
+      </div>
+      <p>{{coverSummary}}</p>
+    </div>
+    <div class="cand-row">
+      <div class="cand-item"><div class="ci-lbl">Full Name</div><div class="ci-val">{{candidateName}}</div></div>
+      <div class="cand-item"><div class="ci-lbl">Email Address</div><div class="ci-val">{{candidateEmail}}</div></div>
+      <div class="cand-item"><div class="ci-lbl">Assessment Date</div><div class="ci-val">{{assessmentDate}}</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Score Visualization</div>
+    <div class="sec-hd" style="font-size:15px;margin-bottom:12px;">DISC Dimension <span>Scores</span></div>
+    <div class="score-rings">
+      <div class="ring-card d">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 68 68"><circle class="ring-bg" cx="34" cy="34" r="29"/><circle class="ring-fill" cx="34" cy="34" r="29" stroke-dasharray="182" stroke-dashoffset="{{dDashOffset}}" stroke="#EF4444"/></svg>
+          <div class="ring-label"><span class="ring-letter" style="color:#EF4444">{{dScore}}</span><span class="ring-pct">%</span></div>
+        </div>
+        <div class="rc-name">Dominance</div><div class="rc-tag">Results-Driven &amp; Direct</div>
+      </div>
+      <div class="ring-card i">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 68 68"><circle class="ring-bg" cx="34" cy="34" r="29"/><circle class="ring-fill" cx="34" cy="34" r="29" stroke-dasharray="182" stroke-dashoffset="{{iDashOffset}}" stroke="#F59E0B"/></svg>
+          <div class="ring-label"><span class="ring-letter" style="color:#F59E0B">{{iScore}}</span><span class="ring-pct">%</span></div>
+        </div>
+        <div class="rc-name">Influence</div><div class="rc-tag">Persuasive &amp; Enthusiastic</div>
+      </div>
+      <div class="ring-card s">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 68 68"><circle class="ring-bg" cx="34" cy="34" r="29"/><circle class="ring-fill" cx="34" cy="34" r="29" stroke-dasharray="182" stroke-dashoffset="{{sDashOffset}}" stroke="#10B981"/></svg>
+          <div class="ring-label"><span class="ring-letter" style="color:#10B981">{{sScore}}</span><span class="ring-pct">%</span></div>
+        </div>
+        <div class="rc-name">Steadiness</div><div class="rc-tag">Patient &amp; Reliable</div>
+      </div>
+      <div class="ring-card c">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 68 68"><circle class="ring-bg" cx="34" cy="34" r="29"/><circle class="ring-fill" cx="34" cy="34" r="29" stroke-dasharray="182" stroke-dashoffset="{{cDashOffset}}" stroke="#3B82F6"/></svg>
+          <div class="ring-label"><span class="ring-letter" style="color:#3B82F6">{{cScore}}</span><span class="ring-pct">%</span></div>
+        </div>
+        <div class="rc-name">Conscientiousness</div><div class="rc-tag">Analytical &amp; Precise</div>
+      </div>
+    </div>
+    <div class="radar-section">
+      <div class="radar-svg-wrap">{{radarSvg}}</div>
+      <div class="radar-legend">
+        <div class="rl-item"><div class="rl-dot" style="background:#EF4444"></div><div class="rl-name">Dominance</div><div class="rl-pct" style="color:#EF4444">{{dScore}}%</div><div class="rl-bar-wrap"><div class="rl-bar" style="width:{{dScore}}%;background:#EF4444"></div></div></div>
+        <div class="rl-item"><div class="rl-dot" style="background:#F59E0B"></div><div class="rl-name">Influence</div><div class="rl-pct" style="color:#F59E0B">{{iScore}}%</div><div class="rl-bar-wrap"><div class="rl-bar" style="width:{{iScore}}%;background:#F59E0B"></div></div></div>
+        <div class="rl-item"><div class="rl-dot" style="background:#10B981"></div><div class="rl-name">Steadiness</div><div class="rl-pct" style="color:#10B981">{{sScore}}%</div><div class="rl-bar-wrap"><div class="rl-bar" style="width:{{sScore}}%;background:#10B981"></div></div></div>
+        <div class="rl-item"><div class="rl-dot" style="background:#3B82F6"></div><div class="rl-name">Conscientiousness</div><div class="rl-pct" style="color:#3B82F6">{{cScore}}%</div><div class="rl-bar-wrap"><div class="rl-bar" style="width:{{cScore}}%;background:#3B82F6"></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · Based on Marston's Work (1928)</p></div>
+</div>
+
+<!-- ▌PAGE 3 — TRAIT BREAKDOWN ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">3 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Dimension Analysis</div>
+    <div class="sec-hd">Trait-by-Trait <span>Breakdown</span></div>
+    <div class="trait-grid">
+      <!-- D -->
+      <div class="tdc">
+        <div class="tdc-head" style="background:linear-gradient(135deg,#FEF2F2,#FEE2E2);">
+          <div class="tdc-badge" style="background:linear-gradient(135deg,#EF4444,#DC2626);">D</div>
+          <div class="tdc-info"><div class="tdc-name" style="color:#EF4444;">Dominance</div><div class="tdc-tag">Results-Driven &amp; Direct</div></div>
+          <div class="tdc-score" style="color:#EF4444;">{{dScore}}%</div>
+        </div>
+        <div class="tdc-body">
+          <div class="tdc-bar-row"><div class="tdc-bar-bg"><div class="tdc-bar-fill" style="width:{{dScore}}%;background:linear-gradient(90deg,#EF4444,#F87171);"></div></div><div class="tdc-pct-label">{{dScore}}%</div></div>
+          <div class="tdc-desc">{{dDescription}}</div>
+          <div class="tdc-chips"><span class="kw-chip" style="color:#EF4444;border-color:#FECACA;background:#FEF2F2;">Decisive</span><span class="kw-chip" style="color:#EF4444;border-color:#FECACA;background:#FEF2F2;">Bold</span><span class="kw-chip" style="color:#EF4444;border-color:#FECACA;background:#FEF2F2;">Driven</span><span class="kw-chip" style="color:#EF4444;border-color:#FECACA;background:#FEF2F2;">Goal-Oriented</span></div>
+        </div>
+      </div>
+      <!-- I -->
+      <div class="tdc">
+        <div class="tdc-head" style="background:linear-gradient(135deg,#FFFBEB,#FEF3C7);">
+          <div class="tdc-badge" style="background:linear-gradient(135deg,#F59E0B,#D97706);">I</div>
+          <div class="tdc-info"><div class="tdc-name" style="color:#D97706;">Influence</div><div class="tdc-tag">Persuasive &amp; Enthusiastic</div></div>
+          <div class="tdc-score" style="color:#D97706;">{{iScore}}%</div>
+        </div>
+        <div class="tdc-body">
+          <div class="tdc-bar-row"><div class="tdc-bar-bg"><div class="tdc-bar-fill" style="width:{{iScore}}%;background:linear-gradient(90deg,#F59E0B,#FCD34D);"></div></div><div class="tdc-pct-label">{{iScore}}%</div></div>
+          <div class="tdc-desc">{{iDescription}}</div>
+          <div class="tdc-chips"><span class="kw-chip" style="color:#D97706;border-color:#FDE68A;background:#FFFBEB;">Enthusiastic</span><span class="kw-chip" style="color:#D97706;border-color:#FDE68A;background:#FFFBEB;">Optimistic</span><span class="kw-chip" style="color:#D97706;border-color:#FDE68A;background:#FFFBEB;">Persuasive</span></div>
+        </div>
+      </div>
+      <!-- S -->
+      <div class="tdc">
+        <div class="tdc-head" style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);">
+          <div class="tdc-badge" style="background:linear-gradient(135deg,#10B981,#059669);">S</div>
+          <div class="tdc-info"><div class="tdc-name" style="color:#059669;">Steadiness</div><div class="tdc-tag">Patient &amp; Reliable</div></div>
+          <div class="tdc-score" style="color:#059669;">{{sScore}}%</div>
+        </div>
+        <div class="tdc-body">
+          <div class="tdc-bar-row"><div class="tdc-bar-bg"><div class="tdc-bar-fill" style="width:{{sScore}}%;background:linear-gradient(90deg,#10B981,#34D399);"></div></div><div class="tdc-pct-label">{{sScore}}%</div></div>
+          <div class="tdc-desc">{{sDescription}}</div>
+          <div class="tdc-chips"><span class="kw-chip" style="color:#059669;border-color:#A7F3D0;background:#ECFDF5;">Patient</span><span class="kw-chip" style="color:#059669;border-color:#A7F3D0;background:#ECFDF5;">Loyal</span><span class="kw-chip" style="color:#059669;border-color:#A7F3D0;background:#ECFDF5;">Dependable</span></div>
+        </div>
+      </div>
+      <!-- C -->
+      <div class="tdc">
+        <div class="tdc-head" style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);">
+          <div class="tdc-badge" style="background:linear-gradient(135deg,#3B82F6,#2563EB);">C</div>
+          <div class="tdc-info"><div class="tdc-name" style="color:#2563EB;">Conscientiousness</div><div class="tdc-tag">Analytical &amp; Precise</div></div>
+          <div class="tdc-score" style="color:#2563EB;">{{cScore}}%</div>
+        </div>
+        <div class="tdc-body">
+          <div class="tdc-bar-row"><div class="tdc-bar-bg"><div class="tdc-bar-fill" style="width:{{cScore}}%;background:linear-gradient(90deg,#3B82F6,#60A5FA);"></div></div><div class="tdc-pct-label">{{cScore}}%</div></div>
+          <div class="tdc-desc">{{cDescription}}</div>
+          <div class="tdc-chips"><span class="kw-chip" style="color:#2563EB;border-color:#BFDBFE;background:#EFF6FF;">Accurate</span><span class="kw-chip" style="color:#2563EB;border-color:#BFDBFE;background:#EFF6FF;">Systematic</span><span class="kw-chip" style="color:#2563EB;border-color:#BFDBFE;background:#EFF6FF;">Analytical</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="hb">
+      <div class="hb-lbl">Pattern Interpretation</div>
+      <div class="hb-txt">{{patternInterpretation}}</div>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 4 — PERSONALITY DEEP DIVE ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">4 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Psychologist's Analysis</div>
+    <div class="sec-hd">Personality <span>Deep Dive</span></div>
+    <div class="profile-banner">
+      <div class="pb-big-letter">{{pattern}}</div>
+      <div>
+        <div class="pb-lbl">Personality Pattern</div>
+        <div class="pb-name">{{patternName}}</div>
+        <div class="pb-detail">Archetype: {{patternArchetype}} &nbsp;·&nbsp; Primary: {{dominantName}} &nbsp;·&nbsp; Secondary: {{secondaryName}}</div>
+      </div>
+    </div>
+    <div class="narrative">{{deepProfileHtml}}</div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 5 — STRENGTHS & DEVELOPMENT ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">5 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Capability Assessment</div>
+    <div class="sec-hd">Strengths &amp; <span>Development Areas</span></div>
+    <div class="sd-grid">
+      <div class="panel-card strength-panel">
+        <div class="panel-head">
+          <div class="ph-icon" style="background:#DCFCE7;">✅</div>
+          <div><div class="ph-title-txt">Key Strengths</div><div class="ph-sub">Natural behavioral advantages</div></div>
+        </div>
+        <div class="panel-body">
+          <ul class="item-list">
+            {{#each strengths}}
+            <li><div class="il-icon">✓</div><span>{{this}}</span></li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+      <div class="panel-card growth-panel">
+        <div class="panel-head">
+          <div class="ph-icon" style="background:#FEF3C7;">📈</div>
+          <div><div class="ph-title-txt">Growth Opportunities</div><div class="ph-sub">High-leverage development areas</div></div>
+        </div>
+        <div class="panel-body">
+          <ul class="item-list">
+            {{#each growthAreas}}
+            <li><div class="il-icon">→</div><span>{{this}}</span></li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Role Alignment</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:10px;">Ideal Role <span>Contexts</span></div>
+    <div class="roles-grid">
+      {{#each idealRoles}}
+      <div class="role-chip">{{this}}</div>
+      {{/each}}
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 6 — WORK STYLE & RELATIONSHIPS ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">6 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Behavioral Insights</div>
+    <div class="sec-hd">Work Style &amp; <span>Relationships</span></div>
+    <div class="pref-cards">
+      <div class="pref-card"><div class="pc-icon">🏢</div><div><div class="pc-lbl">Work Environment</div><div class="pc-val">{{workplaceEnvironment}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">⚡</div><div><div class="pc-lbl">Preferred Pace</div><div class="pc-val">{{workplacePace}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">💬</div><div><div class="pc-lbl">Feedback Style</div><div class="pc-val">{{feedbackPreference}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">🎯</div><div><div class="pc-lbl">Autonomy Level</div><div class="pc-val">{{autonomyLevel}}</div></div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Leadership &amp; Team Analysis</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:12px;">Leadership &amp; Team <span>Dynamics</span></div>
+    {{leadershipHtml}}
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 7 — CAREER & INTERVIEW ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">7 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Career Alignment</div>
+    <div class="sec-hd">Career Paths &amp; <span>Interview Guide</span></div>
+    <div class="career-grid">
+      {{#each careerPaths}}
+      <div class="career-card">
+        <div class="cc-num">{{addOne @index}}</div>
+        <div class="cc-title">{{this}}</div>
+      </div>
+      {{/each}}
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Manager's Guide</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:12px;">Interview Tips for <span>Managers</span></div>
+    <ul class="tips-list">
+      {{#each interviewTips}}
+      <li><div class="tip-num">{{addOne @index}}</div><span>{{this}}</span></li>
+      {{/each}}
+    </ul>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 8 — DEVELOPMENT ROADMAP ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">DISC Behavioral Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">8 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Growth Planning</div>
+    <div class="sec-hd">Development <span>Roadmap</span></div>
+    <div class="hb" style="margin-bottom:14px;">
+      <div class="hb-lbl">Development Focus</div>
+      <div class="hb-txt">{{developmentHtml}}</div>
+    </div>
+    <div class="roadmap-row">
+      <div class="rmap-card short">
+        <div class="rmap-head"><div class="rmap-badge">30 Days</div><div class="rmap-title">Immediate Actions</div></div>
+        <div class="rmap-body">
+          {{#each shortTermGoals}}
+          <div class="rmap-item"><span class="ri-arr">→</span><span>{{this}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+      <div class="rmap-card long">
+        <div class="rmap-head"><div class="rmap-badge">12 Months</div><div class="rmap-title">Long-Term Growth</div></div>
+        <div class="rmap-body">
+          {{#each longTermGoals}}
+          <div class="rmap-item"><span class="ri-arr">→</span><span>{{this}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+    </div>
+    <div class="motive-grid">
+      <div class="motive-card pos">
+        <div class="mc-title">🔥 What Energizes Them</div>
+        <ul class="motive-list">
+          {{#each motivators}}
+          <li><span class="ml-sym">+</span>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      <div class="motive-card neg">
+        <div class="mc-title">⚠ What Drains Them</div>
+        <ul class="motive-list">
+          {{#each demotivators}}
+          <li><span class="ml-sym">−</span>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    <div class="closing-banner">
+      <div class="cb-lbl">Closing Perspective</div>
+      <p>{{closingInsight}}</p>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>DISC Behavioral Model · {{assessmentDate}}</p></div>
+</div>
+
+</body>
+</html>

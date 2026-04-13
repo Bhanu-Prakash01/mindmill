@@ -7,12 +7,15 @@ const { asyncHandler, ApiError } = require('../middleware/errorHandler');
  * @access  Private (All authenticated users)
  */
 const getGroups = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, search = '', groupType } = req.query;
+  const { page = 1, limit = 20, search = '', groupType, organization } = req.query;
 
   let query = {};
 
   if (req.user.role === 'superadmin') {
     // Superadmin sees all
+    if (organization) {
+      query.organization = organization;
+    }
   } else if (req.user.role === 'admin') {
     // Admin sees all org groups
     query.organization = req.user.organization._id;

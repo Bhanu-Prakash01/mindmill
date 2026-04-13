@@ -13,10 +13,7 @@ const {
   unassignAssessment,
   getMyAssignments,
   toggleMute,
-  getPublicAssessment,
   getAssessmentByInviteToken,
-  generatePublicLink,
-  revokePublicLink,
   unlockAssessment,
   refundUnattempted,
   getAssessmentPurchases,
@@ -29,8 +26,7 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
 const { assessmentValidation, idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 
-// Public route - no auth required
-router.get('/public/:token', getPublicAssessment);
+// Public route - invite-based access (no auth required)
 router.get('/invite/:token', getAssessmentByInviteToken);
 
 // Protected routes
@@ -48,15 +44,13 @@ router.post('/:id/duplicate', isSuperAdmin, idParamValidation, duplicateAssessme
 router.put('/:id', isSuperAdmin, idParamValidation, assessmentValidation.update, updateAssessment);
 router.delete('/:id', isSuperAdmin, idParamValidation, deleteAssessment);
 
-// Admin can manage (publish, assign, mute, public links)
+// Admin can manage (publish, assign, mute)
 router.patch('/:id/toggle-publish', isAdmin, idParamValidation, togglePublish);
 router.patch('/:id/toggle-mute', isAdmin, idParamValidation, toggleMute);
 router.post('/:id/unlock', isAdmin, idParamValidation, unlockAssessment);
 router.post('/:id/refund-unattempted', isAdmin, idParamValidation, refundUnattempted);
 router.post('/:id/assign', isAdmin, idParamValidation, assignAssessment);
 router.post('/:id/unassign', isAdmin, idParamValidation, unassignAssessment);
-router.post('/:id/generate-link', isAdmin, idParamValidation, generatePublicLink);
-router.delete('/:id/revoke-link', isAdmin, idParamValidation, revokePublicLink);
 
 // Member allocation routes (Admin)
 router.post('/:id/allocate', isAdmin, idParamValidation, allocateToMembers);

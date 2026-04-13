@@ -8,6 +8,7 @@ const {
   approveCreditRequest,
   rejectCreditRequest,
   cancelCreditRequest,
+  deleteCreditRequest,
   getCreditUsage
 } = require('../controllers/creditController');
 const { authMiddleware } = require('../middleware/authMiddleware');
@@ -27,5 +28,6 @@ router.post('/request', isAdmin, creditRequestLimiter, creditRequestValidation.c
 router.put('/requests/:id/approve', isSuperAdmin, idParamValidation, approveCreditRequest);
 router.put('/requests/:id/reject', isSuperAdmin, idParamValidation, rejectCreditRequest);
 router.put('/requests/:id/cancel', isAdmin, idParamValidation, cancelCreditRequest);
+router.delete('/requests/:id', isSuperAdmin, idParamValidation, deleteCreditRequest);
 
 module.exports = router;

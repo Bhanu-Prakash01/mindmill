@@ -57,14 +57,18 @@ const submitDisc = asyncHandler(async (req, res) => {
 
   // Deduct test slot from assessment's unlock pool
   if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
-    attempt.creditDeducted = true;
-    const orgId = attempt.organization.toString();
-    const unlockEntry = assessment.unlockedBy?.find(
-      u => u.organization.toString() === orgId
-    );
-    if (unlockEntry) {
-      unlockEntry.testsUsed += 1;
-      await assessment.save();
+    const { User } = require('../models');
+    const user = await User.findById(attempt.user);
+    if (user?.role !== 'superadmin') {
+      attempt.creditDeducted = true;
+      const orgId = attempt.organization.toString();
+      const unlockEntry = assessment.unlockedBy?.find(
+        u => u.organization.toString() === orgId
+      );
+      if (unlockEntry) {
+        unlockEntry.testsUsed += 1;
+        await assessment.save();
+      }
     }
   }
 

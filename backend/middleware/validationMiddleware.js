@@ -130,7 +130,7 @@ const assessmentValidation = {
       .notEmpty()
       .withMessage('Assessment title is required'),
     body('category')
-      .isIn(['psychometric', 'cognitive', 'situational', 'professional', 'big5', 'disc'])
+      .isIn(['psychometric', 'personality', 'cognitive', 'aptitude', 'situational', 'professional', 'big5', 'disc'])
       .withMessage('Invalid category'),
     body('difficulty')
       .optional()

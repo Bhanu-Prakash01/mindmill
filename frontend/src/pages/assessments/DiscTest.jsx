@@ -11,7 +11,9 @@ import {
   Info,
   Target,
   Maximize2,
-  XCircle
+  XCircle,
+  Bug,
+  Zap
 } from 'lucide-react';
 
 const DiscTest = () => {
@@ -33,6 +35,7 @@ const DiscTest = () => {
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
+  const [devMode, setDevMode] = useState(false);
   const attemptIdRef = useRef(attemptId);
   const tabSwitchCountRef = useRef(0);
   const fullscreenExitsRef = useRef(0);
@@ -329,8 +332,11 @@ const DiscTest = () => {
       if (data.success) {
         if (isPublicAccess) {
           document.exitFullscreen?.();
-          alert('Assessment submitted successfully! Thank you for completing the assessment.');
-          navigate('/');
+          const params = new URLSearchParams({
+            assessment: assessment?.title || 'DISC Assessment',
+            type: 'disc'
+          });
+          navigate(`/thank-you?${params.toString()}`);
         } else {
           const prefix = orgSlug ? `/o/${orgSlug}` : '';
           navigate(`${prefix}/reports/disc/${data.data.attempt._id}`);
@@ -377,6 +383,51 @@ const DiscTest = () => {
       C: 'bg-blue-500'
     };
     return colors[trait] || 'bg-gray-500';
+  };
+
+  // Dev Mode: Fill all answers randomly (MOST/LEAST selection)
+  const fillAllAnswersDisc = () => {
+    const newResponses = {};
+    
+    questions.forEach((question, qIndex) => {
+      const questionOrder = qIndex + 1;
+      const statements = question.statements?.length > 0 ? question.statements : (question.options || []);
+      
+      if (statements.length >= 2) {
+        // Randomly select MOST (random statement)
+        const mostIndex = Math.floor(Math.random() * statements.length);
+        let leastIndex;
+        
+        // Ensure LEAST is different from MOST
+        do {
+          leastIndex = Math.floor(Math.random() * statements.length);
+        } while (leastIndex === mostIndex && statements.length > 1);
+        
+        newResponses[questionOrder] = {
+          questionId: question._id,
+          most: {
+            statementIndex: mostIndex,
+            trait: statements[mostIndex]?.trait,
+            score: 1
+          },
+          least: {
+            statementIndex: leastIndex,
+            trait: statements[leastIndex]?.trait,
+            score: -1
+          }
+        };
+      }
+    });
+    
+    setResponses(prev => ({ ...prev, ...newResponses }));
+    console.log('Dev Mode: DISC answers filled!');
+  };
+
+  const toggleDevMode = () => {
+    if (!devMode) {
+      fillAllAnswersDisc();
+    }
+    setDevMode(!devMode);
   };
 
   if (loading) {
@@ -444,10 +495,41 @@ const DiscTest = () => {
                 <Maximize2 className="w-4 h-4" />
                 Fullscreen
               </button>
+
+              <button
+                onClick={toggleDevMode}
+                className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  devMode 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                }`}
+                title="Dev Mode: Auto-fill all answers"
+              >
+                {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
+                {devMode ? 'Dev Mode ON' : 'Dev Mode'}
+              </button>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Dev Mode Banner */}
+      {devMode && (
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+          <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Bug className="w-4 h-4" />
+              <span>DEV MODE ACTIVE - All DISC answers auto-filled</span>
+            </div>
+            <button
+              onClick={() => setDevMode(false)}
+              className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
+            >
+              Turn OFF
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -13,6 +13,7 @@ import {
  MoreVertical,
  Paperclip
 } from 'lucide-react';
+import UserAvatar from '../../components/UserAvatar';
 
 const TicketDetail = () => {
  const { id, orgSlug } = useParams();
@@ -234,14 +235,12 @@ const TicketDetail = () => {
  className={`flex gap-4 ${message.isOriginal ? '' : 'pl-8'}`}
  >
  <div className="flex-shrink-0">
- <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
- <span className="text-indigo-600 text-sm font-medium">
- {message.isOriginal
- ? `${ticket.user?.firstName?.[0]}${ticket.user?.lastName?.[0]}`
- : `${message.from?.firstName?.[0]}${message.from?.lastName?.[0]}`
- }
- </span>
- </div>
+ <UserAvatar
+  name={message.isOriginal ? ticket.user?.firstName : message.from?.firstName}
+  lastName={message.isOriginal ? ticket.user?.lastName : message.from?.lastName}
+  email={message.isOriginal ? ticket.user?.email : message.from?.email}
+  size={40}
+ />
  </div>
  <div className="flex-1">
  <div className="flex items-center gap-2 mb-1">
@@ -371,11 +370,12 @@ const TicketDetail = () => {
  <div className="bg-white rounded-xl border border-gray-200 p-6">
  <h3 className="text-sm font-medium text-gray-900 mb-4">Requester</h3>
  <div className="flex items-center gap-3">
- <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
- <span className="text-indigo-600 font-medium">
- {ticket.user?.firstName?.[0]}{ticket.user?.lastName?.[0]}
- </span>
- </div>
+ <UserAvatar
+  name={ticket.user?.firstName}
+  lastName={ticket.user?.lastName}
+  email={ticket.user?.email}
+  size={40}
+ />
  <div>
  <div className="text-sm font-medium text-gray-900 ">
  {ticket.user?.firstName} {ticket.user?.lastName}

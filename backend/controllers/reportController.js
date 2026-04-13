@@ -1,5 +1,6 @@
 const { Report, Attempt, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { generateDiscReportPdf, generateBig5ReportPdf, generateGenericReportPdf, generateQuickSummaryPdf } = require('../services/pdfService');
 const crypto = require('crypto');
 
 /**
@@ -266,6 +267,7 @@ const addAdminNotes = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const downloadReport = asyncHandler(async (req, res) => {
+  const { type = 'comprehensive' } = req.query;
   const report = await Report.findById(req.params.id)
     .populate('user', 'firstName lastName email')
     .populate('assessment', 'title category')
@@ -285,12 +287,212 @@ const downloadReport = asyncHandler(async (req, res) => {
     }
   }
 
-  // For now, return JSON data. In production, generate PDF
-  res.json({
-    success: true,
-    message: 'PDF download not yet implemented. Returning JSON data.',
-    data: { report }
-  });
+  try {
+    let pdfBuffer;
+    let filename;
+
+    // Prepare test taker data
+    const testTaker = report.attempt ? {
+      name: report.attempt.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+      email: report.attempt.testTakerEmail || report.user?.email,
+      phone: report.attempt.testTakerPhone
+    } : {
+      name: `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+      email: report.user?.email
+    };
+
+    // Generate PDF based on requested report type & assessment category
+    const category = report.assessment?.category || report.type;
+    if (type === 'summary') {
+      // Build properly shaped data for the summary generator
+      let summaryData;
+      if (category === 'disc') {
+        const disc = report.dimensions?.DISC || {};
+        const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
+        const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
+        summaryData = {
+          percentages: { D: disc.D?.percentage||0, I: disc.I?.percentage||0, S: disc.S?.percentage||0, C: disc.C?.percentage||0 },
+          dominant, secondary, pattern: report.dimensions?.pattern || `${dominant}${secondary}`
+        };
+      } else {
+        const bigFive = report.dimensions?.BigFive || {};
+        const byTrait = report.scores?.byTrait || {};
+        summaryData = {
+          scores: {
+            Openness: bigFive.openness || byTrait.O?.score || 0,
+            Conscientiousness: bigFive.conscientiousness || byTrait.C?.score || 0,
+            Extraversion: bigFive.extraversion || byTrait.E?.score || 0,
+            Agreeableness: bigFive.agreeableness || byTrait.A?.score || 0,
+            Neuroticism: bigFive.neuroticism || byTrait.N?.score || 0,
+          }
+        };
+      }
+      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
+      filename = `Summary_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    } else if (category === 'disc') {
+      // DISC Report — extract from the actual stored schema
+      const disc = report.dimensions?.DISC || {};
+      const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
+      const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
+      const pattern = report.dimensions?.pattern || `${dominant}${secondary}`;
+      const discData = {
+        percentages: {
+          D: disc.D?.percentage || 0,
+          I: disc.I?.percentage || 0,
+          S: disc.S?.percentage || 0,
+          C: disc.C?.percentage || 0,
+        },
+        dominant,
+        secondary,
+        pattern,
+        analysis: report.analysis || {},
+        dimensions: disc,
+      };
+      pdfBuffer = await generateDiscReportPdf(discData, testTaker);
+      filename = `DISC_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    } else if (category === 'big5') {
+      // Big5 Report — extract from the actual stored schema
+      const bigFive = report.dimensions?.BigFive || {};
+      const byTrait = report.scores?.byTrait || {};
+      // Build normalized scores from stored data (handle both lowercase keys & byTrait E/A/C/N/O)
+      const big5Data = {
+        scores: {
+          Openness:          bigFive.openness        || byTrait.O?.score || 0,
+          Conscientiousness: bigFive.conscientiousness|| byTrait.C?.score || 0,
+          Extraversion:      bigFive.extraversion     || byTrait.E?.score || 0,
+          Agreeableness:     bigFive.agreeableness    || byTrait.A?.score || 0,
+          Neuroticism:       bigFive.neuroticism      || byTrait.N?.score || 0,
+        },
+        traits: bigFive,
+        analysis: report.analysis || {}
+      };
+      pdfBuffer = await generateBig5ReportPdf(big5Data, testTaker);
+      filename = `Big5_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    } else {
+      // Generic / standard report
+      pdfBuffer = await generateGenericReportPdf(report);
+      filename = `Assessment_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+    }
+
+    // Send PDF response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate PDF');
+  }
+});
+
+/**
+ * @desc    Preview DISC report HTML template
+ * @route   GET /api/reports/preview/disc
+ * @access  Private (Admin only)
+ */
+const previewDiscReport = asyncHandler(async (req, res) => {
+  const { generateDiscReportPdf } = require('../services/pdfService');
+
+  const sampleData = {
+    percentages: { D: 35, I: 25, S: 20, C: 20 },
+    dominant: 'D',
+    secondary: 'I',
+    pattern: 'DI',
+    analysis: {
+      summary: 'You are a results-oriented leader who combines strategic thinking with excellent communication skills. Your dominant D trait drives you to achieve goals, while your I influence helps you inspire and motivate others.',
+      strengths: [
+        'Natural leadership abilities with a commanding presence',
+        'Excellent at motivating and inspiring teams',
+        'Quick decision-maker who thrives under pressure',
+        'Strong strategic vision and goal-oriented mindset'
+      ],
+      developmentAreas: [
+        'May benefit from practicing more active listening',
+        'Could improve patience when dealing with detailed tasks',
+        'Should consider the impact on team morale before making quick decisions'
+      ],
+      workStyle: 'You prefer fast-paced environments where you can take initiative and drive results. You thrive when given autonomy and clear objectives.',
+      recommendations: [
+        'Seek leadership opportunities that leverage your natural charisma',
+        'Build a team that complements your direct approach with diplomatic skills',
+        'Practice delegating tasks to focus on strategic priorities'
+      ]
+    },
+    dimensions: {
+      D: { percentage: 35 },
+      I: { percentage: 25 },
+      S: { percentage: 20 },
+      C: { percentage: 20 }
+    }
+  };
+
+  const testTaker = {
+    name: 'John Smith',
+    email: 'john.smith@example.com',
+    phone: '+1 234 567 8900'
+  };
+
+  try {
+    const pdfBuffer = await generateDiscReportPdf(sampleData, testTaker);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="DISC_Preview.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Preview PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate preview PDF');
+  }
+});
+
+/**
+ * @desc    Preview Big5 report HTML template
+ * @route   GET /api/reports/preview/big5
+ * @access  Private (Admin only)
+ */
+const previewBig5Report = asyncHandler(async (req, res) => {
+  const { generateBig5ReportPdf } = require('../services/pdfService');
+
+  const sampleData = {
+    scores: {
+      Openness: 75,
+      Conscientiousness: 68,
+      Extraversion: 55,
+      Agreeableness: 62,
+      Neuroticism: 35
+    },
+    analysis: {
+      summary: 'You score high in Openness and Conscientiousness, suggesting you are both creative and organized. Your moderate Extraversion indicates a balanced approach to social situations.',
+      strengths: [
+        'Strong creative and analytical thinking abilities',
+        'Well-organized with good time management skills',
+        'Adaptable to different situations and environments',
+        'Maintains emotional stability under pressure'
+      ],
+      developmentAreas: [
+        'Could benefit from being more assertive in group settings',
+        'May need to work on being more open to feedback',
+        'Could improve collaboration skills in team environments'
+      ]
+    }
+  };
+
+  const testTaker = {
+    name: 'Jane Doe',
+    email: 'jane.doe@example.com'
+  };
+
+  try {
+    const pdfBuffer = await generateBig5ReportPdf(sampleData, testTaker);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Big5_Preview.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Preview PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate preview PDF');
+  }
 });
 
 module.exports = {
@@ -300,5 +502,7 @@ module.exports = {
   getSharedReport,
   toggleVisibility,
   addAdminNotes,
-  downloadReport
+  downloadReport,
+  previewDiscReport,
+  previewBig5Report
 };

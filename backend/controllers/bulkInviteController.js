@@ -9,8 +9,24 @@ const XLSX = require('xlsx');
  * @access  Private (Admin, User)
  */
 const bulkUploadInvites = asyncHandler(async (req, res) => {
-  const { assessmentId } = req.body;
+  const { assessmentId, expiresAt } = req.body;
   const file = req.file;
+
+  // Validate expiresAt if provided
+  let expiresAtDate = null;
+  if (expiresAt) {
+    expiresAtDate = new Date(expiresAt);
+    if (isNaN(expiresAtDate.getTime())) {
+      throw new ApiError(400, 'Invalid expire date format');
+    }
+    if (expiresAtDate <= new Date()) {
+      throw new ApiError(400, 'Expire date must be in the future');
+    }
+  } else {
+    // Default: 30 days from now
+    expiresAtDate = new Date();
+    expiresAtDate.setDate(expiresAtDate.getDate() + 30);
+  }
 
   if (!file) {
     throw new ApiError(400, 'No file uploaded');
@@ -129,7 +145,8 @@ const bulkUploadInvites = asyncHandler(async (req, res) => {
         invitedBy: req.user._id,
         testTakerName: name,
         testTakerEmail: email,
-        testTakerPhone: phone
+        testTakerPhone: phone,
+        expiresAt: expiresAtDate
       });
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -137,6 +154,7 @@ const bulkUploadInvites = asyncHandler(async (req, res) => {
       const testLink = `${frontendUrl}/take/${category}/${invite.token}`;
 
       let emailSent = false;
+      let emailErrorReason = null;
       try {
         await sendTestInvite({
           to: invite.testTakerEmail,
@@ -155,12 +173,14 @@ const bulkUploadInvites = asyncHandler(async (req, res) => {
         await invite.save();
       } catch (emailError) {
         console.error('Failed to send invite email:', emailError.message);
+        emailErrorReason = emailError.message;
       }
 
       results.success.push({
         name: invite.testTakerName,
         email: invite.testTakerEmail,
-        emailSent
+        emailSent,
+        emailErrorReason: emailSent ? null : emailErrorReason
       });
     } catch (err) {
       results.failed.push({
@@ -172,11 +192,12 @@ const bulkUploadInvites = asyncHandler(async (req, res) => {
     }
   }
 
-  await unlockEntry.populate('organization');
-
+  const emailFailedCount = results.success.filter(s => !s.emailSent).length;
+  const emailSuccessCount = results.success.filter(s => s.emailSent).length;
+  
   res.status(200).json({
     success: true,
-    message: `Bulk upload completed. ${results.success.length} invites created, ${results.skipped} skipped, ${results.failed.length} failed.`,
+    message: `Bulk upload completed. ${results.success.length} invites created, ${results.skipped} skipped, ${results.failed.length} failed. ${emailSuccessCount} emails sent successfully, ${emailFailedCount} emails failed (please check email addresses and resend).`,
     data: results
   });
 });
@@ -248,6 +269,7 @@ const exportInvites = asyncHandler(async (req, res) => {
     Status: invite.status,
     InvitedBy: invite.invitedBy ? `${invite.invitedBy.firstName} ${invite.invitedBy.lastName}` : 'N/A',
     InvitedAt: new Date(invite.createdAt).toISOString(),
+    ExpiresAt: invite.expiresAt ? new Date(invite.expiresAt).toISOString() : '',
     StartedAt: invite.startedAt ? new Date(invite.startedAt).toISOString() : '',
     CompletedAt: invite.completedAt ? new Date(invite.completedAt).toISOString() : ''
   }));

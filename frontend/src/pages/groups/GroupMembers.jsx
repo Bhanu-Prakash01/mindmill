@@ -16,6 +16,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import UserAvatar from '../../components/UserAvatar';
 
 const GroupMembers = () => {
   const { id: groupId, orgSlug } = useParams();
@@ -211,11 +212,12 @@ const GroupMembers = () => {
                   <tr key={contact._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-emerald-600 font-medium">
-                            {contact.name?.[0]?.toUpperCase() || '?'}
-                          </span>
-                        </div>
+                        <UserAvatar
+                          name={contact.name?.split(' ')[0] || ''}
+                          lastName={contact.name?.split(' ').slice(1).join(' ') || ''}
+                          email={contact.email}
+                          size={40}
+                        />
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{contact.name}</div>
                         </div>
@@ -252,11 +254,12 @@ const GroupMembers = () => {
                   <tr key={member._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-indigo-600 font-medium">
-                            {member.firstName?.[0]}{member.lastName ? member.lastName[0] : ''}
-                          </span>
-                        </div>
+                        <UserAvatar
+                          name={member.firstName}
+                          lastName={member.lastName}
+                          email={member.email}
+                          size={40}
+                        />
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {member.firstName} {member.lastName || ''}
@@ -359,9 +362,12 @@ const AddMembersModal = ({ onClose, allUsers, currentMembers, onAdd, loading }) 
             {availableUsers.map((u) => (
               <div key={u._id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-medium">
-                    {u.firstName?.[0]}{u.lastName ? u.lastName[0] : ''}
-                  </div>
+                  <UserAvatar
+                    name={u.firstName}
+                    lastName={u.lastName}
+                    email={u.email}
+                    size={40}
+                  />
                   <div>
                     <div className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName || ''}</div>
                     <div className="text-xs text-gray-500">{u.email}</div>

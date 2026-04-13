@@ -103,11 +103,6 @@ export const assessmentService = {
 
  getStats: async (id) => {
   const response = await api.get(`/assessments/${id}/stats`);
-  return response.data;
- },
-
-  getPublicAssessment: async (token) => {
-    const response = await publicApi.get(`/assessments/public/${token}`);
     return response.data;
   },
 

@@ -2,6 +2,27 @@ const { CreditRequest, Organization, User } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 
 /**
+ * @desc    Delete credit request
+ * @route   DELETE /api/credits/requests/:id
+ * @access  Private (SuperAdmin)
+ */
+const deleteCreditRequest = asyncHandler(async (req, res) => {
+  const creditRequest = await CreditRequest.findById(req.params.id);
+
+  if (!creditRequest) {
+    throw new ApiError(404, 'Credit request not found');
+  }
+
+  await CreditRequest.findByIdAndDelete(req.params.id);
+
+  res.json({
+    success: true,
+    message: 'Credit request deleted',
+    data: {}
+  });
+});
+
+/**
  * @desc    Get credit balance
  * @route   GET /api/credits
  * @access  Private
@@ -351,5 +372,6 @@ module.exports = {
   approveCreditRequest,
   rejectCreditRequest,
   cancelCreditRequest,
+  deleteCreditRequest,
   getCreditUsage
 };

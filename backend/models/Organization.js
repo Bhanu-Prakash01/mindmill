@@ -49,9 +49,15 @@ const organizationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  moderatorName: {
+    type: String,
+    default: ''
+  },
   publicProfile: {
     headline: { type: String, default: '' },
     about: { type: String, default: '' },
+    bestHRPractices: { type: String, default: '' },
+    awardsAccolades: { type: String, default: '' },
     website: { type: String, default: '' },
     linkedin: { type: String, default: '' },
     location: { type: String, default: '' },
@@ -77,9 +83,11 @@ const organizationSchema = new mongoose.Schema({
     }],
     creditCost: {
       psychometric: { type: Number, default: 5 },
+      personality: { type: Number, default: 5 },
       big5: { type: Number, default: 5 },
       disc: { type: Number, default: 5 },
       cognitive: { type: Number, default: 8 },
+      aptitude: { type: Number, default: 3 },
       situational: { type: Number, default: 3 },
       professional: { type: Number, default: 3 }
     }

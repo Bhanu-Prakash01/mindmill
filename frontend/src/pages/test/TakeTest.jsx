@@ -10,7 +10,9 @@ import {
  CheckCircle,
  AlertTriangle,
  Maximize2,
- XCircle
+ XCircle,
+ Bug,
+ Zap
 } from 'lucide-react';
 
 const TakeTest = () => {
@@ -31,10 +33,11 @@ const TakeTest = () => {
  const [timeRemaining, setTimeRemaining] = useState(0);
  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
- const [submitting, setSubmitting] = useState(false);
- const [tabSwitchCount, setTabSwitchCount] = useState(0);
- const [fullscreenExits, setFullscreenExits] = useState(0);
- const [error, setError] = useState(null);
+const [submitting, setSubmitting] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [fullscreenExits, setFullscreenExits] = useState(0);
+  const [error, setError] = useState(null);
+  const [devMode, setDevMode] = useState(false);
  const attemptRef = useRef(attempt);
  const tabSwitchCountRef = useRef(0);
  const fullscreenExitsRef = useRef(0);
@@ -185,9 +188,67 @@ const TakeTest = () => {
  handleAnswer(questionId, { textAnswer: text });
  };
 
- const handleRatingAnswer = (questionId, rating) => {
- handleAnswer(questionId, { ratingAnswer: rating });
- };
+const handleRatingAnswer = (questionId, rating) => {
+    handleAnswer(questionId, { ratingAnswer: rating });
+  };
+
+  // Dev Mode: Fill all answers randomly
+  const fillAllAnswers = async () => {
+    const newAnswers = {};
+    
+    for (const question of questions) {
+      switch (question.type) {
+        case 'mcq':
+          if (question.options && question.options.length > 0) {
+            const randomIndex = Math.floor(Math.random() * question.options.length);
+            newAnswers[question._id] = { selectedOption: randomIndex };
+          }
+          break;
+        
+        case 'text':
+          const sampleTexts = [
+            'This is a sample response for testing purposes.',
+            'I believe this answer demonstrates my understanding.',
+            'The quick brown fox jumps over the lazy dog.',
+            'Development mode test response - sample text answer.',
+            'This assessment is proceeding well in dev mode.'
+          ];
+          newAnswers[question._id] = { 
+            textAnswer: sampleTexts[Math.floor(Math.random() * sampleTexts.length)] 
+          };
+          break;
+        
+        case 'rating':
+          const randomRating = Math.floor(Math.random() * 5) + 1;
+          newAnswers[question._id] = { ratingAnswer: randomRating };
+          break;
+        
+        default:
+          break;
+      }
+    }
+
+    // Update local state
+    setAnswers(newAnswers);
+
+    // Save all answers to backend
+    try {
+      for (const [questionId, answerData] of Object.entries(newAnswers)) {
+        await attemptService.saveAnswer(attempt._id, questionId, answerData);
+      }
+      console.log('Dev Mode: All answers filled and saved!');
+    } catch (error) {
+      console.error('Dev Mode: Error saving answers:', error);
+    }
+  };
+
+  const toggleDevMode = () => {
+    if (!devMode) {
+      // Turning ON - fill all answers
+      fillAllAnswers();
+    }
+    setDevMode(!devMode);
+  };
 
  const toggleFlagQuestion = (index) => {
  setFlaggedQuestions(prev => {
@@ -204,9 +265,13 @@ const TakeTest = () => {
  const handleSubmit = async () => {
  setSubmitting(true);
  try {
- await attemptService.submitAttempt(attempt._id);
- navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/');
- } catch (error) {
+  await attemptService.submitAttempt(attempt._id);
+  const params = new URLSearchParams({
+    assessment: assessment?.title || 'Assessment',
+    type: assessment?.category || 'standard'
+  });
+  navigate(`/thank-you?${params.toString()}`);
+  } catch (error) {
  console.error('Error submitting test:', error);
  alert(error.response?.data?.message || 'Failed to submit test');
  setSubmitting(false);
@@ -305,14 +370,27 @@ const TakeTest = () => {
  </div>
  </div>
 
- <button
- onClick={requestFullscreen}
- className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
- title="Return to Fullscreen"
- >
- <Maximize2 className="w-4 h-4" />
- Fullscreen
- </button>
+<button
+  onClick={requestFullscreen}
+  className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+  title="Return to Fullscreen"
+  >
+  <Maximize2 className="w-4 h-4" />
+  Fullscreen
+  </button>
+
+  <button
+  onClick={toggleDevMode}
+  className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+    devMode 
+      ? 'bg-green-500 text-white hover:bg-green-600' 
+      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+  }`}
+  title="Dev Mode: Auto-fill all answers"
+  >
+  {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
+  {devMode ? 'Dev Mode ON' : 'Dev Mode'}
+  </button>
 
  <button
  onClick={() => setShowQuitConfirm(true)}
@@ -332,19 +410,37 @@ const TakeTest = () => {
  </div>
  </header>
 
- {/* Proctoring Warnings */}
- {(tabSwitchCount > 0 || fullscreenExits > 0) && (
- <div className="bg-yellow-50 border-b border-yellow-200 ">
- <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-2 text-sm text-yellow-800 ">
- <AlertTriangle className="w-4 h-4" />
- <span>
- Warning: {tabSwitchCount > 0 && `${tabSwitchCount} tab switch(es)`}
- {tabSwitchCount > 0 && fullscreenExits > 0 && ' and '}
- {fullscreenExits > 0 && `${fullscreenExits} fullscreen exit(s)`} detected
- </span>
- </div>
- </div>
- )}
+{/* Proctoring Warnings */}
+  {(tabSwitchCount > 0 || fullscreenExits > 0) && (
+  <div className="bg-yellow-50 border-b border-yellow-200 ">
+  <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-2 text-sm text-yellow-800 ">
+  <AlertTriangle className="w-4 h-4" />
+  <span>
+  Warning: {tabSwitchCount > 0 && `${tabSwitchCount} tab switch(es)`}
+  {tabSwitchCount > 0 && fullscreenExits > 0 && ' and '}
+  {fullscreenExits > 0 && `${fullscreenExits} fullscreen exit(s)`} detected
+  </span>
+  </div>
+  </div>
+  )}
+
+  {/* Dev Mode Banner */}
+  {devMode && (
+    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Bug className="w-4 h-4" />
+          <span>DEV MODE ACTIVE - All answers auto-filled randomly</span>
+        </div>
+        <button
+          onClick={() => setDevMode(false)}
+          className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
+        >
+          Turn OFF
+        </button>
+      </div>
+    </div>
+  )}
 
  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
  <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

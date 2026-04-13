@@ -16,15 +16,20 @@ export const creditService = {
  return response.data;
  },
 
- approveRequest: async (id, data) => {
- const response = await api.post(`/credits/requests/${id}/approve`, data);
- return response.data;
- },
+  approveRequest: async (id, data) => {
+  const response = await api.put(`/credits/requests/${id}/approve`, data);
+  return response.data;
+  },
 
- rejectRequest: async (id, data) => {
- const response = await api.post(`/credits/requests/${id}/reject`, data);
- return response.data;
- },
+  rejectRequest: async (id, data) => {
+  const response = await api.put(`/credits/requests/${id}/reject`, data);
+  return response.data;
+  },
+
+  deleteRequest: async (id) => {
+  const response = await api.delete(`/credits/requests/${id}`);
+  return response.data;
+  },
 
  getCreditStats: async () => {
  const response = await api.get('/credits/stats');

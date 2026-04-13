@@ -15,8 +15,11 @@ import {
   Layers,
   ExternalLink,
   ChevronDown,
-  Clock
+  Clock,
+  Key,
+  FileText
 } from 'lucide-react';
+import UserAvatar from '../../components/UserAvatar';
 
 const Reports = () => {
   const { user } = useAuth();
@@ -26,6 +29,8 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
+  
+  const [downloadModalData, setDownloadModalData] = useState(null);
 
   useEffect(() => {
     fetchReports();
@@ -52,12 +57,13 @@ const Reports = () => {
     }
   };
 
-  const handleDownload = async (id) => {
+  const handleDownload = async (id, type) => {
     try {
-      const response = await reportService.downloadReport(id);
-      alert('PDF download feature coming soon!');
+      await reportService.downloadReport(id, type);
+      setDownloadModalData(null);
     } catch (error) {
       console.error('Error downloading report:', error);
+      alert('Failed to download report.');
     }
   };
 
@@ -76,6 +82,8 @@ const Reports = () => {
       cognitive: { label: 'Cognitive', color: 'bg-blue-100 text-blue-700', icon: FileBarChart },
       situational: { label: 'Situational', color: 'bg-orange-100 text-orange-700', icon: FileBarChart },
       standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700', icon: FileBarChart },
+      key_factors: { label: 'Key Factors', color: 'bg-amber-100 text-amber-700', icon: Key },
+      detailed: { label: 'Detailed', color: 'bg-cyan-100 text-cyan-700', icon: FileText },
     };
     return configs[type] || configs.standard;
   };
@@ -136,6 +144,8 @@ const Reports = () => {
             <option value="big5">Big Five</option>
             <option value="disc">DISC</option>
             <option value="psychometric">Psychometric</option>
+            <option value="key_factors">Key Factors</option>
+            <option value="detailed">Detailed</option>
             <option value="standard">Standard</option>
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -171,11 +181,12 @@ const Reports = () => {
                     {/* Candidate */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-indigo-600 text-sm font-semibold">
-                            {candidateName?.[0]?.toUpperCase() || '?'}
-                          </span>
-                        </div>
+                        <UserAvatar
+                          name={candidateName?.split(' ')[0] || ''}
+                          lastName={candidateName?.split(' ').slice(1).join(' ') || ''}
+                          email={candidateEmail}
+                          size={36}
+                        />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{candidateName}</div>
                           <div className="flex items-center gap-1 text-xs text-gray-400 truncate">
@@ -211,11 +222,12 @@ const Reports = () => {
                     <td className="px-5 py-4">
                       {report.conductedBy ? (
                         <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-slate-600 text-xs font-semibold">
-                              {report.conductedBy.firstName?.[0]}{report.conductedBy.lastName?.[0] || ''}
-                            </span>
-                          </div>
+                          <UserAvatar
+                            name={report.conductedBy.firstName}
+                            lastName={report.conductedBy.lastName}
+                            email={report.conductedBy.email}
+                            size={28}
+                          />
                           <div className="min-w-0">
                             <div className="text-sm text-gray-900 truncate">
                               {report.conductedBy.firstName} {report.conductedBy.lastName || ''}
@@ -290,7 +302,7 @@ const Reports = () => {
                           <ExternalLink className="w-4 h-4" />
                         </Link>
                         <button
-                          onClick={() => handleDownload(report._id)}
+                          onClick={() => setDownloadModalData(report)}
                           className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Download as PDF"
                         >
@@ -315,6 +327,56 @@ const Reports = () => {
           </div>
         )}
       </div>
+
+      {/* Download Modal */}
+      {downloadModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setDownloadModalData(null)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Download Report</h3>
+              <p className="text-sm text-gray-500 mb-6">Select the level of detail you want to include in the PDF report.</p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleDownload(downloadModalData._id, 'comprehensive')}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all text-left"
+                >
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Comprehensive Report (AI)</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">Full 8-page deep dive with psychometric narrative, insights, and tailored development roadmap.</div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => handleDownload(downloadModalData._id, 'summary')}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all text-left"
+                >
+                  <div className="p-2 bg-gray-100 text-gray-600 rounded-lg">
+                    <FileBarChart className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Summary Report</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">Dynamic 1-page overview showing dimension scores and immediate visual stats.</div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setDownloadModalData(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -301,7 +301,7 @@ const Groups = () => {
 
                 <div className="mt-4 flex items-center justify-between pt-3 border-t border-gray-100">
                   <div className="flex items-center gap-1 text-[9px] font-medium text-gray-400 uppercase tracking-widest">
-                    <span>{new Date(group.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <span>{new Date(group.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                   
                   <div className="flex items-center gap-1">

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { assessmentService, groupService, userService } from '../services';
+import { useAuth } from '../context/AuthContext';
 import {
   X, Users, UserCheck, Search, Check, AlertTriangle, Info, FileText,
   CheckCircle, Lock, Unlock, Plus, Minus, Coins, Loader2
 } from 'lucide-react';
 
 const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -61,9 +63,18 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const fetchData = async (search = '') => {
     setLoading(true);
     try {
+      // Always filter by the logged-in admin's own organization.
+      // Do NOT rely on assessment.organization — it may be null for global assessments,
+      // which would cause the backend to return users from ALL organizations.
+      const orgId = currentUser?.organization?._id || currentUser?.organization;
+      const params = { limit: 100 };
+      if (orgId) {
+        params.organization = orgId;
+      }
+
       const [usersRes, groupsRes] = await Promise.all([
-        userService.getUsers({ search, limit: 100 }),
-        groupService.getGroups({ limit: 100 })
+        userService.getUsers({ search, ...params }),
+        groupService.getGroups(params)
       ]);
       setUsers(usersRes.data?.users || []);
       setGroups(groupsRes.data?.groups || []);

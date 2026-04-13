@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileSpreadsheet, Download, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, Download, CheckCircle, XCircle, AlertCircle, Loader2, Copy, Edit3, Table } from 'lucide-react';
 import { assessmentService, testTakerService } from '../services';
 
 const BulkImportModal = ({ onClose, onSuccess }) => {
@@ -8,9 +8,12 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
   const [assessments, setAssessments] = useState([]);
   const [loadingAssessments, setLoadingAssessments] = useState(true);
   const [file, setFile] = useState(null);
+  const [expiresAt, setExpiresAt] = useState('');
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [inputMode, setInputMode] = useState('paste'); // 'paste' or 'upload'
+  const [inlineData, setInlineData] = useState('');
   const fileInputRef = useRef(null);
 
   React.useEffect(() => {
@@ -65,20 +68,43 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
       setError('Please select an assessment');
       return;
     }
-    if (!file) {
-      setError('Please select a file');
-      return;
-    }
 
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('assessmentId', selectedAssessment._id);
-
     try {
-      const response = await testTakerService.bulkUploadInvites(formData);
+      let response;
+      
+      if (inputMode === 'paste' && inlineData.trim()) {
+        // Create a file from the inline data
+        const blob = new Blob([inlineData], { type: 'text/csv' });
+        const csvFile = new File([blob], 'bulk_import.csv', { type: 'text/csv' });
+        
+        const formData = new FormData();
+        formData.append('file', csvFile);
+        formData.append('assessmentId', selectedAssessment._id);
+        
+        if (expiresAt) {
+          formData.append('expiresAt', expiresAt);
+        }
+        
+        response = await testTakerService.bulkUploadInvites(formData);
+      } else if (inputMode === 'upload' && file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('assessmentId', selectedAssessment._id);
+        
+        if (expiresAt) {
+          formData.append('expiresAt', expiresAt);
+        }
+        
+        response = await testTakerService.bulkUploadInvites(formData);
+      } else {
+        setError(inputMode === 'paste' ? 'Please paste CSV data' : 'Please select a file');
+        setUploading(false);
+        return;
+      }
+      
       setResults(response.data);
       setStep(3);
     } catch (err) {
@@ -87,6 +113,19 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
       setUploading(false);
     }
   };
+
+  const handleCopySample = () => {
+    const sampleData = `Name,Email,Phone
+John Doe,john.doe@example.com,+91 9876543210
+Jane Smith,jane.smith@example.com,+91 9876543211`;
+    navigator.clipboard.writeText(sampleData);
+    setInlineData(sampleData);
+  };
+
+  const sampleCSV = `Name,Email,Phone
+John Doe,john.doe@example.com,+91 9876543210
+Jane Smith,jane.smith@example.com,+91 9876543211
+Mike Johnson,mike.j@example.com,+91 9876543212`;
 
   const handleClose = () => {
     if (results) {
@@ -171,6 +210,20 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
               )}
             </div>
 
+            {/* Expire Date - Optional */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expire Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave empty to use default 30 days</p>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
@@ -194,57 +247,140 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
         {/* Step 2: Upload File */}
         {step === 2 && (
           <div>
-            {/* Download Template */}
-            <button
-              onClick={handleDownloadTemplate}
-              className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-            >
-              <Download className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-600">Download CSV Template</span>
-            </button>
+            {/* Input Mode Tabs */}
+            <div className="flex mb-4 border-b border-gray-200">
+              <button
+                onClick={() => setInputMode('paste')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  inputMode === 'paste'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Edit3 className="w-4 h-4" />
+                Paste Data
+              </button>
+              <button
+                onClick={() => setInputMode('upload')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  inputMode === 'upload'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                Upload File
+              </button>
+            </div>
 
-            {/* File Upload */}
-            <div
-              className={`mb-4 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                file ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              {file ? (
-                <div className="flex items-center justify-center gap-3">
-                  <FileSpreadsheet className="w-8 h-8 text-indigo-600" />
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">{file.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </p>
+            {/* Paste Mode */}
+            {inputMode === 'paste' && (
+              <div>
+                {/* Sample Preview Table */}
+                <div className="mb-4 bg-green-50 rounded-lg p-3 border border-green-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-green-800">Format Preview:</span>
+                    <button
+                      onClick={handleCopySample}
+                      className="text-xs flex items-center gap-1 text-green-700 hover:text-green-800"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy & Use Sample
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-green-100">
+                          <th className="px-2 py-1 text-left font-medium text-green-900">Name</th>
+                          <th className="px-2 py-1 text-left font-medium text-green-900">Email</th>
+                          <th className="px-2 py-1 text-left font-medium text-green-900">Phone</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-green-800">
+                        <tr><td className="px-2 py-1">John Doe</td><td className="px-2 py-1">john@example.com</td><td className="px-2 py-1">+91 9876543210</td></tr>
+                        <tr className="bg-green-50"><td className="px-2 py-1">Jane Smith</td><td className="px-2 py-1">jane@example.com</td><td className="px-2 py-1">+91 9876543211</td></tr>
+                        <tr><td className="px-2 py-1">...</td><td className="px-2 py-1">...</td><td className="px-2 py-1">...</td></tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Click to upload or drag and drop</p>
-                  <p className="text-sm text-gray-400 mt-1">CSV or XLSX files only</p>
-                </>
-              )}
-            </div>
 
-            {/* File Format Info */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Expected Columns:</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li><code className="bg-gray-200 px-1 rounded">Name</code> - Test taker's full name</li>
-                <li><code className="bg-gray-200 px-1 rounded">Email</code> - Valid email address</li>
-                <li><code className="bg-gray-200 px-1 rounded">Phone</code> - Contact number</li>
-              </ul>
-            </div>
+                {/* CSV Text Area */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Paste CSV Data (with header row)
+                  </label>
+                  <textarea
+                    value={inlineData}
+                    onChange={(e) => setInlineData(e.target.value)}
+                    placeholder={`Name,Email,Phone\nJohn Doe,john@example.com,+91 9876543210\nJane Smith,jane@example.com,+91 9876543211`}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    First row should be: <code className="bg-gray-100 px-1 rounded">Name,Email,Phone</code>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Upload Mode */}
+            {inputMode === 'upload' && (
+              <div>
+                {/* Download Template */}
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                >
+                  <Download className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">Download CSV Template</span>
+                </button>
+
+                {/* File Upload */}
+                <div
+                  className={`mb-4 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                    file ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  {file ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <FileSpreadsheet className="w-8 h-8 text-indigo-600" />
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900">{file.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600">Click to upload or drag and drop</p>
+                      <p className="text-sm text-gray-400 mt-1">CSV or XLSX files only</p>
+                    </>
+                  )}
+                </div>
+
+                {/* File Format Info */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Expected Columns:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li><code className="bg-gray-200 px-1 rounded">Name</code> - Test taker's full name</li>
+                    <li><code className="bg-gray-200 px-1 rounded">Email</code> - Valid email address</li>
+                    <li><code className="bg-gray-200 px-1 rounded">Phone</code> - Contact number</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -265,7 +401,7 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={uploading || !file}
+                disabled={uploading || (inputMode === 'upload' && !file) || (inputMode === 'paste' && !inlineData.trim())}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {uploading ? (
@@ -322,13 +458,29 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
               </div>
             )}
 
+            {/* Email Failed Rows */}
+            {results.success && results.success.filter(s => !s.emailSent).length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">Email Not Sent (Invalid Email):</h4>
+                <div className="bg-amber-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    {results.success.filter(s => !s.emailSent).map((item, idx) => (
+                      <li key={idx}>
+                        {item.name} ({item.email}) - Please provide a valid email address
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Success Message */}
             <div className="bg-green-50 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 <p className="text-green-700">
                   {results.success?.filter(s => s.emailSent).length || 0} invitations sent via email,{' '}
-                  {results.success?.filter(s => !s.emailSent).length || 0} created but email failed (can resend later)
+                  {results.success?.filter(s => !s.emailSent).length || 0} emails failed - please provide valid email addresses and resend
                 </p>
               </div>
             </div>
@@ -341,6 +493,7 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
                   setFile(null);
                   setSelectedAssessment(null);
                   setResults(null);
+                  setExpiresAt('');
                 }}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >

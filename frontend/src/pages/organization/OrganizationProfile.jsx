@@ -14,15 +14,65 @@ import {
   ExternalLink,
   CheckCircle2,
   LayoutGrid,
-  FileText
+  FileText,
+  Award,
+  ClipboardList,
+  User
 } from 'lucide-react';
+
+// LinkedIn standard banner dimensions: 1584 × 396 px (4:1 ratio)
+const LINKEDIN_BANNER_RATIO = '4 / 1'; // CSS aspect-ratio
+
+/** Render word count badge */
+const WordCountBadge = ({ text, limit }) => {
+  const count = text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+  const over = count > limit;
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+        over
+          ? 'bg-rose-100 text-rose-600'
+          : 'bg-slate-100 text-slate-500'
+      }`}
+    >
+      {count} / {limit} words
+    </span>
+  );
+};
+
+/** Section card wrapper for Overview */
+const SectionCard = ({ icon: Icon, title, content, wordLimit, primaryColor }) => {
+  const isEmpty = !content || !content.trim();
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <Icon className="w-5 h-5" style={{ color: primaryColor }} />
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        </div>
+        {!isEmpty && <WordCountBadge text={content} limit={wordLimit} />}
+      </div>
+      <div className="px-8 py-6">
+        {isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <FileText className="w-8 h-8 text-slate-300 mb-2" />
+            <p className="text-slate-500 font-medium text-sm">No content provided yet.</p>
+          </div>
+        ) : (
+          <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base max-w-none">
+            <p className="whitespace-pre-wrap text-slate-600 leading-relaxed">{content}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const OrganizationProfile = () => {
   const { slug } = useParams();
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchOrg();
@@ -69,12 +119,12 @@ const OrganizationProfile = () => {
     );
   }
 
-  const primaryColor = org.primaryColor || '#0ea5e9'; // Default sky blue
+  const primaryColor = org.primaryColor || '#0ea5e9';
   const profile = org.publicProfile || {};
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-slate-200">
-      
+
       {/* Top Navbar */}
       <nav className="h-14 border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-[1400px] mx-auto h-full px-6 flex items-center justify-between">
@@ -101,21 +151,43 @@ const OrganizationProfile = () => {
 
       {/* Main Layout Container */}
       <div className="max-w-[1400px] mx-auto px-6 py-8">
-        
-        {/* Cover / Brand Header */}
-        <div className="w-full h-32 md:h-48 rounded-2xl bg-slate-200 mb-8 overflow-hidden relative border border-slate-200/50 shadow-sm">
-          <div className="absolute inset-0 opacity-10" style={{ backgroundColor: primaryColor }} />
-          {/* A sleek noise pattern instead of neon gradients */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQPSI0Ij4KCTxwYXRoIGQ9Ik0wIDNMMzAgSDZ6IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMDUpIiAvPgo8L3N2Zz4=')]" />
+
+        {/* ── LinkedIn-proportioned Cover Banner (1584×396 ≈ 4:1) ── */}
+        <div
+          className="w-full rounded-2xl overflow-hidden relative border border-slate-200/50 shadow-sm mb-8"
+          style={{ aspectRatio: LINKEDIN_BANNER_RATIO }}
+        >
+          {/* Background */}
+          {org.banner && !org.banner.startsWith('gradient-') ? (
+            <img
+              src={org.banner.startsWith('http') ? org.banner : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${org.banner}`}
+              alt="Organization banner"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : org.banner && org.banner.startsWith('gradient-') ? (
+            <div className={`absolute inset-0 ${org.banner}`} />
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-slate-200" />
+              <div className="absolute inset-0 opacity-20" style={{ backgroundColor: primaryColor }} />
+            </>
+          )}
+
+          {/* LinkedIn size info overlay — bottom-left */}
+          <div className="absolute bottom-4 left-5 flex items-center gap-2 bg-white/75 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white/60 shadow-sm">
+            <span className="text-xs font-semibold text-slate-700">Recommended size:</span>
+            <span className="text-xs font-mono text-slate-500">1584 × 396 px (LinkedIn Banner)</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          
-          {/* Left Column: Organization Identity Sidebar */}
+
+          {/* ── Left Column: Organization Identity Sidebar ── */}
           <div className="lg:col-span-3 lg:-mt-24 space-y-6 relative z-10">
-            
+
             {/* Main Profile Card */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              {/* Logo */}
               <div className="w-24 h-24 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center justify-center mb-6 overflow-hidden p-1">
                 {org.logo ? (
                   <img
@@ -127,23 +199,33 @@ const OrganizationProfile = () => {
                   <Building2 className="w-10 h-10 text-slate-400" />
                 )}
               </div>
-              
+
+              {/* Org Name + Verified */}
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{org.name}</h1>
-                <CheckCircle2 className="w-5 h-5" style={{ color: primaryColor }} />
+                <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
               </div>
-              
+
+              {/* Headline */}
               <p className="text-slate-600 text-sm leading-relaxed mb-6">
                 {profile.headline || 'Official organization profile.'}
               </p>
 
-              {/* Status or Primary Action */}
-              <button 
-                className="w-full py-2.5 rounded-lg text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex justify-center items-center gap-2"
+              {/* View Opportunities */}
+              <button
+                className="w-full py-2.5 rounded-lg text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex justify-center items-center gap-2 mb-4"
               >
                 <Globe className="w-4 h-4" />
                 View Opportunities
               </button>
+
+              {/* Moderator Name */}
+              {org.moderatorName && (
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                  <User className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="text-sm text-slate-600 font-medium">{org.moderatorName}</span>
+                </div>
+              )}
             </div>
 
             {/* Structured Details Card */}
@@ -216,10 +298,10 @@ const OrganizationProfile = () => {
             </div>
           </div>
 
-          {/* Right Column: Main Content Area */}
+          {/* ── Right Column: Main Content Area ── */}
           <div className="lg:col-span-9 space-y-6">
-            
-            {/* Content Title */}
+
+            {/* Section Header */}
             <div className="border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2 text-slate-900 font-semibold text-lg">
                 <LayoutGrid className="w-5 h-5" style={{ color: primaryColor }} />
@@ -227,25 +309,32 @@ const OrganizationProfile = () => {
               </div>
             </div>
 
-            {/* Content */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm min-h-[400px]">
-              <div className="max-w-3xl">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-6">About the Organization</h2>
-                
-                {profile.about || org.description ? (
-                  <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base">
-                    {/* Preserving line breaks natively */}
-                    <p className="whitespace-pre-wrap">{profile.about || org.description}</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    <FileText className="w-10 h-10 text-slate-300 mb-3" />
-                    <p className="text-slate-500 font-medium">No description provided yet.</p>
-                    <p className="text-slate-400 text-sm mt-1">This organization is still setting up their detailed profile.</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* ── Section 1: About the Organization (500 words) ── */}
+            <SectionCard
+              icon={FileText}
+              title="About the Organization"
+              content={profile.about || org.description}
+              wordLimit={500}
+              primaryColor={primaryColor}
+            />
+
+            {/* ── Section 2: Best HR Practices (300 words) ── */}
+            <SectionCard
+              icon={ClipboardList}
+              title="Best HR Practices"
+              content={profile.bestHRPractices}
+              wordLimit={300}
+              primaryColor={primaryColor}
+            />
+
+            {/* ── Section 3: Awards & Accolades (300 words) ── */}
+            <SectionCard
+              icon={Award}
+              title="Awards & Accolades"
+              content={profile.awardsAccolades}
+              wordLimit={300}
+              primaryColor={primaryColor}
+            />
 
           </div>
         </div>

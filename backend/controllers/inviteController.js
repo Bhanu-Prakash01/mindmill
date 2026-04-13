@@ -8,7 +8,7 @@ const { sendTestInvite } = require('../services/emailService');
  * @access  Private (Admin, User)
  */
 const createInvite = asyncHandler(async (req, res) => {
-  const { assessmentId, testTakerName, testTakerEmail, testTakerPhone } = req.body;
+  const { assessmentId, testTakerName, testTakerEmail, testTakerPhone, expiresAt } = req.body;
 
   if (!assessmentId || !testTakerName || !testTakerEmail || !testTakerPhone) {
     throw new ApiError(400, 'All fields are required: assessmentId, testTakerName, testTakerEmail, testTakerPhone');
@@ -20,6 +20,22 @@ const createInvite = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Invalid email format');
   }
 
+  // Validate expiresAt if provided
+  let expiresAtDate = null;
+  if (expiresAt) {
+    expiresAtDate = new Date(expiresAt);
+    if (isNaN(expiresAtDate.getTime())) {
+      throw new ApiError(400, 'Invalid expire date format');
+    }
+    if (expiresAtDate <= new Date()) {
+      throw new ApiError(400, 'Expire date must be in the future');
+    }
+  } else {
+    // Default: 30 days from now
+    expiresAtDate = new Date();
+    expiresAtDate.setDate(expiresAtDate.getDate() + 30);
+  }
+
   const assessment = await Assessment.findById(assessmentId);
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
@@ -29,23 +45,39 @@ const createInvite = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Assessment is not available');
   }
 
-  // Check user has access to this assessment via their org
-  const orgId = req.user.organization?._id?.toString();
-  if (!orgId) {
+  const isSuperAdmin = req.user.role === 'superadmin';
+  let orgId = req.user.organization?._id?.toString();
+
+  if (!orgId && !isSuperAdmin) {
     throw new ApiError(403, 'You must belong to an organization');
   }
 
-  // Check if assessment is unlocked for this org
-  const unlockEntry = assessment.unlockedBy?.find(
-    u => u.organization.toString() === orgId
-  );
-
-  if (!unlockEntry) {
-    throw new ApiError(403, 'Assessment is not unlocked for your organization. Admin must unlock it first.');
+  if (!orgId && isSuperAdmin) {
+    const defaultOrg = await Organization.findOne({ slug: 'mindmil' });
+    if (defaultOrg) {
+      orgId = defaultOrg._id.toString();
+    } else {
+      const newOrg = await Organization.create({
+        name: 'Mindmil Direct',
+        slug: 'mindmil',
+        description: 'Direct Mindmil tests created by superadmin'
+      });
+      orgId = newOrg._id.toString();
+    }
   }
 
-  // Check if user is a member (not admin/superadmin) — enforce member allocation
-  if (req.user.role === 'user') {
+  let unlockEntry = null;
+  if (!isSuperAdmin) {
+    unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId
+    );
+
+    if (!unlockEntry) {
+      throw new ApiError(403, 'Assessment is not unlocked for your organization. Admin must unlock it first.');
+    }
+  }
+
+  if (req.user.role === 'user' && !isSuperAdmin) {
     const memberAlloc = (assessment.memberAllocations || []).find(
       a => a.organization.toString() === orgId && a.member.toString() === req.user._id.toString()
     );
@@ -80,7 +112,8 @@ const createInvite = asyncHandler(async (req, res) => {
     invitedBy: req.user._id,
     testTakerName: testTakerName.trim(),
     testTakerEmail: testTakerEmail.toLowerCase().trim(),
-    testTakerPhone: testTakerPhone.trim()
+    testTakerPhone: testTakerPhone.trim(),
+    expiresAt: expiresAtDate
   });
 
   // Increment member's testsDistributed if they have an allocation
@@ -101,6 +134,7 @@ const createInvite = asyncHandler(async (req, res) => {
 
   // Send email
   let emailSent = false;
+  let emailErrorReason = null;
   try {
     await sendTestInvite({
       to: invite.testTakerEmail,
@@ -119,6 +153,7 @@ const createInvite = asyncHandler(async (req, res) => {
     await invite.save();
   } catch (emailError) {
     console.error('Failed to send invite email:', emailError.message);
+    emailErrorReason = emailError.message;
     // Invite is still created, just with 'pending' status
   }
 
@@ -127,8 +162,10 @@ const createInvite = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: emailSent ? 'Invite created and email sent successfully' : 'Invite created but email delivery failed. You can resend later.',
-    data: { invite, testLink, emailSent }
+    message: emailSent 
+      ? 'Invite created and email sent successfully' 
+      : `Email not sent. Please provide a valid email address. Invite created with pending status. You can resend later.`,
+    data: { invite, testLink, emailSent, emailErrorReason }
   });
 });
 
@@ -142,9 +179,16 @@ const getInvites = asyncHandler(async (req, res) => {
 
   let query = {};
 
-  // Admin sees all org invites, User sees only their own
-  if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-    query.organization = req.user.organization?._id;
+  const isSuperAdmin = req.user.role === 'superadmin';
+  const userOrgId = req.user.organization?._id;
+
+  if (isSuperAdmin && !userOrgId) {
+    const mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
+    if (mindmilOrg) {
+      query.organization = mindmilOrg._id;
+    }
+  } else if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+    query.organization = userOrgId;
   } else {
     query.invitedBy = req.user._id;
   }
@@ -193,7 +237,16 @@ const getInvites = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 const getInviteStats = asyncHandler(async (req, res) => {
-  const orgId = req.user.organization?._id;
+  const isSuperAdmin = req.user.role === 'superadmin';
+  let orgId = req.user.organization?._id;
+  
+  if (!orgId && isSuperAdmin) {
+    const mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
+    if (mindmilOrg) {
+      orgId = mindmilOrg._id;
+    }
+  }
+  
   if (!orgId) {
     throw new ApiError(400, 'Organization not found');
   }
@@ -285,8 +338,16 @@ const getAssessmentInvites = asyncHandler(async (req, res) => {
 
   let query = { assessment: assessmentId };
 
-  if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-    query.organization = req.user.organization?._id;
+  const isSuperAdmin = req.user.role === 'superadmin';
+  const userOrgId = req.user.organization?._id;
+
+  if (isSuperAdmin && !userOrgId) {
+    const mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
+    if (mindmilOrg) {
+      query.organization = mindmilOrg._id;
+    }
+  } else if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+    query.organization = userOrgId;
   } else {
     query.invitedBy = req.user._id;
   }
@@ -329,29 +390,37 @@ const cancelInvite = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Invite not found');
   }
 
-  // Check permissions
-  if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+  const isSuperAdmin = req.user.role === 'superadmin';
+
+  if (!isSuperAdmin && req.user.role !== 'admin') {
     if (invite.invitedBy.toString() !== req.user._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
 
-  if (req.user.role === 'admin') {
+  if (!isSuperAdmin && req.user.role === 'admin') {
     if (invite.organization.toString() !== req.user.organization?._id?.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
 
-  if (!['pending', 'email_sent'].includes(invite.status)) {
+  if (!isSuperAdmin && !['pending', 'email_sent'].includes(invite.status)) {
     throw new ApiError(400, 'Can only cancel invites that have not been started');
   }
 
-  // Check if any attempt exists for this invite
-  if (invite.attempt) {
+  if (!isSuperAdmin && invite.attempt) {
     const attempt = await Attempt.findById(invite.attempt);
     if (attempt && attempt.status === 'in-progress') {
       throw new ApiError(400, 'Cannot cancel invite while test is in progress');
     }
+  }
+
+  if (isSuperAdmin) {
+    await TestTakerInvite.findByIdAndDelete(req.params.id);
+    return res.json({
+      success: true,
+      message: 'Test taker deleted successfully'
+    });
   }
 
   invite.status = 'expired';

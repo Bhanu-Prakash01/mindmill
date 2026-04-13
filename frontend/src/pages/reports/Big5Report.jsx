@@ -16,12 +16,15 @@ import {
  Cell
 } from 'recharts';
 import {
- Download,
- Share2,
- ArrowLeft,
- Loader2,
- AlertCircle,
- Info
+  Download,
+  Share2,
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  Info,
+  Sparkles,
+  Brain,
+  FileBarChart
 } from 'lucide-react';
 
 const Big5Report = () => {
@@ -35,6 +38,8 @@ const Big5Report = () => {
  const [completedAt, setCompletedAt] = useState(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
+ const [downloading, setDownloading] = useState(false);
+ const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
  useEffect(() => {
  fetchResults();
@@ -66,9 +71,49 @@ const Big5Report = () => {
  }
  };
 
- const handleDownload = () => {
- window.print();
- };
+   const handleDownload = async (type) => {
+   try {
+     setDownloadModalOpen(false);
+     setDownloading(true);
+     // Generate PDF download using backend endpoint
+     const response = await fetch(`/api/attempts/${attemptId}/big5-report/download?type=${type}`, {
+       headers: {
+         'Authorization': `Bearer ${localStorage.getItem('token')}`
+       }
+     });
+     
+     if (!response.ok) {
+       const errorData = await response.json().catch(() => ({}));
+       throw new Error(errorData.message || 'Failed to generate PDF');
+     }
+     
+     const blob = await response.blob();
+     const url = window.URL.createObjectURL(blob);
+     const link = document.createElement('a');
+     link.href = url;
+     
+     // Extract filename from Content-Disposition header if available
+     const contentDisposition = response.headers.get('Content-Disposition');
+     let filename = `Big5_Report_${Date.now()}.pdf`;
+     if (contentDisposition) {
+       const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+       if (filenameMatch) {
+         filename = filenameMatch[1];
+       }
+     }
+     
+     link.setAttribute('download', filename);
+     document.body.appendChild(link);
+     link.click();
+     link.parentNode.removeChild(link);
+     window.URL.revokeObjectURL(url);
+   } catch (error) {
+     console.error('Error downloading PDF:', error);
+     alert(error.message || 'Failed to download PDF. Please try again.');
+   } finally {
+     setDownloading(false);
+   }
+   };
 
  const handleShare = async () => {
  const shareData = {
@@ -172,22 +217,32 @@ const Big5Report = () => {
  Back to Dashboard
  </button>
 
- <div className="flex items-center gap-3">
- <button
- onClick={handleShare}
- className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
- >
- <Share2 className="w-4 h-4" />
- Share
- </button>
- <button
- onClick={handleDownload}
- className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
- >
- <Download className="w-4 h-4" />
- Download PDF
- </button>
- </div>
+  <div className="flex items-center gap-3">
+  <button
+  onClick={handleShare}
+  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+  >
+  <Share2 className="w-4 h-4" />
+  Share
+  </button>
+  <button
+  onClick={() => setDownloadModalOpen(true)}
+  disabled={downloading}
+  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+  {downloading ? (
+    <>
+    <Loader2 className="w-4 h-4 animate-spin" />
+    Generating...
+    </>
+  ) : (
+    <>
+    <Download className="w-4 h-4" />
+    Download PDF
+    </>
+  )}
+  </button>
+  </div>
  </div>
  </div>
  </header>
@@ -420,6 +475,56 @@ const Big5Report = () => {
  </p>
  </div>
  </main>
+
+ {/* Download Modal */}
+ {downloadModalOpen && (
+   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+     <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setDownloadModalOpen(false)}></div>
+     <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-left">
+       <div className="p-6">
+         <h3 className="text-lg font-bold text-gray-900 mb-1">Download Report</h3>
+         <p className="text-sm text-gray-500 mb-6 font-normal">Select the level of detail you want to include in the PDF report.</p>
+         
+         <div className="space-y-3">
+           <button
+             onClick={() => handleDownload('comprehensive')}
+             className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all text-left"
+           >
+             <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg shrink-0">
+               <Brain className="w-5 h-5" />
+             </div>
+             <div>
+               <div className="font-semibold text-gray-900">Comprehensive Report (AI)</div>
+               <div className="text-xs text-gray-500 mt-1 leading-relaxed font-normal">Full 8-page deep dive with psychometric narrative, insights, and tailored development roadmap.</div>
+             </div>
+           </button>
+           
+           <button
+             onClick={() => handleDownload('summary')}
+             className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all text-left"
+           >
+             <div className="p-2 bg-gray-100 text-gray-600 rounded-lg shrink-0">
+               <FileBarChart className="w-5 h-5" />
+             </div>
+             <div>
+               <div className="font-semibold text-gray-900">Summary Report</div>
+               <div className="text-xs text-gray-500 mt-1 leading-relaxed font-normal">Dynamic 1-page overview showing dimension scores and immediate visual stats.</div>
+             </div>
+           </button>
+         </div>
+
+         <div className="mt-6 flex justify-end">
+           <button
+             onClick={() => setDownloadModalOpen(false)}
+             className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+           >
+             Cancel
+           </button>
+         </div>
+       </div>
+     </div>
+   </div>
+ )}
  </div>
  );
 };

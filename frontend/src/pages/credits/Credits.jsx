@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { creditService, organizationService } from '../../services';
 import {
- Coins,
- Plus,
- History,
- CheckCircle,
- XCircle,
- Clock,
- AlertCircle,
- Building2,
+  Coins,
+  Plus,
+  History,
+  CheckCircle,
+  XCircle,
+  Trash2,
+  Clock,
+  AlertCircle,
+  Building2,
  ArrowUpRight,
  ArrowDownRight,
  Lock
@@ -72,8 +73,9 @@ const Credits = () => {
  }
  };
 
-  const handleApproveRequest = async (id) => {
-  const creditsGranted = prompt('Enter number of credits to grant:');
+  const handleApproveRequest = async (request) => {
+  const defaultCredits = request.creditsRequested;
+  const creditsGranted = prompt('Enter number of credits to grant:', String(defaultCredits));
   if (!creditsGranted) return;
 
   const expiryOptions = 'Select expiry period:\n1. 30 days\n2. 90 days\n3. 180 days\n4. 365 days\n5. No expiry';
@@ -90,7 +92,7 @@ const Credits = () => {
   }
 
   try {
-  await creditService.approveRequest(id, {
+  await creditService.approveRequest(request._id, {
   creditsGranted: parseInt(creditsGranted),
   expiryInDays,
   });
@@ -101,18 +103,29 @@ const Credits = () => {
   }
   };
 
- const handleRejectRequest = async (id) => {
- const notes = prompt('Enter rejection reason (optional):');
- try {
- await creditService.rejectRequest(id, { adminNotes: notes });
- fetchData();
- } catch (error) {
- console.error('Error rejecting request:', error);
- alert('Failed to reject request');
- }
- };
+const handleRejectRequest = async (id) => {
+  const notes = prompt('Enter rejection reason (optional):');
+  try {
+  await creditService.rejectRequest(id, { adminNotes: notes });
+  fetchData();
+  } catch (error) {
+  console.error('Error rejecting request:', error);
+  alert('Failed to reject request');
+  }
+  };
 
- const getStatusBadge = (status) => {
+  const handleDeleteRequest = async (id) => {
+  if (!confirm('Are you sure you want to delete this credit request?')) return;
+  try {
+    await creditService.deleteRequest(id);
+    fetchData();
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    alert('Failed to delete request');
+  }
+  };
+
+  const getStatusBadge = (status) => {
  const styles = {
  pending: 'bg-yellow-100 text-yellow-700 ',
  approved: 'bg-green-100 text-green-700 ',
@@ -348,20 +361,27 @@ const Credits = () => {
  <td className="px-6 py-4 text-right">
  <div className="flex items-center justify-end gap-2">
  <button
- onClick={() => handleApproveRequest(request._id)}
+ onClick={() => handleApproveRequest(request)}
  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
  title="Approve"
  >
  <CheckCircle className="w-4 h-4" />
  </button>
- <button
- onClick={() => handleRejectRequest(request._id)}
- className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
- title="Reject"
- >
- <XCircle className="w-4 h-4" />
- </button>
- </div>
+<button
+  onClick={() => handleRejectRequest(request._id)}
+  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+  title="Reject"
+  >
+  <XCircle className="w-4 h-4" />
+  </button>
+  <button
+  onClick={() => handleDeleteRequest(request._id)}
+  className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+  title="Delete"
+  >
+  <Trash2 className="w-4 h-4" />
+  </button>
+  </div>
  </td>
  )}
  </tr>

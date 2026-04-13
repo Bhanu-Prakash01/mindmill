@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Big Five Personality Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy:     #0F172A;
+      --navy-mid: #1E293B;
+      --slate:    #475569;
+      --muted:    #64748B;
+      --border:   #E2E8F0;
+      --surface:  #F8FAFC;
+      --o-color:  #8B5CF6;
+      --c-color:  #3B82F6;
+      --e-color:  #F59E0B;
+      --a-color:  #10B981;
+      --n-color:  #EF4444;
+      --accent:   {{topTraitColor}};
+    }
+
+    html { font-size: 10.5px; }
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: var(--navy);
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ─────────────────────────────────── */
+    .page {
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child { page-break-after: avoid; break-after: avoid; }
+    @page { size: A4; margin: 0; }
+    @media print {
+      .page { page-break-after: always; }
+      .page:last-child { page-break-after: avoid; }
+    }
+
+    /* ── COVER ──────────────────────────────────────── */
+    .cover {
+      background: var(--navy);
+      display: flex; flex-direction: column;
+      height: 297mm;
+    }
+    .cover-bar { height: 5px; background: var(--accent); }
+    .cover-body {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 44px 52px 36px; position: relative; overflow: hidden;
+    }
+    .cover-diagonal {
+      position: absolute; top: 0; right: 0; width: 42%; height: 100%;
+      background: linear-gradient(135deg, var(--o-color), var(--a-color));
+      opacity: 0.09;
+      clip-path: polygon(25% 0, 100% 0, 100% 100%, 0% 100%);
+    }
+    .cover-stripe {
+      position: absolute; right: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(to bottom, var(--o-color), var(--a-color));
+    }
+    .cover-logo-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 60px;
+    }
+    .cover-logo { font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
+    .cover-logo span { color: var(--accent); }
+    .cover-tag { font-size: 8px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    .ocean-badge {
+      display: flex; gap: 8px; align-items: center; margin-bottom: 24px;
+    }
+    .ocean-letter {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; color: #fff;
+    }
+    .ocean-letter.o { background: linear-gradient(135deg,#8B5CF6,#6D28D9); }
+    .ocean-letter.c { background: linear-gradient(135deg,#3B82F6,#1D4ED8); }
+    .ocean-letter.e { background: linear-gradient(135deg,#F59E0B,#B45309); }
+    .ocean-letter.a { background: linear-gradient(135deg,#10B981,#047857); }
+    .ocean-letter.n { background: linear-gradient(135deg,#EF4444,#B91C1C); }
+    .cover-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px; line-height: 1.1; color: #fff;
+      margin-bottom: 10px; letter-spacing: -0.5px;
+    }
+    .cover-headline em { font-style: italic; color: var(--accent); }
+    .cover-sub { font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.48); margin-bottom: 44px; }
+    .cover-scores {
+      display: grid; grid-template-columns: repeat(5,1fr);
+      gap: 2px; margin-bottom: 44px;
+    }
+    .cs-item {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 8px; text-align: center;
+    }
+    .cs-item:first-child { border-radius: 10px 0 0 10px; }
+    .cs-item:last-child  { border-radius: 0 10px 10px 0; }
+    .cs-dot { width: 7px; height: 7px; border-radius: 50%; margin: 0 auto 7px; }
+    .cs-pct { font-family: 'DM Sans', sans-serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+    .cs-name { font-size: 7px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.38); margin-top: 4px; }
+    .cover-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+    .cover-pill { background: var(--accent); border-radius: 10px; padding: 14px 22px; }
+    .cp-lbl { font-size: 7px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.65); margin-bottom: 3px; }
+    .cp-name { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: #fff; }
+    .cover-meta { text-align: right; }
+    .cover-meta p { font-size: 8.5px; color: rgba(255,255,255,0.3); line-height: 1.7; }
+    .cover-meta .meta-date { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.55); }
+
+    /* ── INNER PAGE CHROME ──────────────────────────── */
+    .inner-page { height: 297mm; display: flex; flex-direction: column; }
+    .ph {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 13px 28px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .ph-left { display: flex; align-items: center; gap: 9px; }
+    .ph-logo  { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); }
+    .ph-sep   { width: 1px; height: 12px; background: var(--border); }
+    .ph-title { font-size: 9px; font-weight: 500; color: var(--muted); }
+    .ph-right { display: flex; align-items: center; gap: 10px; }
+    .ph-name  { font-size: 9px; font-weight: 600; color: var(--navy-mid); }
+    .ph-pg    { font-size: 8px; color: var(--muted); background: var(--border); border-radius: 16px; padding: 2px 8px; }
+    .pc { flex: 1; padding: 22px 28px; overflow: hidden; }
+    .pf {
+      padding: 9px 28px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+    }
+    .pf p { font-size: 7.5px; color: var(--muted); }
+
+    /* ── TYPOGRAPHY ─────────────────────────────────── */
+    .sec-lbl { font-size: 8px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .sec-hd  { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; color: var(--navy); line-height: 1.2; margin-bottom: 16px; }
+    .sec-hd span { color: var(--accent); }
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    /* ── PAGE 2: EXEC SUMMARY ───────────────────────── */
+    .exec-hero {
+      background: var(--navy); border-radius: 12px;
+      padding: 20px 24px; margin-bottom: 14px;
+      position: relative; overflow: hidden;
+    }
+    .exec-hero::before {
+      content: ''; position: absolute;
+      top: -30px; right: -30px; width: 150px; height: 150px;
+      border-radius: 50%; background: var(--accent); opacity: 0.08;
+    }
+    .exec-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .exec-chips { display: flex; gap: 7px; align-items: center; }
+    .exec-chip {
+      border-radius: 16px; padding: 4px 10px;
+      font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .exec-tr { text-align: right; }
+    .exec-tr .et-lbl { font-size: 7.5px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.38); margin-bottom: 3px; }
+    .exec-tr .et-name { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.82); }
+    .exec-hero p { font-size: 11px; line-height: 1.8; color: rgba(255,255,255,0.78); font-weight: 300; }
+    .cand-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .cand-item { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; }
+    .ci-lbl { font-size: 7.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .ci-val { font-size: 11px; font-weight: 600; color: var(--navy); }
+    .ocean-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .obr {
+      display: flex; align-items: center; gap: 11px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px; padding: 10px 14px;
+    }
+    .obr-letter {
+      width: 28px; height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .obr-info { flex: 1; }
+    .obr-name { font-size: 9.5px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+    .obr-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .obr-bar { height: 100%; border-radius: 3px; }
+    .obr-pct { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; width: 38px; }
+    .obr-band { font-size: 8px; font-weight: 500; color: var(--muted); width: 38px; text-align: right; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pent-section {
+      background: var(--navy); border-radius: 12px;
+      padding: 18px 22px; display: flex; align-items: center; gap: 20px;
+    }
+    .pent-svg-wrap { flex-shrink: 0; }
+    .pent-legend { flex: 1; }
+    .pl-item { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .pl-item:last-child { border-bottom: none; }
+    .pl-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .pl-name { font-size: 9.5px; font-weight: 600; color: rgba(255,255,255,0.78); flex: 1; }
+    .pl-band { font-size: 7.5px; font-weight: 500; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 1px; width: 44px; text-align: right; }
+    .pl-pct  { font-size: 11px; font-weight: 700; width: 33px; text-align: right; }
+
+    /* ── PAGE 3: TRAIT CARDS ────────────────────────── */
+    .traits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .tc { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .tc.full-width { grid-column: span 2; }
+    .tc-head { padding: 13px 15px 11px; display: flex; align-items: flex-start; gap: 11px; }
+    .tc-badge { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .tc-info { flex: 1; }
+    .tc-name { font-size: 12px; font-weight: 700; margin-bottom: 1px; }
+    .tc-full { font-size: 8px; color: var(--muted); }
+    .tc-pct  { font-family: 'DM Sans', sans-serif; font-size: 23px; font-weight: 700; line-height: 1; }
+    .tc-body { padding: 0 15px 14px; }
+    .tc-bar-row { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
+    .tc-bar-bg  { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .tc-bar-fill{ height: 100%; border-radius: 3px; }
+    .tc-band    { font-size: 8px; font-weight: 600; color: var(--muted); width: 36px; text-align: right; text-transform: uppercase; }
+    .tc-desc    { font-size: 9px; color: var(--slate); line-height: 1.6; }
+    /* trait head colours */
+    .tc.o .tc-head { background:#F5F3FF; border-bottom:1px solid #DDD6FE; } .tc.o .tc-name{color:#7C3AED;} .tc.o .tc-pct{color:#7C3AED;}
+    .tc.c .tc-head { background:#EFF6FF; border-bottom:1px solid #BFDBFE; } .tc.c .tc-name{color:#1D4ED8;} .tc.c .tc-pct{color:#1D4ED8;}
+    .tc.e .tc-head { background:#FFFBEB; border-bottom:1px solid #FDE68A; } .tc.e .tc-name{color:#B45309;} .tc.e .tc-pct{color:#B45309;}
+    .tc.a .tc-head { background:#ECFDF5; border-bottom:1px solid #A7F3D0; } .tc.a .tc-name{color:#047857;} .tc.a .tc-pct{color:#047857;}
+    .tc.n .tc-head { background:#FEF2F2; border-bottom:1px solid #FECACA; } .tc.n .tc-name{color:#B91C1C;} .tc.n .tc-pct{color:#B91C1C;}
+    .hb { border-radius: 10px; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface); }
+    .hb-lbl { font-size: 7.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+    .hb-txt { font-size: 10.5px; color: var(--navy-mid); line-height: 1.75; }
+
+    /* ── PAGE 4: DEEP DIVE ──────────────────────────── */
+    .profile-banner {
+      background: linear-gradient(135deg, var(--navy), #1E293B);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .pb-icon { font-family: 'DM Serif Display', serif; font-size: 52px; line-height: 1; color: var(--accent); flex-shrink: 0; opacity: 0.55; }
+    .pb-lbl { font-size: 7.5px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 3px; }
+    .pb-name { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .pb-sub  { font-size: 10px; color: rgba(255,255,255,0.62); }
+    .narrative p { font-size: 10.5px; color: var(--slate); line-height: 1.85; margin-bottom: 12px; }
+    .narrative p:last-child { margin-bottom: 0; }
+
+    /* ── PAGE 5: STRENGTHS ──────────────────────────── */
+    .sd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .panel-card { border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+    .panel-head { padding: 12px 15px; display: flex; align-items: center; gap: 9px; }
+    .panel-icon { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+    .panel-title { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; }
+    .panel-sub   { font-size: 8px; color: var(--muted); }
+    .panel-body  { padding: 0 15px 14px; }
+    .strength-panel .panel-head { background: #F0FDF4; border-bottom: 1px solid #DCFCE7; }
+    .strength-panel .panel-title { color: #16A34A; }
+    .growth-panel   .panel-head { background: #FFFBEB; border-bottom: 1px solid #FDE68A; }
+    .growth-panel   .panel-title { color: #D97706; }
+    .item-list { list-style: none; }
+    .item-list li { display: flex; align-items: flex-start; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--navy-mid); line-height: 1.5; }
+    .item-list li:last-child { border-bottom: none; }
+    .il-icon { width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8.5px; font-weight: 700; margin-top: 1px; }
+    .strength-panel .il-icon { background: #DCFCE7; color: #16A34A; }
+    .growth-panel   .il-icon { background: #FEF3C7; color: #D97706; }
+    .career-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+    .career-card { background: var(--navy); border-radius: 10px; padding: 13px; text-align: center; }
+    .cc-num   { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+    .cc-title { font-size: 9.5px; font-weight: 600; color: #fff; line-height: 1.4; }
+
+    /* ── PAGE 6: WORK STYLE ─────────────────────────── */
+    .ei-panel { background: linear-gradient(135deg,#F5F3FF,#EDE9FE); border: 1px solid #DDD6FE; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+    .ei-panel-label { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; color: #6D28D9; margin-bottom: 14px; }
+    .ei-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .ei-item { background: #fff; border-radius: 9px; padding: 13px; }
+    .ei-lbl  { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #7C3AED; margin-bottom: 6px; }
+    .ei-item p { font-size: 9.5px; color: var(--slate); line-height: 1.65; }
+    .pref-cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 14px; }
+    .pref-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 11px; }
+    .pc-icon  { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .pc-lbl   { font-size: 7.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+    .pc-val   { font-size: 11px; font-weight: 600; color: var(--navy); }
+    .ns { margin-bottom: 12px; }
+    .ns-head  { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .ns-dot   { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .ns-title { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--navy); }
+    .ns p     { font-size: 10px; color: var(--slate); line-height: 1.8; padding-left: 15px; }
+
+    /* ── PAGE 7: CAREER & INTERVIEW ─────────────────── */
+    .tips-list { list-style: none; }
+    .tips-list li { display: flex; gap: 9px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--navy-mid); line-height: 1.45; }
+    .tips-list li:last-child { border-bottom: none; }
+    .tip-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 8.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── PAGE 8: ROADMAP & WELLBEING ────────────────── */
+    .wb-panel { background: linear-gradient(135deg,#ECFDF5,#D1FAE5); border: 1px solid #A7F3D0; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+    .wb-title { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; color: #047857; margin-bottom: 12px; }
+    .wb-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .wb-lbl   { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; margin-bottom: 8px; }
+    .wb-list  { list-style: none; }
+    .wb-list li { font-size: 9.5px; color: #065F46; padding: 5px 0; border-bottom: 1px solid rgba(5,150,105,0.1); display: flex; gap: 7px; align-items: flex-start; }
+    .wb-list li:last-child { border-bottom: none; }
+    .wb-chk   { color: #059669; font-size: 8.5px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .roadmap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .rmap-card { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    .rmap-head { padding: 9px 13px; display: flex; align-items: center; gap: 8px; }
+    .rmap-badge { font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 700; border-radius: 14px; padding: 2px 8px; }
+    .rmap-title { font-size: 10px; font-weight: 700; color: var(--navy); }
+    .rmap-card.short .rmap-head { background: #EFF6FF; }
+    .rmap-card.short .rmap-badge { background: #DBEAFE; color: #1D4ED8; }
+    .rmap-card.long  .rmap-head { background: #F5F3FF; }
+    .rmap-card.long  .rmap-badge { background: #EDE9FE; color: #6D28D9; }
+    .rmap-body { padding: 9px 13px; }
+    .rmap-item { display: flex; gap: 8px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 9.5px; color: var(--navy-mid); line-height: 1.5; }
+    .rmap-item:last-child { border-bottom: none; }
+    .ri-arr { font-size: 9px; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .motive-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .motive-card { border-radius: 10px; padding: 13px; }
+    .motive-card.pos { background: #F0FDF4; border: 1px solid #BBF7D0; }
+    .motive-card.neg { background: #FFF7ED; border: 1px solid #FED7AA; }
+    .mc-title { font-size: 8.5px; font-weight: 700; margin-bottom: 9px; }
+    .motive-card.pos .mc-title { color: #16A34A; }
+    .motive-card.neg .mc-title { color: #EA580C; }
+    .motive-list { list-style: none; }
+    .motive-list li { font-size: 9.5px; color: var(--slate); padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 6px; line-height: 1.45; }
+    .motive-list li:last-child { border-bottom: none; }
+    .ml-sym { font-size: 8.5px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .motive-card.pos .ml-sym { color: #16A34A; }
+    .motive-card.neg .ml-sym { color: #EA580C; }
+    .closing-banner { background: linear-gradient(135deg, var(--navy), #1E293B); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 22px; }
+    .cb-lbl { font-size: 7.5px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 7px; }
+    .closing-banner p { font-family: 'DM Serif Display', serif; font-size: 13px; font-style: italic; color: rgba(255,255,255,0.88); line-height: 1.75; }
+  </style>
+</head>
+<body>
+
+<!-- ▌PAGE 1 — COVER ▐ -->
+<div class="page cover">
+  <div class="cover-bar"></div>
+  <div class="cover-body">
+    <div class="cover-diagonal"></div>
+    <div class="cover-stripe"></div>
+    <div class="cover-logo-row">
+      <div class="cover-logo">Mind<span>Mill</span></div>
+      <div class="cover-tag">Big Five Personality Assessment</div>
+    </div>
+    <div class="ocean-badge">
+      <div class="ocean-letter o">O</div>
+      <div class="ocean-letter c">C</div>
+      <div class="ocean-letter e">E</div>
+      <div class="ocean-letter a">A</div>
+      <div class="ocean-letter n">N</div>
+    </div>
+    <div class="cover-headline">{{candidateName}}<br><em>{{topTraitName}}</em></div>
+    <div class="cover-sub">Five-Factor (OCEAN) Model &nbsp;·&nbsp; Dominant dimension: {{topTraitName}}</div>
+    <div class="cover-scores">
+      <div class="cs-item"><div class="cs-dot" style="background:#8B5CF6;"></div><div class="cs-pct">{{oScore}}%</div><div class="cs-name">Openness</div></div>
+      <div class="cs-item"><div class="cs-dot" style="background:#3B82F6;"></div><div class="cs-pct">{{cScore}}%</div><div class="cs-name">Conscient.</div></div>
+      <div class="cs-item"><div class="cs-dot" style="background:#F59E0B;"></div><div class="cs-pct">{{eScore}}%</div><div class="cs-name">Extraversion</div></div>
+      <div class="cs-item"><div class="cs-dot" style="background:#10B981;"></div><div class="cs-pct">{{aScore}}%</div><div class="cs-name">Agreeablen.</div></div>
+      <div class="cs-item"><div class="cs-dot" style="background:#EF4444;"></div><div class="cs-pct">{{nScore}}%</div><div class="cs-name">Neuroticism</div></div>
+    </div>
+    <div class="cover-bottom">
+      <div class="cover-pill">
+        <div class="cp-lbl">Dominant Dimension</div>
+        <div class="cp-name">{{topTraitName}}</div>
+      </div>
+      <div class="cover-meta">
+        <p class="meta-date">{{assessmentDate}}</p>
+        <p>{{candidateEmail}}</p>
+        <p>Confidential — For Internal Use Only</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▌PAGE 2 — EXECUTIVE SUMMARY ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">2 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Overview</div>
+    <div class="sec-hd">Executive <span>Summary</span></div>
+    <div class="exec-hero">
+      <div class="exec-top">
+        <div class="exec-chips">
+          <div class="exec-chip" style="background:rgba(139,92,246,0.28);">O</div>
+          <div class="exec-chip" style="background:rgba(59,130,246,0.28);">C</div>
+          <div class="exec-chip" style="background:rgba(245,158,11,0.28);">E</div>
+          <div class="exec-chip" style="background:rgba(16,185,129,0.28);">A</div>
+          <div class="exec-chip" style="background:rgba(239,68,68,0.28);">N</div>
+        </div>
+        <div class="exec-tr">
+          <div class="et-lbl">Dominant Dimension</div>
+          <div class="et-name">{{topTraitName}}</div>
+        </div>
+      </div>
+      <p>{{coverSummary}}</p>
+    </div>
+    <div class="cand-row">
+      <div class="cand-item"><div class="ci-lbl">Full Name</div><div class="ci-val">{{candidateName}}</div></div>
+      <div class="cand-item"><div class="ci-lbl">Email Address</div><div class="ci-val">{{candidateEmail}}</div></div>
+      <div class="cand-item"><div class="ci-lbl">Assessment Date</div><div class="ci-val">{{assessmentDate}}</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="ocean-bars">
+      <div class="obr"><div class="obr-letter" style="background:linear-gradient(135deg,#8B5CF6,#6D28D9);">O</div><div class="obr-info"><div class="obr-name">Openness to Experience</div><div class="obr-bar-wrap"><div class="obr-bar" style="width:{{oScore}}%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);"></div></div></div><div class="obr-pct" style="color:#8B5CF6;">{{oScore}}%</div><div class="obr-band">{{oBand}}</div></div>
+      <div class="obr"><div class="obr-letter" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);">C</div><div class="obr-info"><div class="obr-name">Conscientiousness</div><div class="obr-bar-wrap"><div class="obr-bar" style="width:{{cScore}}%;background:linear-gradient(90deg,#3B82F6,#60A5FA);"></div></div></div><div class="obr-pct" style="color:#3B82F6;">{{cScore}}%</div><div class="obr-band">{{cBand}}</div></div>
+      <div class="obr"><div class="obr-letter" style="background:linear-gradient(135deg,#F59E0B,#B45309);">E</div><div class="obr-info"><div class="obr-name">Extraversion</div><div class="obr-bar-wrap"><div class="obr-bar" style="width:{{eScore}}%;background:linear-gradient(90deg,#F59E0B,#FCD34D);"></div></div></div><div class="obr-pct" style="color:#F59E0B;">{{eScore}}%</div><div class="obr-band">{{eBand}}</div></div>
+      <div class="obr"><div class="obr-letter" style="background:linear-gradient(135deg,#10B981,#047857);">A</div><div class="obr-info"><div class="obr-name">Agreeableness</div><div class="obr-bar-wrap"><div class="obr-bar" style="width:{{aScore}}%;background:linear-gradient(90deg,#10B981,#34D399);"></div></div></div><div class="obr-pct" style="color:#10B981;">{{aScore}}%</div><div class="obr-band">{{aBand}}</div></div>
+      <div class="obr"><div class="obr-letter" style="background:linear-gradient(135deg,#EF4444,#B91C1C);">N</div><div class="obr-info"><div class="obr-name">Neuroticism</div><div class="obr-bar-wrap"><div class="obr-bar" style="width:{{nScore}}%;background:linear-gradient(90deg,#EF4444,#F87171);"></div></div></div><div class="obr-pct" style="color:#EF4444;">{{nScore}}%</div><div class="obr-band">{{nBand}}</div></div>
+    </div>
+    <div class="pent-section">
+      <div class="pent-svg-wrap">{{pentagonSvg}}</div>
+      <div class="pent-legend">
+        <div class="pl-item"><div class="pl-dot" style="background:#8B5CF6;"></div><div class="pl-name">Openness</div><div class="pl-band">{{oBand}}</div><div class="pl-pct" style="color:#8B5CF6;">{{oScore}}%</div></div>
+        <div class="pl-item"><div class="pl-dot" style="background:#3B82F6;"></div><div class="pl-name">Conscientiousness</div><div class="pl-band">{{cBand}}</div><div class="pl-pct" style="color:#3B82F6;">{{cScore}}%</div></div>
+        <div class="pl-item"><div class="pl-dot" style="background:#F59E0B;"></div><div class="pl-name">Extraversion</div><div class="pl-band">{{eBand}}</div><div class="pl-pct" style="color:#F59E0B;">{{eScore}}%</div></div>
+        <div class="pl-item"><div class="pl-dot" style="background:#10B981;"></div><div class="pl-name">Agreeableness</div><div class="pl-band">{{aBand}}</div><div class="pl-pct" style="color:#10B981;">{{aScore}}%</div></div>
+        <div class="pl-item"><div class="pl-dot" style="background:#EF4444;"></div><div class="pl-name">Neuroticism</div><div class="pl-band">{{nBand}}</div><div class="pl-pct" style="color:#EF4444;">{{nScore}}%</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model (OCEAN) · Scientifically Validated</p></div>
+</div>
+
+<!-- ▌PAGE 3 — TRAIT CARDS ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">3 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Dimension Analysis</div>
+    <div class="sec-hd">Trait-by-Trait <span>Breakdown</span></div>
+    <div class="traits-grid">
+      <div class="tc o">
+        <div class="tc-head"><div class="tc-badge" style="background:linear-gradient(135deg,#8B5CF6,#6D28D9);">O</div><div class="tc-info"><div class="tc-name">Openness</div><div class="tc-full">Openness to Experience</div></div><div class="tc-pct">{{oScore}}%</div></div>
+        <div class="tc-body"><div class="tc-bar-row"><div class="tc-bar-bg"><div class="tc-bar-fill" style="width:{{oScore}}%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);"></div></div><div class="tc-band">{{oBand}}</div></div><div class="tc-desc">{{oDescription}}</div></div>
+      </div>
+      <div class="tc c">
+        <div class="tc-head"><div class="tc-badge" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);">C</div><div class="tc-info"><div class="tc-name">Conscientiousness</div><div class="tc-full">Conscientiousness</div></div><div class="tc-pct">{{cScore}}%</div></div>
+        <div class="tc-body"><div class="tc-bar-row"><div class="tc-bar-bg"><div class="tc-bar-fill" style="width:{{cScore}}%;background:linear-gradient(90deg,#3B82F6,#60A5FA);"></div></div><div class="tc-band">{{cBand}}</div></div><div class="tc-desc">{{cDescription}}</div></div>
+      </div>
+      <div class="tc e">
+        <div class="tc-head"><div class="tc-badge" style="background:linear-gradient(135deg,#F59E0B,#B45309);">E</div><div class="tc-info"><div class="tc-name">Extraversion</div><div class="tc-full">Extraversion</div></div><div class="tc-pct">{{eScore}}%</div></div>
+        <div class="tc-body"><div class="tc-bar-row"><div class="tc-bar-bg"><div class="tc-bar-fill" style="width:{{eScore}}%;background:linear-gradient(90deg,#F59E0B,#FCD34D);"></div></div><div class="tc-band">{{eBand}}</div></div><div class="tc-desc">{{eDescription}}</div></div>
+      </div>
+      <div class="tc a">
+        <div class="tc-head"><div class="tc-badge" style="background:linear-gradient(135deg,#10B981,#047857);">A</div><div class="tc-info"><div class="tc-name">Agreeableness</div><div class="tc-full">Agreeableness</div></div><div class="tc-pct">{{aScore}}%</div></div>
+        <div class="tc-body"><div class="tc-bar-row"><div class="tc-bar-bg"><div class="tc-bar-fill" style="width:{{aScore}}%;background:linear-gradient(90deg,#10B981,#34D399);"></div></div><div class="tc-band">{{aBand}}</div></div><div class="tc-desc">{{aDescription}}</div></div>
+      </div>
+      <div class="tc n full-width">
+        <div class="tc-head"><div class="tc-badge" style="background:linear-gradient(135deg,#EF4444,#B91C1C);">N</div><div class="tc-info"><div class="tc-name">Neuroticism</div><div class="tc-full">Emotional Stability (inversed)</div></div><div class="tc-pct">{{nScore}}%</div></div>
+        <div class="tc-body"><div class="tc-bar-row"><div class="tc-bar-bg"><div class="tc-bar-fill" style="width:{{nScore}}%;background:linear-gradient(90deg,#EF4444,#F87171);"></div></div><div class="tc-band">{{nBand}}</div></div><div class="tc-desc">{{nDescription}}</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="hb">
+      <div class="hb-lbl">Profile Interpretation</div>
+      <div class="hb-txt">{{profileInterpretation}}</div>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 4 — PERSONALITY DEEP DIVE ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">4 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Psychologist's Analysis</div>
+    <div class="sec-hd">Personality <span>Deep Dive</span></div>
+    <div class="profile-banner">
+      <div class="pb-icon">{{topTraitLetter}}</div>
+      <div>
+        <div class="pb-lbl">Dominant Dimension</div>
+        <div class="pb-name">{{topTraitName}}</div>
+        <div class="pb-sub">OCEAN Framework · Five-Factor Personality Model</div>
+      </div>
+    </div>
+    <div class="narrative">{{deepProfileHtml}}</div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 5 — STRENGTHS & CAREER ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">5 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Capability Assessment</div>
+    <div class="sec-hd">Strengths &amp; <span>Career Alignment</span></div>
+    <div class="sd-grid">
+      <div class="panel-card strength-panel">
+        <div class="panel-head"><div class="panel-icon" style="background:#DCFCE7;">✅</div><div><div class="panel-title">Key Strengths</div><div class="panel-sub">Natural behavioral advantages</div></div></div>
+        <div class="panel-body">
+          <ul class="item-list">
+            {{#each strengths}}
+            <li><div class="il-icon">✓</div><span>{{this}}</span></li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+      <div class="panel-card growth-panel">
+        <div class="panel-head"><div class="panel-icon" style="background:#FEF3C7;">📈</div><div><div class="panel-title">Growth Opportunities</div><div class="panel-sub">High-leverage development areas</div></div></div>
+        <div class="panel-body">
+          <ul class="item-list">
+            {{#each growthAreas}}
+            <li><div class="il-icon">→</div><span>{{this}}</span></li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Career Alignment</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:10px;">Recommended <span>Career Paths</span></div>
+    <div class="career-grid">
+      {{#each careerPaths}}
+      <div class="career-card"><div class="cc-num">{{addOne @index}}</div><div class="cc-title">{{this}}</div></div>
+      {{/each}}
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 6 — WORK STYLE & EI ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">6 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Behavioral Insights</div>
+    <div class="sec-hd">Work Style &amp; <span>Emotional Intelligence</span></div>
+    <div class="ei-panel">
+      <div class="ei-panel-label">🧠 Emotional Intelligence Profile</div>
+      <div class="ei-grid">
+        <div class="ei-item"><div class="ei-lbl">Self-Awareness</div><p>Openness to experience heightens introspective capacity, supporting deeper self-understanding and emotional literacy.</p></div>
+        <div class="ei-item"><div class="ei-lbl">Empathy</div><p>Agreeableness drives genuine compassion for others' perspectives, facilitating harmonious and productive relationships.</p></div>
+        <div class="ei-item"><div class="ei-lbl">Resilience</div><p>Emotional stability determines how effectively this person manages adversity, stress, and high-pressure situations.</p></div>
+      </div>
+    </div>
+    <div class="pref-cards">
+      <div class="pref-card"><div class="pc-icon">🏢</div><div><div class="pc-lbl">Work Environment</div><div class="pc-val">{{workplaceEnvironment}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">⚡</div><div><div class="pc-lbl">Preferred Pace</div><div class="pc-val">{{workplacePace}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">💬</div><div><div class="pc-lbl">Feedback Style</div><div class="pc-val">{{feedbackPreference}}</div></div></div>
+      <div class="pref-card"><div class="pc-icon">🎯</div><div><div class="pc-lbl">Collaboration Mode</div><div class="pc-val">{{collaborationStyle}}</div></div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sec-lbl">Leadership Analysis</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:10px;">Leadership &amp; Team <span>Dynamics</span></div>
+    {{leadershipHtml}}
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 7 — INTERVIEW & WELLBEING ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">7 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Manager's Guide</div>
+    <div class="sec-hd">Interview Tips &amp; <span>Wellbeing Insights</span></div>
+    <ul class="tips-list">
+      {{#each interviewTips}}
+      <li><div class="tip-num">{{addOne @index}}</div><span>{{this}}</span></li>
+      {{/each}}
+    </ul>
+    <div class="divider"></div>
+    <div class="sec-lbl">Wellbeing &amp; Motivation</div>
+    <div class="sec-hd" style="font-size:14px;margin-bottom:10px;">What <span>Energizes &amp; Drains</span></div>
+    <div class="motive-grid">
+      <div class="motive-card pos">
+        <div class="mc-title">🔥 What Energizes Them</div>
+        <ul class="motive-list">
+          {{#each motivators}}
+          <li><span class="ml-sym">+</span>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      <div class="motive-card neg">
+        <div class="mc-title">⚠ What Drains Them</div>
+        <ul class="motive-list">
+          {{#each demotivators}}
+          <li><span class="ml-sym">−</span>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+<!-- ▌PAGE 8 — DEVELOPMENT ROADMAP ▐ -->
+<div class="page inner-page">
+  <div class="ph">
+    <div class="ph-left"><span class="ph-logo">MindMill</span><div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span></div>
+    <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">8 of 8</span></div>
+  </div>
+  <div class="pc">
+    <div class="sec-lbl">Growth Planning</div>
+    <div class="sec-hd">Development <span>Roadmap</span></div>
+    <div class="hb" style="margin-bottom:14px;">
+      <div class="hb-lbl">Development Focus</div>
+      <div class="hb-txt">{{developmentHtml}}</div>
+    </div>
+    <div class="roadmap-row">
+      <div class="rmap-card short">
+        <div class="rmap-head"><div class="rmap-badge">30 Days</div><div class="rmap-title">Immediate Actions</div></div>
+        <div class="rmap-body">
+          {{#each shortTermGoals}}
+          <div class="rmap-item"><span class="ri-arr">→</span><span>{{this}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+      <div class="rmap-card long">
+        <div class="rmap-head"><div class="rmap-badge">12 Months</div><div class="rmap-title">Long-Term Growth</div></div>
+        <div class="rmap-body">
+          {{#each longTermGoals}}
+          <div class="rmap-item"><span class="ri-arr">→</span><span>{{this}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+    </div>
+    <div class="wb-panel">
+      <div class="wb-title">🌱 Wellbeing Practices</div>
+      <div class="wb-grid">
+        <div>
+          <div class="wb-lbl">Sustaining Practices</div>
+          <ul class="wb-list">
+            {{#each wellbeingPractices}}
+            <li><span class="wb-chk">✓</span>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        <div>
+          <div class="wb-lbl">Ideal Environments</div>
+          <ul class="wb-list">
+            {{#each idealEnvironments}}
+            <li><span class="wb-chk">✓</span>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="closing-banner">
+      <div class="cb-lbl">Closing Perspective</div>
+      <p>{{closingInsight}}</p>
+    </div>
+  </div>
+  <div class="pf"><p>MindMill Assessments — Confidential</p><p>Big Five Personality Model · {{assessmentDate}}</p></div>
+</div>
+
+</body>
+</html>

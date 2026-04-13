@@ -18,8 +18,10 @@ import {
   Upload,
   Globe
 } from 'lucide-react';
+import UserAvatar from '../../components/UserAvatar';
 
-const PRESET_AVATARS = [
+// Preset color avatars
+const PRESET_COLORS = [
  'bg-red-400',
  'bg-orange-400',
  'bg-amber-400',
@@ -37,6 +39,24 @@ const PRESET_AVATARS = [
  'bg-fuchsia-400',
  'bg-pink-400',
 ];
+
+// DiceBear cartoon avatar styles
+const PRESET_CARTOONS = [
+ { id: 'avataaars', name: 'Avataaars', emoji: '🧑' },
+ { id: 'personas', name: 'Personas', emoji: '👤' },
+ { id: 'lorelei', name: 'Lorelei', emoji: '👩' },
+ { id: 'miniavs', name: 'Mini Avatars', emoji: '😊' },
+ { id: 'big-smile', name: 'Big Smile', emoji: '😀' },
+ { id: 'bottts', name: 'Robot', emoji: '🤖' },
+ { id: 'shapes', name: 'Shapes', emoji: '🔷' },
+ { id: 'rings', name: 'Rings', emoji: '⭕' },
+];
+
+// Generate DiceBear avatar URL
+const getDiceBearUrl = (style, seed) => {
+ const encoded = encodeURIComponent(seed || 'user');
+ return `https://api.dicebear.com/9.x/${style}/svg?seed=${encoded}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50`;
+};
 
 const Settings = () => {
  const { user, updateUser } = useAuth();
@@ -78,6 +98,16 @@ const Settings = () => {
  secondaryColor: '#8b5cf6',
  brandingEnabled: false,
  publicProfileEnabled: false,
+ moderatorName: '',
+ headline: '',
+ about: '',
+ bestHRPractices: '',
+ awardsAccolades: '',
+ website: '',
+ linkedin: '',
+ location: '',
+ industry: '',
+ companySize: '',
  });
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -113,6 +143,16 @@ const Settings = () => {
  secondaryColor: org.secondaryColor || '#8b5cf6',
  brandingEnabled: org.brandingEnabled || false,
  publicProfileEnabled: org.publicProfileEnabled || false,
+ moderatorName: org.moderatorName || '',
+ headline: org.publicProfile?.headline || '',
+ about: org.publicProfile?.about || '',
+ bestHRPractices: org.publicProfile?.bestHRPractices || '',
+ awardsAccolades: org.publicProfile?.awardsAccolades || '',
+ website: org.publicProfile?.website || '',
+ linkedin: org.publicProfile?.linkedin || '',
+ location: org.publicProfile?.location || '',
+ industry: org.publicProfile?.industry || '',
+ companySize: org.publicProfile?.companySize || '',
  });
  }
  } catch (error) {
@@ -192,7 +232,30 @@ const Settings = () => {
  e.preventDefault();
  setSaving(true);
  try {
- await organizationService.updateOrganization(organization._id, orgForm);
+ // Update basic org settings + branding
+ await organizationService.updateOrganization(organization._id, {
+ name: orgForm.name,
+ description: orgForm.description,
+ });
+ await organizationService.updateBranding(organization._id, {
+ primaryColor: orgForm.primaryColor,
+ secondaryColor: orgForm.secondaryColor,
+ brandingEnabled: orgForm.brandingEnabled,
+ publicProfileEnabled: orgForm.publicProfileEnabled,
+ });
+ // Update public profile fields including new sections
+ await organizationService.updatePublicProfile(organization._id, {
+ moderatorName: orgForm.moderatorName,
+ headline: orgForm.headline,
+ about: orgForm.about,
+ bestHRPractices: orgForm.bestHRPractices,
+ awardsAccolades: orgForm.awardsAccolades,
+ website: orgForm.website,
+ linkedin: orgForm.linkedin,
+ location: orgForm.location,
+ industry: orgForm.industry,
+ companySize: orgForm.companySize,
+ });
  showMessage('Organization settings updated');
  } catch (error) {
  console.error('Error updating organization:', error);
@@ -202,32 +265,45 @@ const Settings = () => {
  }
  };
 
- const getAvatarDisplay = () => {
- if (profileForm.avatar && profileForm.avatar.startsWith('data:')) {
- return (
- <img
- src={profileForm.avatar}
- alt="Avatar"
- className="w-24 h-24 rounded-full object-cover"
- />
- );
- }
- if (profileForm.avatar && profileForm.avatar.startsWith('bg-')) {
- return (
- <div className={`w-24 h-24 rounded-full ${profileForm.avatar} flex items-center justify-center`}>
- <span className="text-white text-2xl font-bold">
- {profileForm.firstName?.[0]}{profileForm.lastName?.[0]}
- </span>
- </div>
- );
- }
- return (
- <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center">
- <span className="text-indigo-600 text-2xl font-bold">
- {profileForm.firstName?.[0]}{profileForm.lastName?.[0]}
- </span>
- </div>
- );
+const getAvatarDisplay = () => {
+  if (profileForm.avatar && profileForm.avatar.startsWith('data:')) {
+   return (
+   <img
+   src={profileForm.avatar}
+   alt="Avatar"
+   className="w-24 h-24 rounded-full object-cover"
+   />
+   );
+  }
+  if (profileForm.avatar && profileForm.avatar.startsWith('bg-')) {
+   return (
+   <div className={`w-24 h-24 rounded-full ${profileForm.avatar} flex items-center justify-center`}>
+   <span className="text-white text-2xl font-bold">
+   {profileForm.firstName?.[0]}{profileForm.lastName?.[0]}
+   </span>
+   </div>
+   );
+  }
+  if (profileForm.avatar && profileForm.avatar.startsWith('cartoon:')) {
+   const style = profileForm.avatar.replace('cartoon:', '');
+   const seed = profileForm.email || profileForm.firstName || 'user';
+   return (
+    <img
+     src={getDiceBearUrl(style, seed)}
+     alt="Cartoon Avatar"
+     className="w-24 h-24 rounded-full object-cover"
+    />
+   );
+  }
+  // Default: DiceBear cartoon avatar using email/name as seed
+  return (
+  <UserAvatar
+  name={profileForm.firstName}
+  lastName={profileForm.lastName}
+  email={profileForm.email}
+  size={96}
+  />
+  );
  };
 
  const tabs = [
@@ -291,53 +367,110 @@ const Settings = () => {
  <p className="text-sm text-gray-500 ">Update your personal information</p>
  </div>
 
- {/* Profile Image */}
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-2">
- Profile Image
- </label>
- <div className="flex items-center gap-4">
- {getAvatarDisplay()}
- <button
- type="button"
- onClick={() => setShowAvatarPicker(!showAvatarPicker)}
- className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
- >
- <Camera className="w-4 h-4" />
- Change Avatar
- </button>
- </div>
- {/* Avatar Picker */}
- {showAvatarPicker && (
- <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
- <p className="text-sm font-medium text-gray-700">Choose a preset color:</p>
- <div className="grid grid-cols-8 gap-2">
- {PRESET_AVATARS.map((color) => (
- <button
- key={color}
- type="button"
- onClick={() => handleAvatarSelect(color)}
- className={`w-8 h-8 rounded-full ${color} hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 transition-all ${
- profileForm.avatar === color ? 'ring-2 ring-offset-2 ring-indigo-500' : ''
- }`}
- />
- ))}
- </div>
- <div className="border-t border-gray-200 pt-4">
- <p className="text-sm font-medium text-gray-700 mb-2">Or upload an image:</p>
- <label className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 cursor-pointer w-fit">
- <Upload className="w-4 h-4" />
- Upload Image
- <input
- type="file"
- accept="image/*"
- onChange={handleAvatarUpload}
- className="hidden"
- />
- </label>
- </div>
- </div>
- )}
+{/* Profile Image */}
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+  Profile Image
+  </label>
+  <div className="flex items-center gap-4">
+  {getAvatarDisplay()}
+  <button
+  type="button"
+  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+  className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+  >
+  <Camera className="w-4 h-4" />
+  Change Avatar
+  </button>
+  </div>
+  {/* Avatar Picker */}
+  {showAvatarPicker && (
+  <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
+  
+  {/* Option 1: Auto-generated Cartoon Avatar */}
+  <div>
+  <p className="text-sm font-medium text-gray-700 mb-2">Auto-generated Avatar:</p>
+  <button
+  type="button"
+  onClick={() => {
+   setProfileForm({ ...profileForm, avatar: '' });
+   setShowAvatarPicker(false);
+  }}
+  className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 ${
+   !profileForm.avatar ? 'ring-2 ring-offset-2 ring-indigo-500' : 'border-gray-200'
+  }`}
+  >
+   <img
+   src={getDiceBearUrl('avataaars', profileForm.email || profileForm.firstName)}
+   alt="Auto avatar"
+   className="w-full h-full"
+   />
+  </button>
+  </div>
+
+  {/* Option 2: Cartoon Avatar Styles */}
+  <div>
+  <p className="text-sm font-medium text-gray-700 mb-2">Cartoon Avatars:</p>
+  <div className="grid grid-cols-8 gap-2">
+  {PRESET_CARTOONS.map((cartoon) => (
+   <button
+   key={cartoon.id}
+   type="button"
+   onClick={() => {
+    setProfileForm({ 
+     ...profileForm, 
+     avatar: `cartoon:${cartoon.id}` 
+    });
+    setShowAvatarPicker(false);
+   }}
+   className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 ${
+    profileForm.avatar === `cartoon:${cartoon.id}` ? 'ring-2 ring-offset-2 ring-indigo-500' : 'border-gray-200'
+   }`}
+   title={cartoon.name}
+   >
+    <img
+    src={getDiceBearUrl(cartoon.id, profileForm.email || profileForm.firstName)}
+    alt={cartoon.name}
+    className="w-full h-full"
+    />
+   </button>
+  ))}
+  </div>
+  </div>
+
+  {/* Option 3: Color Presets */}
+  <div>
+  <p className="text-sm font-medium text-gray-700 mb-2">Color Presets:</p>
+  <div className="grid grid-cols-8 gap-2">
+  {PRESET_COLORS.map((color) => (
+  <button
+  key={color}
+  type="button"
+  onClick={() => handleAvatarSelect(color)}
+  className={`w-8 h-8 rounded-full ${color} hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 transition-all ${
+  profileForm.avatar === color ? 'ring-2 ring-offset-2 ring-indigo-500' : ''
+  }`}
+  />
+  ))}
+  </div>
+  </div>
+
+  {/* Option 4: Upload Image */}
+  <div className="border-t border-gray-200 pt-4">
+  <p className="text-sm font-medium text-gray-700 mb-2">Or upload your own:</p>
+  <label className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-100 cursor-pointer w-fit bg-white">
+  <Upload className="w-4 h-4" />
+  Upload Image
+  <input
+  type="file"
+  accept="image/*"
+  onChange={handleAvatarUpload}
+  className="hidden"
+  />
+  </label>
+  </div>
+  </div>
+  )}
  </div>
 
  <div className="grid grid-cols-2 gap-4">
@@ -708,6 +841,10 @@ const Settings = () => {
   />
   </label>
   </div>
+  {/* Banner size hint */}
+  <p className="text-xs text-indigo-600 font-medium mt-1 flex items-center gap-1">
+  <span>📐</span> Recommended: <span className="font-mono">1584 × 396 px</span> (LinkedIn Banner size)
+  </p>
   </div>
   </div>
 
@@ -733,6 +870,98 @@ const Settings = () => {
  rows={3}
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  />
+ </div>
+
+ {/* ── Public Profile Section ── */}
+ <div className="pt-2">
+  <h3 className="text-sm font-semibold text-gray-800 mb-1">Public Profile</h3>
+  <p className="text-xs text-gray-500 mb-4">Content displayed on your public organization profile page.</p>
+
+  <div className="space-y-5">
+  {/* Moderator Name */}
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Moderator Name</label>
+  <input
+  type="text"
+  value={orgForm.moderatorName}
+  onChange={(e) => setOrgForm({ ...orgForm, moderatorName: e.target.value })}
+  placeholder="e.g. Jane Doe — HR Manager"
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  />
+  </div>
+
+  {/* Headline */}
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Headline / Tagline</label>
+  <input
+  type="text"
+  value={orgForm.headline}
+  onChange={(e) => setOrgForm({ ...orgForm, headline: e.target.value })}
+  placeholder="e.g. Leading the Future of Talent Assessment"
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  />
+  </div>
+
+  {/* About — 500 words */}
+  <div>
+  <div className="flex items-center justify-between mb-1">
+  <label className="block text-sm font-medium text-gray-700">About the Organization</label>
+  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+  orgForm.about.trim().split(/\s+/).filter(Boolean).length > 500
+  ? 'bg-rose-100 text-rose-600' : 'bg-indigo-50 text-indigo-600'
+  }`}>
+  {orgForm.about.trim().split(/\s+/).filter(Boolean).length} / 500 words
+  </span>
+  </div>
+  <textarea
+  value={orgForm.about}
+  onChange={(e) => setOrgForm({ ...orgForm, about: e.target.value })}
+  rows={6}
+  placeholder="Describe your organization… (max 500 words)"
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  />
+  </div>
+
+  {/* Best HR Practices — 300 words */}
+  <div>
+  <div className="flex items-center justify-between mb-1">
+  <label className="block text-sm font-medium text-gray-700">Best HR Practices</label>
+  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+  orgForm.bestHRPractices.trim().split(/\s+/).filter(Boolean).length > 300
+  ? 'bg-rose-100 text-rose-600' : 'bg-indigo-50 text-indigo-600'
+  }`}>
+  {orgForm.bestHRPractices.trim().split(/\s+/).filter(Boolean).length} / 300 words
+  </span>
+  </div>
+  <textarea
+  value={orgForm.bestHRPractices}
+  onChange={(e) => setOrgForm({ ...orgForm, bestHRPractices: e.target.value })}
+  rows={5}
+  placeholder="Share your organization's best HR practices… (max 300 words)"
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  />
+  </div>
+
+  {/* Awards & Accolades — 300 words */}
+  <div>
+  <div className="flex items-center justify-between mb-1">
+  <label className="block text-sm font-medium text-gray-700">Awards &amp; Accolades</label>
+  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+  orgForm.awardsAccolades.trim().split(/\s+/).filter(Boolean).length > 300
+  ? 'bg-rose-100 text-rose-600' : 'bg-indigo-50 text-indigo-600'
+  }`}>
+  {orgForm.awardsAccolades.trim().split(/\s+/).filter(Boolean).length} / 300 words
+  </span>
+  </div>
+  <textarea
+  value={orgForm.awardsAccolades}
+  onChange={(e) => setOrgForm({ ...orgForm, awardsAccolades: e.target.value })}
+  rows={5}
+  placeholder="List your awards, certifications, and achievements… (max 300 words)"
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  />
+  </div>
+  </div>
  </div>
 
  <div className="grid grid-cols-2 gap-4">

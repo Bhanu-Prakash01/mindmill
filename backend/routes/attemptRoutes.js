@@ -5,7 +5,6 @@ const {
   getAttempt,
   getPublicAttempt,
   startAttempt,
-  startPublicAttempt,
   startInviteAttempt,
   saveAnswer,
   submitAttempt,
@@ -19,11 +18,9 @@ const { authMiddleware, optionalAuth } = require('../middleware/authMiddleware')
 const { idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 
 // ============================================================
-// PUBLIC ROUTES - No authentication required
-// Use optionalAuth so unauthenticated users can access
+// PUBLIC ROUTES - Invite-based access only (no auth required)
 // ============================================================
 
-router.post('/public/:assessmentId/start', optionalAuth, startPublicAttempt);
 router.post('/invite/:token/start', optionalAuth, startInviteAttempt);
 router.get('/public/attempt/:id', optionalAuth, getPublicAttempt);
 

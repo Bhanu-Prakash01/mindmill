@@ -189,7 +189,8 @@ const startAttempt = asyncHandler(async (req, res) => {
   }
 
   // Check if assessment is unlocked for this organization (test slot available)
-  if (req.user.role !== 'superadmin') {
+  const isSuperAdmin = req.user.role === 'superadmin';
+  if (!isSuperAdmin) {
     const orgId = req.user.organization?._id?.toString();
     if (!orgId) {
       throw new ApiError(403, 'You must belong to an organization to take assessments');
@@ -216,10 +217,24 @@ const startAttempt = asyncHandler(async (req, res) => {
   }
 
   // Create attempt
+  let orgId = req.user.organization?._id;
+  if (!orgId && isSuperAdmin) {
+    const { Organization } = require('../models');
+    let mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
+    if (!mindmilOrg) {
+      mindmilOrg = await Organization.create({
+        name: 'Mindmil Direct',
+        slug: 'mindmil',
+        description: 'Direct Mindmil tests created by superadmin'
+      });
+    }
+    orgId = mindmilOrg._id;
+  }
+
   const attempt = await Attempt.create({
     user: req.user._id,
     assessment: assessmentId,
-    organization: req.user.organization._id,
+    organization: orgId,
     status: 'in-progress',
     expiresAt,
     timeLimit: assessment.timeBound.enabled ? assessment.timeBound.durationMinutes * 60 : 0,
@@ -285,18 +300,22 @@ const saveAnswer = asyncHandler(async (req, res) => {
 
     // Apply 3-question rule: deduct test slot only if >= 3 answers
     if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
-      const answerCount = attempt.answers.length;
-      if (answerCount >= 3) {
-        attempt.creditDeducted = true;
-        const assessment = await Assessment.findById(attempt.assessment);
-        if (assessment) {
-          const orgId = attempt.organization.toString();
-          const unlockEntry = assessment.unlockedBy?.find(
-            u => u.organization.toString() === orgId
-          );
-          if (unlockEntry) {
-            unlockEntry.testsUsed += 1;
-            await assessment.save();
+      const { User } = require('../models');
+      const user = await User.findById(attempt.user);
+      if (user?.role !== 'superadmin') {
+        const answerCount = attempt.answers.length;
+        if (answerCount >= 3) {
+          attempt.creditDeducted = true;
+          const assessment = await Assessment.findById(attempt.assessment);
+          if (assessment) {
+            const orgId = attempt.organization.toString();
+            const unlockEntry = assessment.unlockedBy?.find(
+              u => u.organization.toString() === orgId
+            );
+            if (unlockEntry) {
+              unlockEntry.testsUsed += 1;
+              await assessment.save();
+            }
           }
         }
       }
@@ -427,40 +446,43 @@ const submitAttempt = asyncHandler(async (req, res) => {
     if (shouldDeduct) {
       attempt.creditDeducted = true;
       const orgId = attempt.organization.toString();
+      
+      const { User } = require('../models');
+      const user = await User.findById(attempt.user);
+      const isSuperAdminUser = user?.role === 'superadmin';
+      
       const unlockEntry = assessment.unlockedBy?.find(
         u => u.organization.toString() === orgId
       );
       if (unlockEntry) {
         unlockEntry.testsUsed += 1;
         
-        // Consume credits: move from locked to used
-        const { Organization } = require('../models');
-        const organization = await Organization.findById(orgId);
-        if (organization) {
-          // Calculate credit cost for this test
-          let creditCost = assessment.creditCostPerTest;
-          if (creditCost == null) {
-            creditCost = organization.credits?.creditCost?.[assessment.category] ?? 5;
-          }
-          
-          // Move credits from locked to used
-          organization.credits.locked = Math.max(0, (organization.credits.locked || 0) - creditCost);
-          organization.credits.used += creditCost;
-          
-          // Track usage in oldest non-expired batch first
-          const now = new Date();
-          let remainingToTrack = creditCost;
-          for (const batch of organization.credits.batches) {
-            if (batch.expiresAt && batch.expiresAt > now && batch.used < batch.amount) {
-              const availableInBatch = batch.amount - batch.used;
-              const toDeduct = Math.min(availableInBatch, remainingToTrack);
-              batch.used += toDeduct;
-              remainingToTrack -= toDeduct;
-              if (remainingToTrack <= 0) break;
+        if (!isSuperAdminUser) {
+          const { Organization } = require('../models');
+          const organization = await Organization.findById(orgId);
+          if (organization) {
+            let creditCost = assessment.creditCostPerTest;
+            if (creditCost == null) {
+              creditCost = organization.credits?.creditCost?.[assessment.category] ?? 5;
             }
+            
+            organization.credits.locked = Math.max(0, (organization.credits.locked || 0) - creditCost);
+            organization.credits.used += creditCost;
+            
+            const now = new Date();
+            let remainingToTrack = creditCost;
+            for (const batch of organization.credits.batches) {
+              if (batch.expiresAt && batch.expiresAt > now && batch.used < batch.amount) {
+                const availableInBatch = batch.amount - batch.used;
+                const toDeduct = Math.min(availableInBatch, remainingToTrack);
+                batch.used += toDeduct;
+                remainingToTrack -= toDeduct;
+                if (remainingToTrack <= 0) break;
+              }
+            }
+            
+            await organization.save();
           }
-          
-          await organization.save();
         }
         
         await assessment.save();
@@ -934,19 +956,23 @@ const abandonAttempt = asyncHandler(async (req, res) => {
   // Apply 3-question rule
   let creditDeducted = false;
   if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
-    const answerCount = attempt.answers.length;
-    if (answerCount >= 3) {
-      attempt.creditDeducted = true;
-      creditDeducted = true;
-      const assessment = await Assessment.findById(attempt.assessment);
-      if (assessment) {
-        const orgId = attempt.organization.toString();
-        const unlockEntry = assessment.unlockedBy?.find(
-          u => u.organization.toString() === orgId
-        );
-        if (unlockEntry) {
-          unlockEntry.testsUsed += 1;
-          await assessment.save();
+    const { User } = require('../models');
+    const user = await User.findById(attempt.user);
+    if (user?.role !== 'superadmin') {
+      const answerCount = attempt.answers.length;
+      if (answerCount >= 3) {
+        attempt.creditDeducted = true;
+        creditDeducted = true;
+        const assessment = await Assessment.findById(attempt.assessment);
+        if (assessment) {
+          const orgId = attempt.organization.toString();
+          const unlockEntry = assessment.unlockedBy?.find(
+            u => u.organization.toString() === orgId
+          );
+          if (unlockEntry) {
+            unlockEntry.testsUsed += 1;
+            await assessment.save();
+          }
         }
       }
     }
@@ -1038,23 +1064,27 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
     }
   }
 
-  // Validate test slot availability — use invite's organization (global assessments have null organization)
+  const inviteCreatedBy = await require('../models').User.findById(invite.invitedBy);
+  const isSuperAdminInvite = inviteCreatedBy?.role === 'superadmin';
+  
   const orgId = invite.organization?.toString();
   if (!orgId) {
     throw new ApiError(400, 'Invite has no associated organization');
   }
 
-  const unlockEntry = assessment.unlockedBy?.find(
-    u => u.organization.toString() === orgId
-  );
+  if (!isSuperAdminInvite) {
+    const unlockEntry = assessment.unlockedBy?.find(
+      u => u.organization.toString() === orgId
+    );
 
-  if (!unlockEntry) {
-    throw new ApiError(403, 'Assessment not unlocked');
-  }
+    if (!unlockEntry) {
+      throw new ApiError(403, 'Assessment not unlocked');
+    }
 
-  const remainingTests = unlockEntry.testsAllowed - unlockEntry.testsUsed;
-  if (remainingTests <= 0) {
-    throw new ApiError(403, 'No test slots remaining for this assessment');
+    const remainingTests = unlockEntry.testsAllowed - unlockEntry.testsUsed;
+    if (remainingTests <= 0) {
+      throw new ApiError(403, 'No test slots remaining for this assessment');
+    }
   }
 
   // Calculate expiry time
@@ -1317,6 +1347,14 @@ async function handleDiscSubmit(req, res, attempt, assessment) {
  */
 async function deductTestSlot(attempt, assessment) {
   if (attempt.creditDeducted) return;
+  
+  const { User } = require('../models');
+  const user = await User.findById(attempt.user);
+  if (user?.role === 'superadmin') {
+    attempt.creditDeducted = true;
+    return;
+  }
+  
   const shouldDeduct = !attempt.isPublicAttempt || attempt.invite;
   if (!shouldDeduct) return;
 

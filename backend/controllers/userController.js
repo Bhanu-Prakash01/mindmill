@@ -7,7 +7,7 @@ const { asyncHandler, ApiError } = require('../middleware/errorHandler');
  * @access  Private (Admin, SuperAdmin)
  */
 const getUsers = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search = '', role, isActive } = req.query;
+  const { page = 1, limit = 10, search = '', role, isActive, organization } = req.query;
   
   // Build query based on user role
   let query = {};
@@ -15,6 +15,8 @@ const getUsers = asyncHandler(async (req, res) => {
   if (req.user.role !== 'superadmin') {
     // Admin can only see users in their organization
     query.organization = req.user.organization._id;
+  } else if (organization) {
+    query.organization = organization;
   }
   
   if (search) {

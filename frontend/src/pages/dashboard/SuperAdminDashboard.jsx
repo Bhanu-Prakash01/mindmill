@@ -124,36 +124,36 @@ const SuperAdminDashboard = () => {
   {/* Alerts */}
  {(stats?.stats?.pendingCreditRequests > 0 || stats?.stats?.openTickets > 0) && (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- {stats?.stats?.pendingCreditRequests > 0 && (
- <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
- <div className="p-3 bg-amber-100 rounded-lg">
- <CreditCard className="w-6 h-6 text-amber-600 " />
- </div>
- <div>
- <p className="font-medium text-amber-900 ">
- {stats.stats.pendingCreditRequests} Pending Credit Requests
- </p>
- <p className="text-sm text-amber-700 ">
- Review and approve credit requests
- </p>
- </div>
- </div>
- )}
- {stats?.stats?.openTickets > 0 && (
- <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-4">
- <div className="p-3 bg-red-100 rounded-lg">
- <HelpCircle className="w-6 h-6 text-red-600 " />
- </div>
- <div>
- <p className="font-medium text-red-900 ">
- {stats.stats.openTickets} Open Support Tickets
- </p>
- <p className="text-sm text-red-700 ">
- Tickets waiting for response
- </p>
- </div>
- </div>
- )}
+{stats?.stats?.pendingCreditRequests > 0 && (
+  <Link to="/credits" className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4 hover:bg-amber-100 transition-colors">
+  <div className="p-3 bg-amber-100 rounded-lg">
+  <CreditCard className="w-6 h-6 text-amber-600 " />
+  </div>
+  <div>
+  <p className="font-medium text-amber-900 ">
+  {stats.stats.pendingCreditRequests} Pending Credit Requests
+  </p>
+  <p className="text-sm text-amber-700 ">
+  Review and approve credit requests
+  </p>
+  </div>
+  </Link>
+  )}
+{stats?.stats?.openTickets > 0 && (
+  <Link to="/support" className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-4 hover:bg-red-100 transition-colors">
+  <div className="p-3 bg-red-100 rounded-lg">
+  <HelpCircle className="w-6 h-6 text-red-600 " />
+  </div>
+  <div>
+  <p className="font-medium text-red-900 ">
+  {stats.stats.openTickets} Open Support Tickets
+  </p>
+  <p className="text-sm text-red-700 ">
+  Tickets waiting for response
+  </p>
+  </div>
+  </Link>
+  )}
  </div>
  )}
 

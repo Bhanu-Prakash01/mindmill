@@ -57,6 +57,10 @@ const getAssessments = asyncHandler(async (req, res) => {
     const orgId = req.user.organization._id.toString();
     const { TestTakerInvite } = require('../models');
 
+    // Fetch org member IDs to filter assignedUsers to this org only
+    const orgUserIds = await User.distinct('_id', { organization: orgId });
+    const orgUserIdSet = new Set(orgUserIds.map(id => id.toString()));
+
     enrichedAssessments = await Promise.all(assessments.map(async (assessment) => {
       const obj = assessment.toObject();
       const unlockEntry = assessment.unlockedBy?.find(
@@ -70,13 +74,22 @@ const getAssessments = asyncHandler(async (req, res) => {
         effectiveCreditCost = org.credits?.creditCost?.[assessment.category] ?? 5;
       }
 
+      // Filter assignedUsers to only those belonging to this organization
+      // This prevents cross-org member leakage in the Assign & Allocate modal
+      if (obj.assignedUsers) {
+        obj.assignedUsers = obj.assignedUsers.filter(
+          u => orgUserIdSet.has((u._id || u).toString())
+        );
+      }
+
       if (unlockEntry) {
         const activeInvitesCount = await TestTakerInvite.countDocuments({
           assessment: obj._id,
           organization: orgId,
           status: { $in: ['pending', 'email_sent', 'started'] }
         });
-        
+
+        // Use org-filtered assignedUsers count for accurate slot calculation
         const assignedCount = obj.assignedUsers ? obj.assignedUsers.length : 0;
         const totalLocked = unlockEntry.testsUsed + activeInvitesCount + assignedCount;
 
@@ -1795,10 +1808,7 @@ module.exports = {
   unassignAssessment,
   getMyAssignments,
   toggleMute,
-  getPublicAssessment,
   getAssessmentByInviteToken,
-  generatePublicLink,
-  revokePublicLink,
   unlockAssessment,
   refundUnattempted,
   getAssessmentPurchases,

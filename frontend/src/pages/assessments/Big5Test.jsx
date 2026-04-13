@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import {
- ChevronLeft,
- ChevronRight,
- Clock,
- AlertCircle,
- CheckCircle,
- Loader2,
- Maximize2,
- XCircle
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Maximize2,
+  XCircle,
+  Bug,
+  Zap
 } from 'lucide-react';
 
 const Big5Test = () => {
@@ -29,9 +31,10 @@ const Big5Test = () => {
  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
  const [timeRemaining, setTimeRemaining] = useState(0);
  const [currentAttemptId, setCurrentAttemptId] = useState(attemptId);
- const [error, setError] = useState(null);
- const [tabSwitchCount, setTabSwitchCount] = useState(0);
- const [fullscreenExits, setFullscreenExits] = useState(0);
+const [error, setError] = useState(null);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [fullscreenExits, setFullscreenExits] = useState(0);
+  const [devMode, setDevMode] = useState(false);
  const currentAttemptIdRef = useRef(currentAttemptId);
  const tabSwitchCountRef = useRef(0);
  const fullscreenExitsRef = useRef(0);
@@ -239,8 +242,11 @@ const Big5Test = () => {
    if (data.success) {
    if (isPublicAccess) {
    document.exitFullscreen?.();
-   alert('Assessment submitted successfully! Thank you for completing the assessment.');
-   navigate('/');
+   const params = new URLSearchParams({
+     assessment: assessment?.title || 'Big Five Personality',
+     type: 'big5'
+   });
+   navigate(`/thank-you?${params.toString()}`);
    } else {
    const prefix = orgSlug ? `/o/${orgSlug}` : '';
    navigate(`${prefix}/reports/big5/${data.data.attempt._id}`);
@@ -274,12 +280,32 @@ const Big5Test = () => {
  return `${mins}:${secs.toString().padStart(2, '0')}`;
  };
 
- const getProgress = () => {
- const answered = Object.keys(responses).length;
- return Math.round((answered / 50) * 100);
- };
+const getProgress = () => {
+  const answered = Object.keys(responses).length;
+  return Math.round((answered / 50) * 100);
+  };
 
- if (loading) {
+  // Dev Mode: Fill all answers randomly (1-5 rating scale)
+  const fillAllAnswersBig5 = () => {
+    const newResponses = {};
+    
+    for (let i = 1; i <= 50; i++) {
+      const randomRating = Math.floor(Math.random() * 5) + 1;
+      newResponses[i] = randomRating;
+    }
+    
+    setResponses(prev => ({ ...prev, ...newResponses }));
+    console.log('Dev Mode: Big5 answers filled!');
+  };
+
+  const toggleDevMode = () => {
+    if (!devMode) {
+      fillAllAnswersBig5();
+    }
+    setDevMode(!devMode);
+  };
+
+  if (loading) {
  return (
  <div className="min-h-screen flex items-center justify-center">
  <div className="text-center">
@@ -355,20 +381,51 @@ const Big5Test = () => {
  </div>
  </div>
 
- <button
-    onClick={requestFullscreen}
-    className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-    title="Return to Fullscreen"
-  >
-    <Maximize2 className="w-4 h-4" />
-    Fullscreen
-  </button>
- </div>
- </div>
- </div>
- </header>
+<button
+     onClick={requestFullscreen}
+     className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+     title="Return to Fullscreen"
+   >
+     <Maximize2 className="w-4 h-4" />
+     Fullscreen
+   </button>
 
- {/* Main Content */}
+   <button
+     onClick={toggleDevMode}
+     className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+       devMode 
+         ? 'bg-green-500 text-white hover:bg-green-600' 
+         : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+     }`}
+     title="Dev Mode: Auto-fill all answers"
+   >
+     {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
+     {devMode ? 'Dev Mode ON' : 'Dev Mode'}
+   </button>
+  </div>
+ </div>
+ </div>
+</header>
+
+  {/* Dev Mode Banner */}
+  {devMode && (
+    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Bug className="w-4 h-4" />
+          <span>DEV MODE ACTIVE - All Big5 answers auto-filled</span>
+        </div>
+        <button
+          onClick={() => setDevMode(false)}
+          className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
+        >
+          Turn OFF
+        </button>
+      </div>
+    </div>
+  )}
+
+  {/* Main Content */}
  <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
  {/* Instructions */}
  {currentPage === 0 && (

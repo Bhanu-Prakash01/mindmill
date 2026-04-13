@@ -44,28 +44,14 @@ const PublicTest = () => {
     try {
       setLoading(true);
 
-      // Try invite-based lookup first
-      try {
-        const inviteResponse = await assessmentService.getAssessmentByInviteToken(token);
-        if (inviteResponse?.success) {
-          const data = inviteResponse.data;
-          setAssessment(data.assessment);
-          setInvite(data.invite);
-          setIsInviteLink(true);
-          // Pre-fill from invite data
-          setTestTakerName(data.invite?.testTakerName || '');
-          setTestTakerEmail(data.invite?.testTakerEmail || '');
-          return;
-        }
-      } catch (inviteErr) {
-        // Not an invite link, try public link
-      }
-
-      // Fall back to public link lookup
-      const response = await assessmentService.getPublicAssessment(token);
-      if (response.data?.assessment) {
-        setAssessment(response.data.assessment);
-        setIsInviteLink(false);
+      const inviteResponse = await assessmentService.getAssessmentByInviteToken(token);
+      if (inviteResponse?.success) {
+        const data = inviteResponse.data;
+        setAssessment(data.assessment);
+        setInvite(data.invite);
+        setIsInviteLink(true);
+        setTestTakerName(data.invite?.testTakerName || '');
+        setTestTakerEmail(data.invite?.testTakerEmail || '');
       } else {
         setError('Assessment not found or not available');
       }
@@ -92,13 +78,12 @@ const PublicTest = () => {
       const category = assessmentData?.category;
 
       if (attemptData) {
+        // Navigate to Terms & Conditions page first
         const cat = urlCategory || category;
-        if (cat === 'big5') {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/big5/${attemptData._id}`);
-        } else if (cat === 'disc') {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/disc/${attemptData._id}`);
+        if (urlCategory) {
+          navigate(`/take/${cat}/${token}/terms/${attemptData._id}`);
         } else {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/test/${attemptData._id}`);
+          navigate(`/take/${token}/terms/${attemptData._id}`);
         }
       } else {
         setError('Unexpected response from server. Please try again.');
@@ -146,13 +131,12 @@ const PublicTest = () => {
       const category = assessmentData?.category;
 
       if (attemptData) {
+        // Navigate to Terms & Conditions page first
         const cat = urlCategory || category;
-        if (cat === 'big5') {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/big5/${attemptData._id}`);
-        } else if (cat === 'disc') {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/disc/${attemptData._id}`);
+        if (urlCategory) {
+          navigate(`/take/${cat}/${token}/terms/${attemptData._id}`);
         } else {
-          navigate(`/take/${urlCategory ? cat + '/' : ''}${token}/test/${attemptData._id}`);
+          navigate(`/take/${token}/terms/${attemptData._id}`);
         }
       } else {
         alert('Unexpected response from server. Please try again.');

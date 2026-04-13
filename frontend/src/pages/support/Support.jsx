@@ -4,28 +4,32 @@ import { supportService } from '../../services';
 import { orgSlug } from '../../services/api';
 import { Link } from 'react-router-dom';
 import {
- Ticket,
- Plus,
- Search,
- Filter,
- MessageCircle,
- Clock,
- AlertCircle,
- CheckCircle,
- XCircle,
- User,
- Tag,
- ArrowRight
+  Ticket,
+  Plus,
+  Search,
+  Filter,
+  MessageCircle,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  User,
+  Tag,
+  ArrowRight,
+  SortAsc,
+  SortDesc
 } from 'lucide-react';
 
 const Support = () => {
  const { user } = useAuth();
- const [tickets, setTickets] = useState([]);
- const [loading, setLoading] = useState(true);
- const [searchQuery, setSearchQuery] = useState('');
- const [filterStatus, setFilterStatus] = useState('all');
- const [filterPriority, setFilterPriority] = useState('all');
- const [showCreateModal, setShowCreateModal] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [sortField, setSortField] = useState('updatedAt');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [showCreateModal, setShowCreateModal] = useState(false);
  const [standardQueries, setStandardQueries] = useState([]);
  const [createForm, setCreateForm] = useState({
  subject: '',
@@ -39,24 +43,128 @@ const Support = () => {
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
- useEffect(() => {
- fetchTickets();
- fetchStandardQueries();
- }, []);
+  useEffect(() => {
+  fetchTickets();
+  fetchStandardQueries();
+  }, []);
 
- const fetchTickets = async () => {
- try {
- setLoading(true);
- const response = isAdmin
- ? await supportService.getTickets()
- : await supportService.getMyTickets();
- setTickets(response.data?.tickets || []);
- } catch (error) {
- console.error('Error fetching tickets:', error);
- } finally {
- setLoading(false);
- }
- };
+  // Re-sort tickets when sortField or sortDirection changes
+  useEffect(() => {
+  if (tickets.length > 0) {
+    const sortedTickets = [...tickets].sort((a, b) => {
+      let fieldA, fieldB;
+      
+      switch (sortField) {
+        case 'ticketNumber':
+          fieldA = a.ticketNumber || '';
+          fieldB = b.ticketNumber || '';
+          break;
+        case 'category':
+          fieldA = a.category || '';
+          fieldB = b.category || '';
+          break;
+        case 'user':
+          fieldA = a.user ? `${a.user.firstName || ''} ${a.user.lastName || ''}`.trim() : '';
+          fieldB = b.user ? `${b.user.firstName || ''} ${b.user.lastName || ''}`.trim() : '';
+          break;
+        case 'status':
+          fieldA = a.status || '';
+          fieldB = b.status || '';
+          break;
+        case 'priority':
+          const priorityValues = { urgent: 3, high: 2, medium: 1 };
+          fieldA = priorityValues[a.priority] || 0;
+          fieldB = priorityValues[b.priority] || 0;
+          break;
+        case 'subject':
+          fieldA = a.subject || '';
+          fieldB = b.subject || '';
+          break;
+        case 'createdAt':
+          fieldA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          fieldB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        case 'updatedAt':
+        default:
+          fieldA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          fieldB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          break;
+      }
+      
+      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+        return sortDirection === 'asc' ? fieldA.localeCompare(fieldB) : fieldB.localeCompare(fieldA);
+      }
+      
+      if (typeof fieldA === 'number' && typeof fieldB === 'number') {
+        return sortDirection === 'asc' ? fieldA - fieldB : fieldB - fieldA;
+      }
+      
+      return 0;
+    });
+    setTickets(sortedTickets);
+  }
+  }, [sortField, sortDirection]);
+
+  const fetchTickets = async () => {
+  try {
+  setLoading(true);
+  const response = isAdmin
+  ? await supportService.getTickets()
+  : await supportService.getMyTickets();
+  let ticketData = response.data?.tickets || [];
+  
+  // Sort tickets based on sortField and sortDirection
+  ticketData.sort((a, b) => {
+    let fieldA, fieldB;
+    
+    // Map UI sort fields to actual data fields
+    switch (sortField) {
+      case 'ticketNumber':
+        fieldA = a.ticketNumber || '';
+        fieldB = b.ticketNumber || '';
+        break;
+      case 'category':
+        fieldA = a.category || '';
+        fieldB = b.category || '';
+        break;
+      case 'user':
+        fieldA = a.user ? `${a.user.firstName || ''} ${a.user.lastName || ''}`.trim() : '';
+        fieldB = b.user ? `${b.user.firstName || ''} ${b.user.lastName || ''}`.trim() : '';
+        break;
+      case 'status':
+        fieldA = a.status || '';
+        fieldB = b.status || '';
+        break;
+      case 'priority':
+        const priorityValues = { urgent: 3, high: 2, medium: 1 };
+        fieldA = priorityValues[a.priority] || 0;
+        fieldB = priorityValues[b.priority] || 0;
+        break;
+      case 'updatedAt':
+      default:
+        fieldA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        fieldB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        break;
+    }
+    
+    if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+      return sortDirection === 'asc' ? fieldA.localeCompare(fieldB) : fieldB.localeCompare(fieldA);
+    }
+    
+    if (typeof fieldA === 'number' && typeof fieldB === 'number') {
+      return sortDirection === 'asc' ? fieldA - fieldB : fieldB - fieldA;
+    }
+    
+    return 0;
+  });
+  
+  setTickets(ticketData);
+  } catch (error) {
+  console.error('Error fetching tickets:', error);
+  } finally {
+  setLoading(false);
+  }
+  };
 
  const fetchStandardQueries = async () => {
  try {
@@ -212,61 +320,127 @@ const Support = () => {
  ))}
  </div>
 
- {/* Filters */}
- <div className="flex flex-col sm:flex-row gap-4">
- <div className="relative flex-1">
- <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
- <input
- type="text"
- placeholder="Search tickets..."
- value={searchQuery}
- onChange={(e) => setSearchQuery(e.target.value)}
- className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
- />
- </div>
- <select
- value={filterStatus}
- onChange={(e) => setFilterStatus(e.target.value)}
- className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- >
- <option value="all">All Status</option>
- <option value="open">Open</option>
- <option value="in-progress">In Progress</option>
- <option value="waiting">Waiting</option>
- <option value="resolved">Resolved</option>
- <option value="closed">Closed</option>
- </select>
- <select
- value={filterPriority}
- onChange={(e) => setFilterPriority(e.target.value)}
- className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- >
- <option value="all">All Priorities</option>
- <option value="medium">Medium</option>
- <option value="high">High</option>
- <option value="urgent">Urgent</option>
- </select>
- </div>
+  {/* Filters */}
+  <div className="flex flex-col sm:flex-row gap-4">
+  <div className="relative flex-1">
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+  <input
+  type="text"
+  placeholder="Search tickets..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+  />
+  </div>
+  <select
+  value={filterStatus}
+  onChange={(e) => setFilterStatus(e.target.value)}
+  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  >
+  <option value="all">All Status</option>
+  <option value="open">Open</option>
+  <option value="in-progress">In Progress</option>
+  <option value="waiting">Waiting</option>
+  <option value="resolved">Resolved</option>
+  <option value="closed">Closed</option>
+  </select>
+  <select
+  value={filterPriority}
+  onChange={(e) => setFilterPriority(e.target.value)}
+  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  >
+  <option value="all">All Priorities</option>
+  <option value="medium">Medium</option>
+  <option value="high">High</option>
+  <option value="urgent">Urgent</option>
+  </select>
+  <select
+  value={sortField}
+  onChange={(e) => setSortField(e.target.value)}
+  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  >
+  <option value="updatedAt">Sort by: Updated</option>
+  <option value="createdAt">Sort by: Created</option>
+  <option value="priority">Sort by: Priority</option>
+  <option value="status">Sort by: Status</option>
+  <option value="subject">Sort by: Subject</option>
+  </select>
+  <button
+  onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+  className="flex items-center justify-center w-10 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-500 transition-colors"
+  title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+  >
+  {sortDirection === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+  </button>
+  </div>
 
  {/* Tickets List */}
  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
  <div className="overflow-x-auto">
  <table className="w-full">
- <thead className="bg-gray-50 ">
- <tr>
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
- {!isAdmin && (
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
- )}
- {isAdmin && (
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
- )}
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
- <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
- <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
- </tr>
- </thead>
+  <thead className="bg-gray-50 ">
+  <tr>
+  <th 
+    onClick={() => {
+      setSortField(sortField === 'ticketNumber' ? 'ticketNumber' : 'ticketNumber');
+      setSortDirection(sortField === 'ticketNumber' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'ticketNumber' ? 'text-indigo-600' : ''}`}
+  >
+    Ticket {sortField === 'ticketNumber' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  {!isAdmin && (
+  <th 
+    onClick={() => {
+      setSortField('category');
+      setSortDirection(sortField === 'category' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'category' ? 'text-indigo-600' : ''}`}
+  >
+    Category {sortField === 'category' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  )}
+  {isAdmin && (
+  <th 
+    onClick={() => {
+      setSortField('user');
+      setSortDirection(sortField === 'user' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'user' ? 'text-indigo-600' : ''}`}
+  >
+    User {sortField === 'user' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  )}
+  <th 
+    onClick={() => {
+      setSortField('status');
+      setSortDirection(sortField === 'status' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'status' ? 'text-indigo-600' : ''}`}
+  >
+    Status {sortField === 'status' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  <th 
+    onClick={() => {
+      setSortField('priority');
+      setSortDirection(sortField === 'priority' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'priority' ? 'text-indigo-600' : ''}`}
+  >
+    Priority {sortField === 'priority' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  <th 
+    onClick={() => {
+      setSortField('updatedAt');
+      setSortDirection(sortField === 'updatedAt' && sortDirection === 'asc' ? 'desc' : 'asc');
+    }}
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${sortField === 'updatedAt' ? 'text-indigo-600' : ''}`}
+  >
+    Updated {sortField === 'updatedAt' && (sortDirection === 'asc' ? <SortAsc className="w-3 h-3 inline ml-1" /> : <SortDesc className="w-3 h-3 inline ml-1" />)}
+  </th>
+  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+  </tr>
+  </thead>
  <tbody className="divide-y divide-gray-200 ">
  {filteredTickets.map((ticket) => (
  <tr key={ticket._id} className="hover:bg-gray-50 ">
