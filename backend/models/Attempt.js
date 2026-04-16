@@ -181,6 +181,21 @@ const attemptSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null
   },
+  // For FIRO-B personality assessments
+  firoResults: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  // For MBTI personality assessments
+  mbtiResults: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  // For Hogan personality assessments
+  hoganResults: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   // Security tracking
   ipAddress: {
     type: String,

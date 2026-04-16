@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBTI Assessment Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      padding: 40px 50px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 30px;
+      border-bottom: 3px solid #8b5cf6;
+      margin-bottom: 40px;
+    }
+
+    .header-left h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      letter-spacing: -0.5px;
+    }
+
+    .header-left .subtitle {
+      font-size: 14px;
+      color: #8b5cf6;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .header-right .brand {
+      font-size: 18px;
+      font-weight: 700;
+      color: #8b5cf6;
+    }
+
+    .header-right .date {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* Candidate Info Card */
+    .candidate-card {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 40px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .candidate-card h3 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    .candidate-info {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .info-item label {
+      display: block;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .info-item span {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    /* Type Hero Section */
+    .type-hero {
+      text-align: center;
+      padding: 50px 0;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+      border-radius: 16px;
+      margin-bottom: 40px;
+    }
+
+    .type-circle {
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 20px 40px -10px rgba(139, 92, 246, 0.4);
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    }
+
+    .type-hero h2 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+
+    .type-hero .type-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #8b5cf6;
+      margin-bottom: 12px;
+    }
+
+    .type-hero .type-desc {
+      font-size: 13px;
+      color: #64748b;
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* Dimension Letters */
+    .dimension-letters {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .dimension-letter {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .dimension-letter.ei { background: linear-gradient(135deg, #ec4899, #f472b6); }
+    .dimension-letter.sn { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .dimension-letter.tf { background: linear-gradient(135deg, #10b981, #34d399); }
+    .dimension-letter.jp { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+
+    /* Dimension Bars Section */
+    .dimensions-section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .dimension-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .dimension-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .dimension-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .dimension-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dimension-label .dim-code {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .dimension-label .dim-name {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .dimension-result {
+      font-size: 16px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    .dimension-result.ei { background: #fce7f3; color: #db2777; }
+    .dimension-result.sn { background: #fef3c7; color: #d97706; }
+    .dimension-result.tf { background: #d1fae5; color: #059669; }
+    .dimension-result.jp { background: #dbeafe; color: #2563eb; }
+
+    .progress-bar-container {
+      margin-bottom: 12px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .progress-bar {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar .scale-markers {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+
+    .progress-bar .scale-marker {
+      width: 1px;
+      height: 100%;
+      background: rgba(255,255,255,0.5);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-fill.ei { background: linear-gradient(90deg, #ec4899, #f472b6); }
+    .progress-fill.sn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-fill.tf { background: linear-gradient(90deg, #10b981, #34d399); }
+    .progress-fill.jp { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+    .dimension-description {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    /* Cross Pressure Alert */
+    .cross-pressure-alert {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 1px solid #f59e0b;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cross-pressure-alert .icon {
+      font-size: 20px;
+    }
+
+    .cross-pressure-alert p {
+      font-size: 11px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+
+    /* Type Description */
+    .type-description-section {
+      margin-bottom: 40px;
+    }
+
+    .type-desc-card {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-radius: 12px;
+      padding: 30px;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .type-desc-card h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      opacity: 0.8;
+      margin-bottom: 12px;
+    }
+
+    .type-desc-card p {
+      font-size: 14px;
+      line-height: 1.8;
+      opacity: 0.95;
+    }
+
+    /* Strengths & Growth */
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .analysis-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .analysis-card h4 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-card.strengths h4 { color: #10b981; }
+    .analysis-card.growth h4 { color: #8b5cf6; }
+
+    .analysis-card ul {
+      list-style: none;
+    }
+
+    .analysis-card li {
+      padding: 8px 0;
+      padding-left: 20px;
+      position: relative;
+      font-size: 11px;
+      color: #475569;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .analysis-card li:last-child {
+      border-bottom: none;
+    }
+
+    .analysis-card li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .analysis-card.strengths li::before { background: #10b981; }
+    .analysis-card.growth li::before { background: #8b5cf6; }
+
+    /* Career Suggestions */
+    .career-section {
+      margin-bottom: 40px;
+    }
+
+    .career-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .career-card {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 20px;
+      border-left: 4px solid #8b5cf6;
+    }
+
+    .career-card .career-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .career-card p {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    /* Work Style */
+    .workstyle-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 40px;
+    }
+
+    .workstyle-card h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #8b5cf6;
+      margin-bottom: 16px;
+    }
+
+    .workstyle-card p {
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.7;
+    }
+
+    /* Cognitive Functions */
+    .cognitive-section {
+      margin-bottom: 40px;
+    }
+
+    .cognitive-card {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border-radius: 12px;
+      padding: 24px;
+      color: white;
+    }
+
+    .cognitive-card h4 {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      opacity: 0.9;
+    }
+
+    .cognitive-functions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cognitive-fn {
+      background: rgba(255,255,255,0.1);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .cognitive-fn.dominant { background: #8b5cf6; }
+    .cognitive-fn.auxiliary { background: #6366f1; }
+    .cognitive-fn.tertiary { background: #4f46e5; }
+    .cognitive-fn.inferior { background: #3730a3; }
+
+    /* Footer */
+    .footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+    }
+
+    .footer p {
+      font-size: 9px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .footer .disclaimer {
+      font-style: italic;
+      margin-top: 8px;
+    }
+
+    /* Page Breaks */
+    .page-break {
+      page-break-after: always;
+    }
+
+    @media print {
+      .page {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>MBTI Personality Profile</h1>
+        <p class="subtitle">Myers-Briggs Type Indicator</p>
+      </div>
+      <div class="header-right">
+        <div class="brand">MindMil</div>
+        <div class="date">{{date}}</div>
+      </div>
+    </header>
+
+    <!-- Candidate Info -->
+    <div class="candidate-card">
+      <h3>Candidate Information</h3>
+      <div class="candidate-info">
+        <div class="info-item">
+          <label>Name</label>
+          <span>{{candidateName}}</span>
+        </div>
+        <div class="info-item">
+          <label>Email</label>
+          <span>{{candidateEmail}}</span>
+        </div>
+        <div class="info-item">
+          <label>Assessment Date</label>
+          <span>{{assessmentDate}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Type Hero -->
+    <div class="type-hero">
+      <div class="type-circle">{{type}}</div>
+      <h2>{{type}}</h2>
+      <p class="type-name">{{typeName}}</p>
+      <p class="type-desc">{{typeDescription}}</p>
+      <div class="dimension-letters">
+        <div class="dimension-letter ei">{{letters.EI}}</div>
+        <div class="dimension-letter sn">{{letters.SN}}</div>
+        <div class="dimension-letter tf">{{letters.TF}}</div>
+        <div class="dimension-letter jp">{{letters.JP}}</div>
+      </div>
+    </div>
+
+    <!-- Cross Pressure Alert -->
+    {{#if hasCrossPressure}}
+    <div class="cross-pressure-alert">
+      <span class="icon">⚠️</span>
+      <p><strong>Note:</strong> Your results show some tension in certain dimensions ({{crossPressureDimensions}}). This indicates you have qualities from both ends of these scales, which is natural and shows flexibility in your personality. Consider exploring both sides to understand your full potential.</p>
+    </div>
+    {{/if}}
+
+    <!-- Dimensions Section -->
+    <section class="dimensions-section">
+      <h3 class="section-title">Dimension Preferences</h3>
+      <div class="dimension-grid">
+        {{#each dimensions}}
+        <div class="dimension-card">
+          <div class="dimension-header">
+            <div class="dimension-label">
+              <span class="dim-code">{{this.code}}</span>
+              <span class="dim-name">{{this.name}}</span>
+            </div>
+            <span class="dimension-result {{this.code}}">{{this.result}}</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-label">
+              <span>{{this.leftLabel}}</span>
+              <span>{{this.percentage}}%</span>
+              <span>{{this.rightLabel}}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill {{this.code}}" style="width: {{this.percentage}}%"></div>
+            </div>
+          </div>
+          <p class="dimension-description">{{this.description}}</p>
+        </div>
+        {{/each}}
+      </div>
+    </section>
+
+    <!-- Type Description -->
+    <section class="type-description-section">
+      <h3 class="section-title">About Your Type</h3>
+      <div class="type-desc-card">
+        <h4>{{type}} - {{typeName}}</h4>
+        <p>{{fullDescription}}</p>
+      </div>
+    </section>
+
+    <!-- Two Column: Strengths & Growth -->
+    <div class="two-column">
+      <div class="analysis-card strengths">
+        <h4>Key Strengths</h4>
+        <ul>
+          {{#each strengths}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      <div class="analysis-card growth">
+        <h4>Growth Areas</h4>
+        <ul>
+          {{#each growthAreas}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Work Style -->
+    <div class="workstyle-card">
+      <h4>Work Style</h4>
+      <p>{{workStyle}}</p>
+    </div>
+
+    <!-- Cognitive Functions -->
+    <section class="cognitive-section">
+      <h3 class="section-title">Cognitive Functions</h3>
+      <div class="cognitive-card">
+        <h4>{{type}} Function Stack</h4>
+        <div class="cognitive-functions">
+          {{#each cognitiveFunctions}}
+          <span class="cognitive-fn {{this.role}}">{{this.function}}</span>
+          {{/each}}
+        </div>
+      </div>
+    </section>
+
+    <!-- Career Suggestions -->
+    <section class="career-section">
+      <h3 class="section-title">Recommended Career Paths</h3>
+      <div class="career-grid">
+        {{#each careerSuggestions}}
+        <div class="career-card">
+          <div class="career-title">{{this.title}}</div>
+          <p>{{this.description}}</p>
+        </div>
+        {{/each}}
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Generated by MindMil Assessments</p>
+      <p>This MBTI assessment is based on the Myers-Briggs Type Indicator methodology.</p>
+      <p class="disclaimer">Results should be used for self-awareness and development purposes.</p>
+    </footer>
+  </div>
+</body>
+</html>

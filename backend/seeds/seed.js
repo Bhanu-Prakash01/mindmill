@@ -26,6 +26,7 @@ const { User, Organization, Assessment, Question, Attempt } = require('../models
 // Import official question sets
 const { big5Questions } = require('../seeders/big5Questions');
 const { discQuestions } = require('../seeders/discQuestions');
+const { mbtiQuestions } = require('../seeders/mbtiQuestions');
 
 const seedData = async () => {
   try {
@@ -230,7 +231,7 @@ const seedData = async () => {
       title: 'DISC Personality Assessment',
       description: 'The DISC assessment measures four behavioral styles: Dominance (D), Influence (I), Steadiness (S), and Conscientiousness (C). This scientifically validated assessment helps you understand your natural behavioral tendencies and how you interact with others.',
       category: 'disc',
-      subCategory: 'personality',
+      subCategory: 'DISC',
       organization: demoOrg._id,
       createdBy: admin._id,
       difficulty: 'basic',
@@ -310,7 +311,7 @@ Answer based on your natural behavior, not how you think you should behave. Ther
       title: 'Big Five Personality Test (BFPT-50)',
       description: 'The Big Five Personality Test measures five major dimensions of personality: Openness, Conscientiousness, Extraversion, Agreeableness, and Neuroticism (OCEAN). This scientifically validated assessment uses 50 questions to provide insights into your personality traits.',
       category: 'big5',
-      subCategory: 'personality',
+      subCategory: 'DISC',
       organization: demoOrg._id,
       createdBy: admin._id,
       difficulty: 'moderate',
@@ -383,6 +384,83 @@ There are no right or wrong answers. Answer based on your natural tendencies, no
     await big5Assessment.save();
 
     console.log(`✅ Created Big5 Assessment (${big5QuestionDocs.length} questions)`);
+
+    // ──────────────────────────────────────────────
+    // 5B. CREATE MBTI ASSESSMENT (32 questions)
+    // ──────────────────────────────────────────────
+    const mbtiAssessment = await Assessment.create({
+      title: 'MBTI Personality Assessment',
+      description: 'The MBTI (Myers-Briggs Type Indicator) assessment measures four dimensions of personality: Extraversion-Introversion, Sensing-Intuition, Thinking-Feeling, and Judging-Perceiving. This scientifically validated assessment helps you understand your unique personality type and how you interact with the world.',
+      category: 'mbti',
+      subCategory: 'MBTI',
+      organization: demoOrg._id,
+      createdBy: admin._id,
+      difficulty: 'basic',
+      timeBound: { enabled: true, durationMinutes: 20 },
+      purpose: 'Personality profiling, self-discovery, and career development',
+      audience: 'Individuals seeking to understand their personality type',
+      instructions: `This assessment consists of 32 questions across four dimensions. For each question, you will see two statements representing opposite personality traits.
+
+Rate how much each statement describes you (1-5 scale):
+1 = Strongly left trait, 3 = Neutral, 5 = Strongly right trait
+
+Answer based on your natural behavior, not how you think you should behave. There are no right or wrong answers.`,
+      isActive: true,
+      isPublished: true,
+      isLockedStructure: true,
+      isEditable: false,
+      totalQuestions: 32,
+      totalMarks: 160,
+      passingScore: 0,
+      passingPercentage: 0,
+      allowMultipleAttempts: false,
+      maxAttempts: 1,
+      showResultsImmediately: true,
+      randomizeQuestions: false,
+      randomizeOptions: false,
+      reportConfig: {
+        type: 'auto-psychometric',
+        showScores: true,
+        showFullReport: true,
+        showPercentile: true,
+        showCorrectAnswers: false,
+        includeRecommendations: true
+      },
+      tags: ['personality', 'mbti', 'psychometric', 'type-indicator', 'jungian'],
+      assignedUsers: [user._id]
+    });
+
+    const mbtiQuestionDocs = await Promise.all(
+      mbtiQuestions.map(q =>
+        Question.create({
+          assessment: mbtiAssessment._id,
+          type: 'rating',
+          questionText: `${q.leftTrait} — ${q.rightTrait}`,
+          leftTrait: q.leftTrait,
+          rightTrait: q.rightTrait,
+          options: [
+            { text: 'Strongly left trait', score: 1, isCorrect: false },
+            { text: 'Moderately left trait', score: 2, isCorrect: false },
+            { text: 'Neutral', score: 3, isCorrect: false },
+            { text: 'Moderately right trait', score: 4, isCorrect: false },
+            { text: 'Strongly right trait', score: 5, isCorrect: false }
+          ],
+          dimension: q.dimension,
+          difficulty: 'basic',
+          category: 'personality',
+          order: q.order,
+          marks: 5,
+          isRequired: true,
+          tags: ['mbti', 'personality', 'dimension', q.dimension.toLowerCase()]
+        })
+      )
+    );
+
+    mbtiAssessment.questions = mbtiQuestionDocs.map(q => q._id);
+    mbtiAssessment.totalQuestions = mbtiQuestionDocs.length;
+    await mbtiAssessment.save();
+
+    console.log(`✅ Created MBTI Assessment (${mbtiQuestionDocs.length} questions)`);
 
     // ──────────────────────────────────────────────
     // 6. CREATE COGNITIVE ASSESSMENT (3 sample questions)
@@ -475,10 +553,10 @@ There are no right or wrong answers. Answer based on your natural tendencies, no
     // ──────────────────────────────────────────────
     // 7. LINK ASSESSMENTS TO USERS
     // ──────────────────────────────────────────────
-    user.assignedAssessments = [discAssessment._id, big5Assessment._id, cognitiveAssessment._id];
+    user.assignedAssessments = [discAssessment._id, big5Assessment._id, mbtiAssessment._id, cognitiveAssessment._id];
     await user.save();
 
-    david.assignedAssessments = [discAssessment._id];
+    david.assignedAssessments = [discAssessment._id, mbtiAssessment._id];
     await david.save();
 
     console.log('✅ Linked assessments to users');
@@ -515,6 +593,7 @@ There are no right or wrong answers. Answer based on your natural tendencies, no
     console.log('\n📝 ASSESSMENTS (all under Demo Org):');
     console.log(`  - DISC Personality Assessment (${discQuestionDocs.length} questions)`);
     console.log(`  - Big Five Personality Test (${big5QuestionDocs.length} questions)`);
+    console.log(`  - MBTI Personality Assessment (${mbtiQuestionDocs.length} questions)`);
     console.log(`  - Cognitive Aptitude Test (${createdCognitiveQuestions.length} questions)`);
 
     console.log('\n👤 ASSIGNED TO: user@user.com, d.wilson@demo.com');

@@ -36,6 +36,8 @@ const DiscTest = () => {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
   const [devMode, setDevMode] = useState(false);
+  const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   const attemptIdRef = useRef(attemptId);
   const tabSwitchCountRef = useRef(0);
   const fullscreenExitsRef = useRef(0);
@@ -133,7 +135,15 @@ const DiscTest = () => {
       if (attemptRes.data?.attempt?.expiresAt) {
         const expiresAt = new Date(attemptRes.data.attempt.expiresAt).getTime();
         const now = Date.now();
-        setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setTimeRemaining(remaining);
+        setStartTime(now);
+        const assessmentData = assessmentRes.data?.assessment;
+        if (assessmentData?.timeBound?.enabled && assessmentData.timeBound.durationMinutes) {
+          setTotalTimeSeconds(assessmentData.timeBound.durationMinutes * 60);
+        } else {
+          setTotalTimeSeconds(remaining);
+        }
       }
 
       const initialResponses = {};
@@ -169,7 +179,14 @@ const DiscTest = () => {
       if (attemptData?.expiresAt) {
         const expiresAt = new Date(attemptData.expiresAt).getTime();
         const now = Date.now();
-        setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setTimeRemaining(remaining);
+        setStartTime(now);
+        if (attemptData?.assessment?.timeBound?.enabled && attemptData.assessment.timeBound.durationMinutes) {
+          setTotalTimeSeconds(attemptData.assessment.timeBound.durationMinutes * 60);
+        } else {
+          setTotalTimeSeconds(remaining);
+        }
       }
 
       // Initialize responses
@@ -332,9 +349,24 @@ const DiscTest = () => {
       if (data.success) {
         if (isPublicAccess) {
           document.exitFullscreen?.();
+          const answeredCount = Object.keys(responses).length;
+          const percentAttempted = Math.round((answeredCount / totalQuestions) * 100);
+          
+          let timeTaken = null;
+          let totalTime = null;
+          if (totalTimeSeconds > 0 && startTime) {
+            totalTime = totalTimeSeconds;
+            timeTaken = Math.floor((Date.now() - startTime) / 1000);
+          }
+          
           const params = new URLSearchParams({
             assessment: assessment?.title || 'DISC Assessment',
-            type: 'disc'
+            type: 'disc',
+            attempted: percentAttempted.toString(),
+            answered: answeredCount.toString(),
+            total: totalQuestions.toString(),
+            timeTaken: timeTaken !== null ? timeTaken.toString() : '',
+            totalTime: totalTime !== null ? totalTime.toString() : ''
           });
           navigate(`/thank-you?${params.toString()}`);
         } else {

@@ -30,14 +30,20 @@ import TestTermsAndConditions from './pages/test/TestTermsAndConditions';
 import ThankYou from './pages/ThankYou';
 import Big5Test from './pages/assessments/Big5Test';
 import DiscTest from './pages/assessments/DiscTest';
+import HoganTest from './pages/assessments/HoganTest';
+import MbtiTest from './pages/assessments/MbtiTest';
+import FiroTest from './pages/assessments/FiroTest';
 
 // Reports
 import Reports from './pages/reports/Reports';
 import ReportDetail from './pages/reports/ReportDetail';
 import Big5Report from './pages/reports/Big5Report';
 import DiscReport from './pages/reports/DiscReport';
+import MbtiReport from './pages/reports/MbtiReport';
 import ComprehensiveDiscReport from './pages/reports/ComprehensiveDiscReport';
 import ComprehensiveBig5Report from './pages/reports/ComprehensiveBig5Report';
+import HoganReport from './pages/reports/HoganReport';
+import FiroReport from './pages/reports/FiroReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -158,13 +164,19 @@ const AppRoutes = () => {
 
    {/* Public Test Taking (no auth, no org prefix) */}
    <Route path="/take/:token" element={<PublicTest />} />
-   <Route path="/take/:token/big5/:attemptId" element={<Big5Test />} />
-   <Route path="/take/:token/disc/:attemptId" element={<DiscTest />} />
+<Route path="/take/:token/big5/:attemptId" element={<Big5Test />} />
+    <Route path="/take/:token/disc/:attemptId" element={<DiscTest />} />
+    <Route path="/take/:token/hogan/:attemptId" element={<HoganTest />} />
+    <Route path="/take/:token/mbti/:attemptId" element={<MbtiTest />} />
+    <Route path="/take/:token/firo/:attemptId" element={<FiroTest />} />
    <Route path="/take/:token/test/:attemptId" element={<TakeTest />} />
    {/* Category-prefixed invite URLs (e.g., /take/big5/{token}) */}
    <Route path="/take/:category/:token" element={<PublicTest />} />
-   <Route path="/take/:category/:token/big5/:attemptId" element={<Big5Test />} />
-   <Route path="/take/:category/:token/disc/:attemptId" element={<DiscTest />} />
+<Route path="/take/:category/:token/big5/:attemptId" element={<Big5Test />} />
+    <Route path="/take/:category/:token/disc/:attemptId" element={<DiscTest />} />
+    <Route path="/take/:category/:token/hogan/:attemptId" element={<HoganTest />} />
+    <Route path="/take/:category/:token/mbti/:attemptId" element={<MbtiTest />} />
+    <Route path="/take/:category/:token/firo/:attemptId" element={<FiroTest />} />
    <Route path="/take/:category/:token/test/:attemptId" element={<TakeTest />} />
    {/* Terms & Conditions before test (public) */}
    <Route path="/take/:token/terms/:attemptId" element={<TestTermsAndConditions />} />
@@ -190,7 +202,10 @@ const AppRoutes = () => {
     <Route path="/assessments/:id" element={<AssessmentForm />} />
      <Route path="/reports" element={<Reports />} />
      <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
-     <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+<Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+      <Route path="/reports/mbti/:attemptId" element={<MbtiReport />} />
+      <Route path="/reports/hogan/:attemptId" element={<HoganReport />} />
+      <Route path="/reports/firo/:attemptId" element={<FiroReport />} />
      <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
      <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
      <Route path="/reports/:id" element={<ReportDetail />} />
@@ -313,6 +328,14 @@ const AppRoutes = () => {
    }
    />
    <Route
+   path="assessments/:id/firo"
+   element={
+   <ProtectedRoute>
+   <FiroTest />
+   </ProtectedRoute>
+   }
+   />
+   <Route
    path="assessments/:id/terms"
    element={
    <ProtectedRoute>
@@ -346,24 +369,48 @@ const AppRoutes = () => {
     </ProtectedRoute>
     }
     />
-    <Route
-    path="reports/disc/:attemptId"
-    element={
-    <ProtectedRoute>
-    <DiscReport />
-    </ProtectedRoute>
-    }
+<Route
+      path="reports/disc/:attemptId"
+      element={
+      <ProtectedRoute>
+      <DiscReport />
+      </ProtectedRoute>
+      }
     />
     <Route
-    path="reports/disc/comprehensive/:attemptId"
-    element={
-    <ProtectedRoute>
-    <ComprehensiveDiscReport />
-    </ProtectedRoute>
-    }
+      path="reports/mbti/:attemptId"
+      element={
+      <ProtectedRoute>
+      <MbtiReport />
+      </ProtectedRoute>
+      }
     />
-    <Route
-    path="reports/big5/comprehensive/:attemptId"
+     <Route
+     path="reports/disc/comprehensive/:attemptId"
+     element={
+     <ProtectedRoute>
+     <ComprehensiveDiscReport />
+     </ProtectedRoute>
+     }
+     />
+     <Route
+     path="reports/hogan/:attemptId"
+     element={
+     <ProtectedRoute>
+     <HoganReport />
+     </ProtectedRoute>
+     }
+     />
+     <Route
+     path="reports/firo/:attemptId"
+     element={
+     <ProtectedRoute>
+     <FiroReport />
+     </ProtectedRoute>
+     }
+     />
+     <Route
+     path="reports/big5/comprehensive/:attemptId"
     element={
     <ProtectedRoute>
     <ComprehensiveBig5Report />

@@ -1,0 +1,14 @@
+FIRO-B feature implementation learnings
+- Implemented a FIRO-B controller and routes:
+  - backend/controllers/firoController.js with endpoints:
+    - GET /api/firo/questions -> returns 54 questions with dimensions
+    - POST /api/firo/submit -> validates 54 responses, scores via service, returns results
+    - GET /api/firo/config -> returns FIRO-B configuration
+  - backend/routes/firoRoutes.js with all route definitions and auth middleware
+  - backend/services/firoScoringService.js with a lightweight scoring algorithm:
+    - calculateFiroScores(responses) returns rawScores, normalizedScores, percentages, dominant, secondary, and analysis
+  - backend/server.js updated to register firoRoutes
+- Notes on approach:
+  - Followed existing DISC pattern for consistency (patterns in discController.js and discRoutes.js)
+  - Kept responses purely JSON and avoided exposing internal scoring details beyond the public results structure
+  - The 54-question set is generated with 18 questions per FIRO-B trait (Inclusion, Control, Affection)

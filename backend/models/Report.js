@@ -82,7 +82,7 @@ const reportSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5'],
+    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5', 'firo', 'firo-b'],
     required: [true, 'Report type is required']
   },
   // Test taker details (from invite or user account)
@@ -101,6 +101,10 @@ const reportSchema = new mongoose.Schema({
   generatedAt: {
     type: Date,
     default: Date.now
+  },
+  timeSpent: {
+    type: Number,
+    default: null
   },
   // Standard scores
   scores: {
@@ -157,6 +161,10 @@ const reportSchema = new mongoose.Schema({
     personalityProfile: {
       type: String,
       default: ''
+    },
+    FIRO: {
+      totals: { type: mongoose.Schema.Types.Mixed, default: {} },
+      dimensions: { type: mongoose.Schema.Types.Mixed, default: {} }
     }
   },
   // Analysis
@@ -193,7 +201,18 @@ const reportSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  // PDF generation
+  // PDF generation - cached files
+  pdfFiles: {
+    summary: {
+      path: { type: String, default: null },
+      generatedAt: { type: Date, default: null }
+    },
+    comprehensive: {
+      path: { type: String, default: null },
+      generatedAt: { type: Date, default: null }
+    }
+  },
+  // Legacy single PDF field (kept for backward compatibility)
   pdfUrl: {
     type: String,
     default: null

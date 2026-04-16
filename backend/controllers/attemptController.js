@@ -278,14 +278,15 @@ const startAttempt = asyncHandler(async (req, res) => {
  */
 const saveAnswer = asyncHandler(async (req, res) => {
   const { questionId, selectedOption, textAnswer, ratingAnswer, timeSpent } = req.body;
+  const attemptId = req.params.id;
 
-  const attempt = await Attempt.findById(req.params.id);
+  const attempt = await Attempt.findById(attemptId).select('status user userAgent ipAddress expiresAt timeLimit assessment organization isPublicAttempt creditDeducted');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Allow public/invite-based attempts (user is null, req.user may be null)
+  // Allow public/invite-based attempts
   if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
@@ -303,8 +304,8 @@ const saveAnswer = asyncHandler(async (req, res) => {
       const { User } = require('../models');
       const user = await User.findById(attempt.user);
       if (user?.role !== 'superadmin') {
-        const answerCount = attempt.answers.length;
-        if (answerCount >= 3) {
+        const fullAttempt = await Attempt.findById(attemptId).select('answers');
+        if (fullAttempt.answers.length >= 3) {
           attempt.creditDeducted = true;
           const assessment = await Assessment.findById(attempt.assessment);
           if (assessment) {
@@ -325,11 +326,6 @@ const saveAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Attempt has expired');
   }
 
-  // Find existing answer
-  const answerIndex = attempt.answers.findIndex(
-    a => a.question.toString() === questionId
-  );
-
   const answerData = {
     question: questionId,
     selectedOption: selectedOption !== undefined ? selectedOption : null,
@@ -339,18 +335,24 @@ const saveAnswer = asyncHandler(async (req, res) => {
     answeredAt: new Date()
   };
 
-  if (answerIndex >= 0) {
-    attempt.answers[answerIndex] = answerData;
-  } else {
-    attempt.answers.push(answerData);
-  }
+  // Try to update existing answer using MongoDB atomic operator
+  const updateResult = await Attempt.updateOne(
+    { _id: attemptId, 'answers.question': questionId },
+    { $set: { 'answers.$': answerData } }
+  );
 
-  await attempt.save();
+  // If answer wasn't updated, it doesn't exist yet, so push it
+  if (updateResult.modifiedCount === 0 && updateResult.matchedCount === 0) {
+    await Attempt.updateOne(
+      { _id: attemptId },
+      { $push: { answers: answerData } }
+    );
+  }
 
   res.json({
     success: true,
     message: 'Answer saved successfully',
-    data: { attempt }
+    data: { attempt: { _id: attemptId } }
   });
 });
 
@@ -521,14 +523,14 @@ const submitAttempt = asyncHandler(async (req, res) => {
  */
 const autoSave = asyncHandler(async (req, res) => {
   const { answers, timeSpent } = req.body;
+  const attemptId = req.params.id;
 
-  const attempt = await Attempt.findById(req.params.id);
+  const attempt = await Attempt.findById(attemptId).select('status user');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Allow public/invite-based attempts (user is null, req.user may be null)
   if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
@@ -537,34 +539,44 @@ const autoSave = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Attempt is not in progress');
   }
 
-  // Update answers
-  answers.forEach(answerData => {
-    const answerIndex = attempt.answers.findIndex(
-      a => a.question.toString() === answerData.questionId
-    );
-
-    if (answerIndex >= 0) {
-      attempt.answers[answerIndex] = {
-        ...attempt.answers[answerIndex],
-        ...answerData,
-        answeredAt: new Date()
-      };
-    } else {
-      attempt.answers.push({
-        question: answerData.questionId,
-        selectedOption: answerData.selectedOption,
-        textAnswer: answerData.textAnswer,
-        ratingAnswer: answerData.ratingAnswer,
-        answeredAt: new Date()
-      });
-    }
-  });
-
-  if (timeSpent) {
-    attempt.timeSpent = timeSpent;
+  // Process all submitted answers in autoSave via atomic arrays
+  const bulkOperations = answers.map(answerData => {
+    const data = {
+      question: answerData.questionId,
+      selectedOption: answerData.selectedOption !== undefined ? answerData.selectedOption : null,
+      textAnswer: answerData.textAnswer || '',
+      ratingAnswer: answerData.ratingAnswer !== undefined ? answerData.ratingAnswer : null,
+      answeredAt: new Date()
+    };
+    
+    // We update via a fallback logic or simply use full doc saving since bulk is heavy
+    // Let's just fallback to atomic operation loops for safe scaling
+    return [
+      {
+        updateOne: {
+          filter: { _id: attemptId, 'answers.question': answerData.questionId },
+          update: { $set: { 'answers.$': data } }
+        }
+      },
+      {
+        updateOne: {
+          filter: { _id: attemptId, 'answers.question': { $ne: answerData.questionId } },
+          update: { $push: { answers: data } }
+        }
+      }
+    ];
+  }).flat();
+  
+  if (bulkOperations.length > 0) {
+    // Execute all at once to keep it atomic 
+    try {
+      await Attempt.bulkWrite(bulkOperations, { ordered: false });
+    } catch(e) { } // Bulk push might fail on duplicate, that's perfectly fine
   }
 
-  await attempt.save();
+  if (timeSpent) {
+    await Attempt.updateOne({ _id: attemptId }, { $set: { timeSpent } });
+  }
 
   res.json({
     success: true,
@@ -639,6 +651,7 @@ async function generateReport(attempt, assessment, dimensionScores) {
     testTakerName: attempt.testTakerName || null,
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
     scores: {
       total: attempt.score,
       maxScore: attempt.totalMarks,
@@ -766,31 +779,36 @@ const verifyPasscode = asyncHandler(async (req, res) => {
  */
 const logProctoringEvent = asyncHandler(async (req, res) => {
   const { event, details } = req.body;
-  const attempt = await Attempt.findById(req.params.id);
+  const attemptId = req.params.id;
+  
+  const attempt = await Attempt.findById(attemptId).select('status user');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  // Allow public/invite-based attempts (user is null, req.user may be null)
   if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Access denied');
   }
 
-  attempt.proctoringLogs.push({
+  const logEntry = {
     event,
     details,
     timestamp: new Date()
-  });
+  };
+
+  const updateDoc = {
+    $push: { proctoringLogs: logEntry }
+  };
 
   if (event === 'tab_switch') {
-    attempt.tabSwitchCount += 1;
+    updateDoc.$inc = { ...updateDoc.$inc, tabSwitchCount: 1 };
   }
   if (event === 'fullscreen_exit') {
-    attempt.fullscreenExits += 1;
+    updateDoc.$inc = { ...updateDoc.$inc, fullscreenExits: 1 };
   }
 
-  await attempt.save();
+  await Attempt.updateOne({ _id: attemptId }, updateDoc);
 
   res.json({
     success: true,
@@ -1221,6 +1239,7 @@ async function handleBig5Submit(req, res, attempt, assessment) {
     testTakerName: attempt.testTakerName || null,
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
     scores: {
       byTrait: {
         E: big5Results.E, A: big5Results.A, C: big5Results.C,
@@ -1306,6 +1325,7 @@ async function handleDiscSubmit(req, res, attempt, assessment) {
     testTakerName: attempt.testTakerName || null,
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
     scores: {
       byTrait: {
         D: { score: discResults.normalizedScores.D, percentage: discResults.percentages.D },

@@ -17,7 +17,7 @@ const assessmentSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['psychometric', 'personality', 'cognitive', 'aptitude', 'situational', 'professional', 'big5', 'disc'],
+    enum: ['psychometric', 'personality', 'cognitive', 'aptitude', 'situational', 'professional', 'big5', 'disc', 'mbti', 'hogan', 'firo-b'],
     required: [true, 'Category is required']
   },
   isLockedStructure: {
@@ -30,7 +30,7 @@ const assessmentSchema = new mongoose.Schema({
   },
   subCategory: {
     type: String,
-    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Value Assessment', 'Reasoning', 'Situational Judgement'],
+    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Value Assessment', 'Reasoning', 'Situational Judgement', 'General Aptitude'],
     default: ''
   },
   organization: {

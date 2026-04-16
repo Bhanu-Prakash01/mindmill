@@ -34,7 +34,7 @@ export const reportService = {
   // Download report as PDF - returns blob for direct download
   downloadReport: async (id, type = 'comprehensive', filename = 'report.pdf') => {
     const response = await api.get(`/reports/${id}/download`, {
-      params: { type },
+      params: { type, _t: Date.now() },
       responseType: 'blob',
     });
   

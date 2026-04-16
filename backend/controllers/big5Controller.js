@@ -289,6 +289,7 @@ async function generateBig5Report(attempt, assessment, big5Results) {
     testTakerName: attempt.testTakerName || null,
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
     scores: {
       byTrait: {
         E: big5Results.E,

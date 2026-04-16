@@ -287,6 +287,7 @@ async function generateDiscReport(attempt, assessment, discResults) {
     testTakerName: attempt.testTakerName || null,
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
     scores: {
       byTrait: {
         D: { score: discResults.normalizedScores.D, percentage: discResults.percentages.D },

@@ -7,6 +7,8 @@ const {
   generateBig5Narratives,
   getDISCStaticData,
   getBig5StaticData,
+  generateFIRONarratives,
+  getFIROStaticData,
   DISC_TRAITS,
   BIG5_TRAITS,
 } = require('./llmReportService');
@@ -219,6 +221,39 @@ const generatePdfFromHtml = async (html) => {
   } finally {
     await browser.close();
   }
+};
+
+const REPORTS_DIR = path.join(__dirname, '../uploads/reports');
+
+const ensureReportsDir = () => {
+  if (!fs.existsSync(REPORTS_DIR)) {
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+  }
+};
+
+const savePdfToDisk = async (buffer, reportId, type) => {
+  ensureReportsDir();
+  const filename = `${reportId}_${type}_${Date.now()}.pdf`;
+  const filepath = path.join(REPORTS_DIR, filename);
+  fs.writeFileSync(filepath, buffer);
+  return filepath;
+};
+
+const getCachedPdf = (reportId, type) => {
+  ensureReportsDir();
+  const files = fs.readdirSync(REPORTS_DIR).filter(f => f.startsWith(`${reportId}_${type}_`));
+  if (files.length === 0) return null;
+  const latestFile = files.sort().pop();
+  const filepath = path.join(REPORTS_DIR, latestFile);
+  return fs.readFileSync(filepath);
+};
+
+const deleteCachedPdfs = (reportId) => {
+  ensureReportsDir();
+  const files = fs.readdirSync(REPORTS_DIR).filter(f => f.startsWith(`${reportId}_`));
+  files.forEach(f => {
+    fs.unlinkSync(path.join(REPORTS_DIR, f));
+  });
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -468,11 +503,79 @@ const generateBig5ReportPdf = async (report, testTaker, options = {}) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
+// FIRO-B REPORT
+// ─────────────────────────────────────────────────────────────────
+
+const generateFiroReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    // Report document stores FIRO scores under report.dimensions.FIRO — extract and normalize
+    const firoRaw = report.dimensions?.FIRO;
+    const firoData = firoRaw
+      ? { dimensions: firoRaw.dimensions, totals: firoRaw.totals }
+      : report; // fallback: caller already passed firoResults shape directly
+
+    const staticData = getFIROStaticData(firoData);
+
+    const templateData = {
+      candidateName:  esc(testTaker?.name || 'N/A'),
+      candidateEmail: esc(testTaker?.email || 'N/A'),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+
+      eI: staticData.scores.eI,
+      wI: staticData.scores.wI,
+      eC: staticData.scores.eC,
+      wC: staticData.scores.wC,
+      eA: staticData.scores.eA,
+      wA: staticData.scores.wA,
+
+      inclusionTotal: staticData.scores.inclusionTotal,
+      controlTotal: staticData.scores.controlTotal,
+      affectionTotal: staticData.scores.affectionTotal,
+
+      totalExpressed: staticData.scores.totalExpressed,
+      totalWanted: staticData.scores.totalWanted,
+      overallTotal: staticData.scores.overallTotal,
+
+      inclusionFulfillment: staticData.fulfillment.Inclusion,
+      controlFulfillment: staticData.fulfillment.Control,
+      affectionFulfillment: staticData.fulfillment.Affection,
+
+      inclusionBand: staticData.career.inclusionBand,
+      inclusionTips: staticData.career.inclusionTips,
+      controlBand: staticData.career.controlBand,
+      controlTips: staticData.career.controlTips,
+      affectionBand: staticData.career.affectionBand,
+      affectionTips: staticData.career.affectionTips,
+
+      highestExpressed: staticData.leadership.highestExpressed,
+      lowestExpressed: staticData.leadership.lowestExpressed
+    };
+
+    if (options.type === 'comprehensive' || !options.type) {
+      const narratives = await generateFIRONarratives(firoData, testTaker);
+      templateData.coverSummary = esc(narratives.coverSummary);
+      templateData.deepProfileHtml = narratives.deepProfileHtml;
+      templateData.leadershipHtml = narratives.leadershipHtml;
+      templateData.developmentHtml = narratives.developmentHtml;
+      templateData.closingInsight = esc(narratives.closingInsight);
+    }
+
+    const template = readTemplate('firo-comprehensive.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('FIRO-B PDF generation error:', err);
+    throw err;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
 // QUICK SUMMARY (kept lean, no LLM call needed for preview)
 // ─────────────────────────────────────────────────────────────────
 
 const generateQuickSummaryPdf = async (type, report, testTaker) => {
   const isDisc = type === 'disc';
+  const isFiro = type === 'firo' || type === 'firo-b';
   const name = testTaker?.name || 'Candidate';
   let title, subtitle, scoreLines = [];
 
@@ -488,6 +591,26 @@ const generateQuickSummaryPdf = async (type, report, testTaker) => {
           <div style="width:${v}%;height:100%;background:${DISC_TRAITS[k]?.color};border-radius:4px;"></div>
         </div>
         <span style="font-weight:700;color:${DISC_TRAITS[k]?.color};font-size:13px;">${v}%</span>
+      </div>`
+    );
+  } else if (isFiro) {
+    const sd = getFIROStaticData(report);
+    title = "FIRO-B Behavioral Profile";
+    subtitle = "Fundamental Interpersonal Relations Orientation";
+    const firoColors = { Inclusion: '#8B5CF6', Control: '#F59E0B', Affection: '#10B981' };
+    const max = 18;
+    scoreLines = [
+      { name: 'Inclusion', score: sd.scores.inclusionTotal, label: 'I' },
+      { name: 'Control', score: sd.scores.controlTotal, label: 'C' },
+      { name: 'Affection', score: sd.scores.affectionTotal, label: 'A' },
+    ].map(item => 
+      `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${firoColors[item.name]};
+            display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px;">${item.label}</div>
+        <div style="flex:1;height:8px;background:#E2E8F0;border-radius:4px;overflow:hidden;">
+          <div style="width:${(item.score/max)*100}%;height:100%;background:${firoColors[item.name]};border-radius:4px;"></div>
+        </div>
+        <span style="font-weight:700;color:${firoColors[item.name]};font-size:13px;">${item.score}/18</span>
       </div>`
     );
   } else {
@@ -523,7 +646,7 @@ body{font-family:'DM Sans',sans-serif;background:#0F172A;min-height:100vh;displa
 .footer{font-size:9px;color:#94A3B8;margin-top:24px;}
 </style></head><body>
 <div class="card">
-  <div class="brand">MindMill · ${isDisc ? 'DISC' : 'Big Five'} Assessment</div>
+  <div class="brand">MindMill · ${isDisc ? 'DISC' : (isFiro ? 'FIRO-B' : 'Big Five')} Assessment</div>
   <div class="big-name">${esc(name)}</div>
   <div class="sub">${esc(title)} — ${esc(subtitle)}</div>
   <div class="scores">
@@ -537,8 +660,45 @@ body{font-family:'DM Sans',sans-serif;background:#0F172A;min-height:100vh;displa
   return await generatePdfFromHtml(html);
 };
 
+const generateGenericReportPdf = async (report) => {
+  const name = report.testTakerName || (report.user ? `${report.user.firstName || ''} ${report.user.lastName || ''}`.trim() : null) || 'Candidate';
+  const score = report.scores?.percentage || 0;
+  
+  const html = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:#0F172A;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.card{background:#fff;border-radius:20px;padding:48px;max-width:480px;width:100%;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,0.3);}
+.brand{font-size:13px;font-weight:700;color:#6366F1;letter-spacing:1px;margin-bottom:24px;}
+.big-name{font-family:'DM Serif Display',serif;font-size:36px;line-height:1.1;color:#0F172A;margin-bottom:6px;}
+.sub{font-size:12px;color:#64748B;margin-bottom:32px;}
+.scores{margin-bottom:32px;text-align:left;}
+.footer{font-size:9px;color:#94A3B8;margin-top:24px;}
+</style></head><body>
+<div class="card">
+  <div class="brand">MindMill · Standard Assessment</div>
+  <div class="big-name">${esc(name)}</div>
+  <div class="sub">Assessment Report</div>
+  <div class="scores" style="text-align:center;">
+    <div style="font-size:48px;font-weight:700;color:#6366F1;margin-bottom:8px;">${Math.round(score)}%</div>
+    <div style="font-size:12px;color:#94A3B8;text-transform:uppercase;letter-spacing:2px;">Overall Score</div>
+  </div>
+  <div class="footer">Generated by MindMill · ${new Date().toLocaleDateString()}</div>
+</div>
+</body></html>`;
+
+  return await generatePdfFromHtml(html);
+};
+
 module.exports = {
   generateDiscReportPdf,
   generateBig5ReportPdf,
+  generateFiroReportPdf,
   generateQuickSummaryPdf,
+  generateGenericReportPdf,
+  savePdfToDisk,
+  getCachedPdf,
+  deleteCachedPdfs,
 };

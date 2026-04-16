@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIRO-B Interpretive Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --brand-dark:   #232b38;
+      --brand-gray:   #4a5568;
+      --brand-light:  #a0aec0;
+      --surface:      #f7fafc;
+      --border:       #e2e8f0;
+      
+      --brand-blue:   #3182ce;
+      --brand-gold:   #d69e2e;
+      --brand-red:    #e53e3e;
+      
+      --font-serif:   'Crimson Pro', serif;
+      --font-sans:    'Inter', sans-serif;
+    }
+
+    html { font-size: 10.5px; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--brand-dark);
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ─────────────────────────────────── */
+    .page {
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+      page-break-after: always;
+      break-after: page;
+      display: flex;
+      flex-direction: column;
+    }
+    .page:last-child { page-break-after: avoid; break-after: avoid; }
+    @page { size: A4; margin: 0; }
+    @media print {
+      .page { page-break-after: always; }
+      .page:last-child { page-break-after: avoid; }
+    }
+
+    /* ── CHROME ─────────────────────────────────────── */
+    .header {
+      padding: 18px 30px;
+      border-bottom: 2px solid var(--brand-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header .logo {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--brand-dark);
+      letter-spacing: -0.5px;
+    }
+    .header .title {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--brand-gray);
+    }
+    .footer {
+      padding: 14px 30px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+    }
+    .footer p { font-size: 8px; color: var(--brand-light); }
+    .content { padding: 30px 40px; flex: 1; overflow: hidden; }
+
+    /* ── TYPOGRAPHY ─────────────────────────────────── */
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      color: var(--brand-dark);
+    }
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--brand-dark);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    h3 {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--brand-dark);
+    }
+    p {
+      font-size: 11px;
+      color: var(--brand-gray);
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+    .lead { font-size: 13px; color: var(--brand-dark); font-weight: 500; }
+    
+    .intro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .intro-box {
+      background: var(--surface);
+      border-top: 3px solid var(--brand-blue);
+      padding: 16px;
+    }
+    .intro-box h4 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      color: var(--brand-dark);
+    }
+    .intro-box p { font-size: 9.5px; margin-bottom: 0; }
+    .intro-box ul { padding-left: 14px; margin-top: 8px; }
+    .intro-box li { font-size: 9px; color: var(--brand-gray); margin-bottom: 4px; }
+
+    /* ── MATRIX TABLE ───────────────────────────────── */
+    .firo-matrix {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 30px 0;
+    }
+    .firo-matrix th {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--brand-light);
+      padding: 14px;
+      text-align: center;
+      border-bottom: 2px solid var(--brand-dark);
+    }
+    .firo-matrix td {
+      border: 1px solid var(--border);
+      text-align: center;
+      padding: 20px;
+    }
+    .firo-matrix td.label {
+      text-align: left;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--brand-dark);
+      background: var(--surface);
+      width: 25%;
+    }
+    .firo-score-box {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--brand-blue);
+      line-height: 1;
+    }
+    .firo-cell-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--brand-light);
+      margin-top: 6px;
+    }
+
+    .matrix-total-row td {
+      background: var(--brand-dark);
+      color: #fff;
+      border-color: var(--brand-dark);
+    }
+    .matrix-total-row .firo-score-box {
+      color: #fff;
+    }
+    .matrix-total-row td.label {
+      background: var(--brand-dark);
+      color: #fff;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+    
+    /* ── BAR CHARTS ─────────────────────────────────── */
+    .score-bar-container { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+    .score-bar-label { width: 120px; font-size: 10px; font-weight: 600; color: var(--brand-dark); }
+    .score-bar-track { flex: 1; background: var(--surface); height: 8px; border-radius: 4px; overflow: hidden; position: relative; }
+    .score-bar-fill { height: 100%; background: var(--brand-blue); position: absolute; left: 0; top: 0; }
+    .score-bar-value { width: 40px; text-align: right; font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--brand-dark); }
+    .score-bar-scale {
+      display: flex; justify-content: space-between; padding-left: 134px; padding-right: 40px;
+      margin-top: -6px; margin-bottom: 16px;
+    }
+    .score-bar-scale span { font-size: 7px; color: var(--brand-light); font-weight: 600; }
+
+    /* ── SUMMARY BOX ───────────────────────────────── */
+    .summary-box {
+      background: #edf2f7;
+      border-left: 4px solid var(--brand-blue);
+      padding: 18px 24px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+    .summary-box p {
+      font-family: var(--font-serif);
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--brand-dark);
+      font-style: italic;
+      margin-bottom: 0;
+    }
+    
+    .list-section { margin-bottom: 20px; }
+    .list-section ul { padding-left: 18px; margin-bottom: 14px; }
+    .list-section li { font-size: 11px; color: var(--brand-gray); margin-bottom: 6px; line-height: 1.6; }
+    .list-section li::marker { color: var(--brand-blue); }
+
+    /* ── COVER STYLES ───────────────────────────────── */
+    .cover { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 60px; background: #fff;}
+    .c-logo { font-family: var(--font-serif); font-size: 32px; font-weight: 700; color: var(--brand-dark); margin-bottom: 60px; }
+    .c-title { font-family: var(--font-serif); font-size: 54px; font-weight: 700; color: var(--brand-dark); line-height: 1.1; margin-bottom: 20px; }
+    .c-subtitle { font-size: 16px; color: var(--brand-gray); margin-bottom: 80px; font-weight: 300;}
+    .c-meta { border-top: 2px solid var(--brand-dark); padding-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .c-meta-lbl { font-size: 9px; text-transform: uppercase; font-weight: 700; color: var(--brand-light); letter-spacing: 1px; margin-bottom: 4px;}
+    .c-meta-val { font-size: 14px; font-weight: 600; color: var(--brand-dark); }
+    
+    .html-content-block h3 { margin-top: 20px; font-size: 14px; }
+    .html-content-block p { font-size: 10.5px; margin-bottom: 12px; }
+
+  </style>
+</head>
+<body>
+
+<!-- ▌COVER PAGE ▐ -->
+<div class="page">
+  <div class="cover">
+    <div class="c-logo">MindMill FIRO-B®</div>
+    <div class="c-title">Interpretive Report for Organizations</div>
+    <div class="c-subtitle">Fundamental Interpersonal Relations Orientation–Behavior</div>
+    
+    <div class="c-meta" style="margin-top: auto;">
+      <div>
+        <div class="c-meta-lbl">Report Prepared For</div>
+        <div class="c-meta-val">{{candidateName}}</div>
+        <div class="c-meta-val" style="font-size: 11px; font-weight: 400; color: var(--brand-gray);">{{candidateEmail}}</div>
+      </div>
+      <div>
+        <div class="c-meta-lbl">Date of Assessment</div>
+        <div class="c-meta-val">{{assessmentDate}}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▌INTRODUCTION PAGE ▐ -->
+<div class="page">
+  <div class="header">
+    <div class="logo">MindMill FIRO-B®</div>
+    <div class="title">Interpretive Report | {{candidateName}}</div>
+  </div>
+  <div class="content">
+    <h2>Introduction</h2>
+    <p class="lead">The purpose of this report is to show how your results from the FIRO-B assessment can help you understand your behavior and the behavior of others in your organization.</p>
+    <p>Information from the FIRO-B tool can help you maximize the impact of your actions, identify options for increasing your job satisfaction and productivity, and explore alternative ways to achieve your goals. This report provides an explanation of your results and considers how your results can help you plan your career development, increase your job satisfaction, improve your effectiveness on teams, and identify the strengths and weaknesses of your leadership style.</p>
+    
+    <div class="intro-grid">
+      <div class="intro-box">
+        <h4>Inclusion [ I ]</h4>
+        <p>The need for Inclusion relates to forming new relations and associating with others; it determines the extent of contact and prominence that a person seeks. Descriptors include:</p>
+        <ul>
+          <li>Belonging</li>
+          <li>Involvement</li>
+          <li>Recognition</li>
+          <li>Distinction</li>
+        </ul>
+      </div>
+      <div class="intro-box" style="border-top-color: var(--brand-gold);">
+        <h4>Control [ C ]</h4>
+        <p>The need for Control relates to decision making, influence, and persuasion between people; it determines the extent of power or dominance that a person seeks. Descriptors include:</p>
+        <ul>
+          <li>Power</li>
+          <li>Authority</li>
+          <li>Influence</li>
+          <li>Consistency</li>
+        </ul>
+      </div>
+      <div class="intro-box" style="border-top-color: var(--brand-red);">
+        <h4>Affection [ A ]</h4>
+        <p>The need for Affection relates to emotional ties and warm connections between people; it determines the extent of closeness that a person seeks. Descriptors include:</p>
+        <ul>
+          <li>Personal ties</li>
+          <li>Consensus</li>
+          <li>Support</li>
+          <li>Openness</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <p>For each of the three interpersonal needs, the FIRO-B instrument provides a measure of how much each need is <strong>expressed</strong> or <strong>wanted</strong> by you.</p>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
+        <div style="background: var(--surface); padding: 14px; border-left: 2px solid var(--brand-dark);">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Expressed [e]</div>
+          <div style="font-size: 10px; color: var(--brand-gray); margin-top: 4px;">The extent to which you will initiate the behavior.</div>
+        </div>
+        <div style="background: var(--surface); padding: 14px; border-left: 2px solid var(--brand-dark);">
+          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Wanted [w]</div>
+          <div style="font-size: 10px; color: var(--brand-gray); margin-top: 4px;">The extent to which you want or will accept that behavior from others.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><p>Confidential — For Internal Organizational Use Only</p><p>Page 2</p></div>
+</div>
+
+<!-- ▌RESULTS MATRIX PAGE ▐ -->
+<div class="page">
+  <div class="header">
+    <div class="logo">MindMill FIRO-B®</div>
+    <div class="title">Interpretive Report | {{candidateName}}</div>
+  </div>
+  <div class="content">
+    <h2>Your FIRO-B Results</h2>
+    
+    <table class="firo-matrix">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Inclusion</th>
+          <th>Control</th>
+          <th>Affection</th>
+          <th style="background: var(--surface);">Total Expressed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label">Expressed</td>
+          <td>
+            <div class="firo-score-box">{{eI}}</div>
+            <div class="firo-cell-label">[eI]</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{eC}}</div>
+            <div class="firo-cell-label">[eC]</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{eA}}</div>
+            <div class="firo-cell-label">[eA]</div>
+          </td>
+          <td style="background: var(--surface);">
+            <div class="firo-score-box">{{totalExpressed}}</div>
+            <div class="firo-cell-label">Behavior</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="label">Wanted</td>
+          <td>
+            <div class="firo-score-box">{{wI}}</div>
+            <div class="firo-cell-label">[wI]</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{wC}}</div>
+            <div class="firo-cell-label">[wC]</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{wA}}</div>
+            <div class="firo-cell-label">[wA]</div>
+          </td>
+          <td style="background: var(--surface);">
+            <div class="firo-score-box">{{totalWanted}}</div>
+            <div class="firo-cell-label">Behavior</div>
+          </td>
+        </tr>
+        <tr class="matrix-total-row">
+          <td class="label">Total Need</td>
+          <td>
+            <div class="firo-score-box">{{inclusionTotal}}</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{controlTotal}}</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{affectionTotal}}</div>
+          </td>
+          <td>
+            <div class="firo-score-box">{{overallTotal}}</div>
+            <div class="firo-cell-label" style="color: #fff;">Overall Need</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    {{#if coverSummary}}
+    <div class="summary-box">
+      <p>{{{coverSummary}}}</p>
+    </div>
+    {{/if}}
+
+    <div style="margin-top: 30px;">
+      <h3>Psychologist's Deep Profile Narrative</h3>
+      <div class="html-content-block narrative">
+        {{{deepProfileHtml}}}
+      </div>
+    </div>
+  </div>
+  <div class="footer"><p>Confidential — For Internal Organizational Use Only</p><p>Page 3</p></div>
+</div>
+
+<!-- ▌INTERPERSONAL NEEDS ▐ -->
+<div class="page">
+  <div class="header">
+    <div class="logo">MindMill FIRO-B®</div>
+    <div class="title">Interpretive Report | {{candidateName}}</div>
+  </div>
+  <div class="content">
+    <h2>Your Overall Interpersonal Needs</h2>
+    <p>The indicator of your Overall Interpersonal Needs is the total of all six individual needs (eI + wI + eC + wC + eA + wA). This result represents the overall strength of your interpersonal needs; it shows how much you believe that other people and human interaction can help you attain your goals and achieve personal satisfaction.</p>
+    
+    <div class="score-bar-container" style="margin-top: 20px;">
+      <div class="score-bar-label">Overall Needs</div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" style="width: calc(({{overallTotal}} / 54) * 100%);"></div>
+      </div>
+      <div class="score-bar-value">{{overallTotal}}</div>
+    </div>
+    <div class="score-bar-scale">
+      <span>LOW (0-15)</span>
+      <span>MEDIUM (16-39)</span>
+      <span>HIGH (40-54)</span>
+    </div>
+
+    <h3 style="margin-top: 40px;">Total Expressed and Total Wanted Behaviors</h3>
+    <p>Your result for Total Expressed Behavior indicates how often you take the initiative in approaching others. Your Total Wanted Behavior indicates how much you rely on others to get what you need.</p>
+
+    <div class="score-bar-container" style="margin-top: 20px;">
+      <div class="score-bar-label">Total Expressed</div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" style="width: calc(({{totalExpressed}} / 27) * 100%); background: var(--brand-gold);"></div>
+      </div>
+      <div class="score-bar-value">{{totalExpressed}}</div>
+    </div>
+    <div class="score-bar-scale">
+      <span>LOW (0-7)</span>
+      <span>MEDIUM (8-19)</span>
+      <span>HIGH (20-27)</span>
+    </div>
+
+    <div class="score-bar-container">
+      <div class="score-bar-label">Total Wanted</div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" style="width: calc(({{totalWanted}} / 27) * 100%); background: var(--brand-red);"></div>
+      </div>
+      <div class="score-bar-value">{{totalWanted}}</div>
+    </div>
+    <div class="score-bar-scale">
+      <span>LOW (0-7)</span>
+      <span>MEDIUM (8-19)</span>
+      <span>HIGH (20-27)</span>
+    </div>
+
+    <h3 style="margin-top: 40px;">Patterns of Need Fulfillment</h3>
+    <div class="list-section">
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Inclusion Needs:</h4>
+      <ul>
+        {{#each inclusionFulfillment}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Control Needs:</h4>
+      <ul>
+        {{#each controlFulfillment}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Affection Needs:</h4>
+      <ul>
+        {{#each affectionFulfillment}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><p>Confidential — For Internal Organizational Use Only</p><p>Page 4</p></div>
+</div>
+
+<!-- ▌LEADERSHIP & TEAM EFFECTIVENESS ▐ -->
+<div class="page">
+  <div class="header">
+    <div class="logo">MindMill FIRO-B®</div>
+    <div class="title">Interpretive Report | {{candidateName}}</div>
+  </div>
+  <div class="content">
+    <h2>Leadership Style & Team Effectiveness</h2>
+    
+    <div class="html-content-block narrative">
+      {{{leadershipHtml}}}
+    </div>
+
+    <h3 style="margin-top: 30px;">Team Environmental Demands</h3>
+    <p>Based on your profile, experience suggests you will favor specific environments regarding the extent of integration and authority.</p>
+
+    <div class="list-section">
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Inclusion Environment:</h4>
+      <ul>
+        {{#each inclusionTips}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Control Environment:</h4>
+      <ul>
+        {{#each controlTips}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Affection Environment:</h4>
+      <ul>
+        {{#each affectionTips}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+
+    <h3 style="margin-top: 30px;">Development & Roadmap</h3>
+    <div class="html-content-block narrative">
+      {{{developmentHtml}}}
+    </div>
+
+    <div class="summary-box" style="margin-top: 30px; border-left-color: var(--brand-gold);">
+      <p style="font-size: 14px; font-weight: 600;">Manager's Insight: {{{closingInsight}}}</p>
+    </div>
+
+  </div>
+  <div class="footer"><p>Confidential — For Internal Organizational Use Only</p><p>Page 5</p></div>
+</div>
+
+</body>
+</html>

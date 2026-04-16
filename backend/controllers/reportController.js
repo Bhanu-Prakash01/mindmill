@@ -1,6 +1,6 @@
 const { Report, Attempt, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
-const { generateDiscReportPdf, generateBig5ReportPdf, generateGenericReportPdf, generateQuickSummaryPdf } = require('../services/pdfService');
+const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
 const crypto = require('crypto');
 
 /**
@@ -266,6 +266,87 @@ const addAdminNotes = asyncHandler(async (req, res) => {
  * @route   GET /api/reports/:id/download
  * @access  Private
  */
+const generateReportPdf = async (report, testTaker, type) => {
+  const category = report.assessment?.category || report.type;
+  let pdfBuffer;
+  let filename;
+
+  if (type === 'summary') {
+    let summaryData;
+    if (category === 'disc') {
+      const disc = report.dimensions?.DISC || {};
+      const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
+      const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
+      summaryData = {
+        percentages: { D: disc.D?.percentage||0, I: disc.I?.percentage||0, S: disc.S?.percentage||0, C: disc.C?.percentage||0 },
+        dominant, secondary, pattern: report.dimensions?.pattern || `${dominant}${secondary}`
+      };
+    } else {
+      const bigFive = report.dimensions?.BigFive || {};
+      const byTrait = report.scores?.byTrait || {};
+      summaryData = {
+        scores: {
+          Openness: bigFive.openness || byTrait.O?.score || 0,
+          Conscientiousness: bigFive.conscientiousness || byTrait.C?.score || 0,
+          Extraversion: bigFive.extraversion || byTrait.E?.score || 0,
+          Agreeableness: bigFive.agreeableness || byTrait.A?.score || 0,
+          Neuroticism: bigFive.neuroticism || byTrait.N?.score || 0,
+        }
+      };
+    }
+    pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
+    filename = `Summary_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+  } else if (category === 'disc') {
+    const disc = report.dimensions?.DISC || {};
+    const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
+    const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
+    const pattern = report.dimensions?.pattern || `${dominant}${secondary}`;
+    const discData = {
+      percentages: {
+        D: disc.D?.percentage || 0,
+        I: disc.I?.percentage || 0,
+        S: disc.S?.percentage || 0,
+        C: disc.C?.percentage || 0,
+      },
+      dominant,
+      secondary,
+      pattern,
+      analysis: report.analysis || {},
+      dimensions: disc,
+    };
+    pdfBuffer = await generateDiscReportPdf(discData, testTaker);
+    filename = `DISC_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+  } else if (category === 'big5') {
+    const bigFive = report.dimensions?.BigFive || {};
+    const byTrait = report.scores?.byTrait || {};
+    const big5Data = {
+      scores: {
+        Openness:          bigFive.openness        || byTrait.O?.score || 0,
+        Conscientiousness: bigFive.conscientiousness|| byTrait.C?.score || 0,
+        Extraversion:      bigFive.extraversion     || byTrait.E?.score || 0,
+        Agreeableness:     bigFive.agreeableness    || byTrait.A?.score || 0,
+        Neuroticism:       bigFive.neuroticism      || byTrait.N?.score || 0,
+      },
+      traits: bigFive,
+      analysis: report.analysis || {}
+    };
+    pdfBuffer = await generateBig5ReportPdf(big5Data, testTaker);
+    filename = `Big5_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+  } else if (
+    category === 'firo' || category === 'firo-b' ||
+    report.type === 'firo' || report.type === 'firo-b' ||
+    report.dimensions?.FIRO?.dimensions || report.dimensions?.FIRO?.totals
+  ) {
+    pdfBuffer = await generateFiroReportPdf(report, testTaker, { type });
+    filename = `FIRO_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+  } else {
+    pdfBuffer = await generateGenericReportPdf(report);
+    filename = `Assessment_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+  }
+
+  return { pdfBuffer, filename };
+};
+
 const downloadReport = asyncHandler(async (req, res) => {
   const { type = 'comprehensive' } = req.query;
   const report = await Report.findById(req.params.id)
@@ -277,7 +358,6 @@ const downloadReport = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Report not found');
   }
 
-  // Check permissions
   if (req.user.role === 'user') {
     if (report.user._id.toString() !== req.user._id.toString()) {
       throw new ApiError(403, 'Access denied');
@@ -288,96 +368,44 @@ const downloadReport = asyncHandler(async (req, res) => {
   }
 
   try {
-    let pdfBuffer;
-    let filename;
+    const cached = getCachedPdf(report._id.toString(), type);
+    let pdfBuffer, filename;
 
-    // Prepare test taker data
-    const testTaker = report.attempt ? {
-      name: report.attempt.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim(),
-      email: report.attempt.testTakerEmail || report.user?.email,
-      phone: report.attempt.testTakerPhone
-    } : {
-      name: `${report.user?.firstName} ${report.user?.lastName}`.trim(),
-      email: report.user?.email
-    };
-
-    // Generate PDF based on requested report type & assessment category
-    const category = report.assessment?.category || report.type;
-    if (type === 'summary') {
-      // Build properly shaped data for the summary generator
-      let summaryData;
-      if (category === 'disc') {
-        const disc = report.dimensions?.DISC || {};
-        const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
-        const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
-        summaryData = {
-          percentages: { D: disc.D?.percentage||0, I: disc.I?.percentage||0, S: disc.S?.percentage||0, C: disc.C?.percentage||0 },
-          dominant, secondary, pattern: report.dimensions?.pattern || `${dominant}${secondary}`
-        };
-      } else {
-        const bigFive = report.dimensions?.BigFive || {};
-        const byTrait = report.scores?.byTrait || {};
-        summaryData = {
-          scores: {
-            Openness: bigFive.openness || byTrait.O?.score || 0,
-            Conscientiousness: bigFive.conscientiousness || byTrait.C?.score || 0,
-            Extraversion: bigFive.extraversion || byTrait.E?.score || 0,
-            Agreeableness: bigFive.agreeableness || byTrait.A?.score || 0,
-            Neuroticism: bigFive.neuroticism || byTrait.N?.score || 0,
-          }
-        };
-      }
-      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
-      filename = `Summary_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
-    } else if (category === 'disc') {
-      // DISC Report — extract from the actual stored schema
-      const disc = report.dimensions?.DISC || {};
-      const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
-      const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
-      const pattern = report.dimensions?.pattern || `${dominant}${secondary}`;
-      const discData = {
-        percentages: {
-          D: disc.D?.percentage || 0,
-          I: disc.I?.percentage || 0,
-          S: disc.S?.percentage || 0,
-          C: disc.C?.percentage || 0,
-        },
-        dominant,
-        secondary,
-        pattern,
-        analysis: report.analysis || {},
-        dimensions: disc,
-      };
-      pdfBuffer = await generateDiscReportPdf(discData, testTaker);
-      filename = `DISC_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
-    } else if (category === 'big5') {
-      // Big5 Report — extract from the actual stored schema
-      const bigFive = report.dimensions?.BigFive || {};
-      const byTrait = report.scores?.byTrait || {};
-      // Build normalized scores from stored data (handle both lowercase keys & byTrait E/A/C/N/O)
-      const big5Data = {
-        scores: {
-          Openness:          bigFive.openness        || byTrait.O?.score || 0,
-          Conscientiousness: bigFive.conscientiousness|| byTrait.C?.score || 0,
-          Extraversion:      bigFive.extraversion     || byTrait.E?.score || 0,
-          Agreeableness:     bigFive.agreeableness    || byTrait.A?.score || 0,
-          Neuroticism:       bigFive.neuroticism      || byTrait.N?.score || 0,
-        },
-        traits: bigFive,
-        analysis: report.analysis || {}
-      };
-      pdfBuffer = await generateBig5ReportPdf(big5Data, testTaker);
-      filename = `Big5_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    if (cached) {
+      pdfBuffer = cached;
+      const ext = type === 'summary' ? 'Summary' : 'Report';
+      const category = report.assessment?.category || report.type;
+      const name = report.attempt?.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim() || 'Report';
+      filename = `${category}_${ext}_${name}_${new Date().toISOString().split('T')[0]}.pdf`;
     } else {
-      // Generic / standard report
-      pdfBuffer = await generateGenericReportPdf(report);
-      filename = `Assessment_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      const testTaker = report.attempt ? {
+        name: report.attempt.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+        email: report.attempt.testTakerEmail || report.user?.email,
+        phone: report.attempt.testTakerPhone
+      } : {
+        name: `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+        email: report.user?.email
+      };
+
+      const result = await generateReportPdf(report, testTaker, type);
+      pdfBuffer = result.pdfBuffer;
+      filename = result.filename;
+
+      await savePdfToDisk(pdfBuffer, report._id.toString(), type);
+      
+      const pdfField = type === 'summary' ? 'pdfFiles.summary' : 'pdfFiles.comprehensive';
+      await Report.findByIdAndUpdate(report._id, {
+        [`${pdfField}.path`]: filename,
+        [`${pdfField}.generatedAt`]: new Date()
+      });
     }
 
-    // Send PDF response
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(pdfBuffer);
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -495,6 +523,41 @@ const previewBig5Report = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Preview FIRO-B report HTML template
+ * @route   GET /api/reports/preview/firo
+ * @access  Private (Admin only)
+ */
+const previewFiroReport = asyncHandler(async (req, res) => {
+  const { generateFiroReportPdf } = require('../services/pdfService');
+
+  // Dummy mock data mimicking the firo scoring service output inside a report
+  const sampleReportData = {
+    dimensions: {
+      Expressed: { Inclusion: 7, Control: 1, Affection: 7 },
+      Wanted: { Inclusion: 7, Control: 9, Affection: 7 }
+    },
+    totals: { totalExpressed: 15, totalWanted: 23, overallTotal: 38 }
+  };
+
+  const testTaker = {
+    name: 'Jane Sample',
+    email: 'jane.sample@example.com'
+  };
+
+  try {
+    const pdfBuffer = await generateFiroReportPdf(sampleReportData, testTaker);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="FIRO_Preview.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Preview PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate preview PDF');
+  }
+});
+
 module.exports = {
   getReports,
   getReport,
@@ -504,5 +567,6 @@ module.exports = {
   addAdminNotes,
   downloadReport,
   previewDiscReport,
-  previewBig5Report
+  previewBig5Report,
+  previewFiroReport
 };

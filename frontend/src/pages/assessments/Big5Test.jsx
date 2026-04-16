@@ -31,11 +31,13 @@ const Big5Test = () => {
  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
  const [timeRemaining, setTimeRemaining] = useState(0);
  const [currentAttemptId, setCurrentAttemptId] = useState(attemptId);
-const [error, setError] = useState(null);
+  const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
   const [devMode, setDevMode] = useState(false);
- const currentAttemptIdRef = useRef(currentAttemptId);
+  const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const currentAttemptIdRef = useRef(currentAttemptId);
  const tabSwitchCountRef = useRef(0);
  const fullscreenExitsRef = useRef(0);
 
@@ -124,7 +126,8 @@ const [error, setError] = useState(null);
   try {
   // Get assessment details
   const assessmentRes = await assessmentService.getAssessment(id);
-  setAssessment(assessmentRes.data?.assessment);
+  const assessmentData = assessmentRes.data?.assessment;
+  setAssessment(assessmentData);
 
   // Get questions
   const questionsRes = await assessmentService.getQuestions(id);
@@ -137,9 +140,16 @@ const [error, setError] = useState(null);
 
   // Initialize timer
   if (attemptRes.data?.attempt?.expiresAt) {
-  const expiresAt = new Date(attemptRes.data.attempt.expiresAt).getTime();
-  const now = Date.now();
-  setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+    const expiresAt = new Date(attemptRes.data.attempt.expiresAt).getTime();
+    const now = Date.now();
+    const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+    setTimeRemaining(remaining);
+    setStartTime(now);
+    if (assessmentData?.timeBound?.enabled && assessmentData.timeBound.durationMinutes) {
+      setTotalTimeSeconds(assessmentData.timeBound.durationMinutes * 60);
+    } else {
+      setTotalTimeSeconds(remaining);
+    }
   }
 
    // Request fullscreen
@@ -164,9 +174,16 @@ const [error, setError] = useState(null);
   setQuestions(sortedQuestions);
 
   if (attemptData?.expiresAt) {
-  const expiresAt = new Date(attemptData.expiresAt).getTime();
-  const now = Date.now();
-  setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
+    const expiresAt = new Date(attemptData.expiresAt).getTime();
+    const now = Date.now();
+    const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+    setTimeRemaining(remaining);
+    setStartTime(now);
+    if (attemptData?.assessment?.timeBound?.enabled && attemptData.assessment.timeBound.durationMinutes) {
+      setTotalTimeSeconds(attemptData.assessment.timeBound.durationMinutes * 60);
+    } else {
+      setTotalTimeSeconds(remaining);
+    }
   }
 
   requestFullscreen();
@@ -240,13 +257,29 @@ const [error, setError] = useState(null);
   const data = await res.json();
 
    if (data.success) {
-   if (isPublicAccess) {
-   document.exitFullscreen?.();
-   const params = new URLSearchParams({
-     assessment: assessment?.title || 'Big Five Personality',
-     type: 'big5'
-   });
-   navigate(`/thank-you?${params.toString()}`);
+    if (isPublicAccess) {
+    document.exitFullscreen?.();
+    const answeredCount = Object.keys(responses).length;
+    const totalQuestions = 50;
+    const percentAttempted = Math.round((answeredCount / totalQuestions) * 100);
+    
+    let timeTaken = null;
+    let totalTime = null;
+    if (totalTimeSeconds > 0 && startTime) {
+      totalTime = totalTimeSeconds;
+      timeTaken = Math.floor((Date.now() - startTime) / 1000);
+    }
+    
+    const params = new URLSearchParams({
+      assessment: assessment?.title || 'Big Five Personality',
+      type: 'big5',
+      attempted: percentAttempted.toString(),
+      answered: answeredCount.toString(),
+      total: totalQuestions.toString(),
+      timeTaken: timeTaken !== null ? timeTaken.toString() : '',
+      totalTime: totalTime !== null ? totalTime.toString() : ''
+    });
+    navigate(`/thank-you?${params.toString()}`);
    } else {
    const prefix = orgSlug ? `/o/${orgSlug}` : '';
    navigate(`${prefix}/reports/big5/${data.data.attempt._id}`);

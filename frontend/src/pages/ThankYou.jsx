@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Building2, ArrowRight, Sparkles, PartyPopper } from 'lucide-react';
+import { CheckCircle, Building2, ArrowRight, Sparkles, PartyPopper, Clock, Target } from 'lucide-react';
 
 const ThankYou = () => {
   const navigate = useNavigate();
@@ -9,6 +9,12 @@ const ThankYou = () => {
   const orgSlug = searchParams.get('slug') || '';
   const assessmentName = searchParams.get('assessment') || '';
   const assessmentType = searchParams.get('type') || '';
+  
+  const attemptedPercent = searchParams.get('attempted') || '';
+  const answeredCount = searchParams.get('answered') || '';
+  const totalQuestions = searchParams.get('total') || '';
+  const timeTaken = searchParams.get('timeTaken') || '';
+  const totalTime = searchParams.get('totalTime') || '';
 
   const [show, setShow] = useState(false);
   const [confetti, setConfetti] = useState([]);
@@ -40,6 +46,15 @@ const ThankYou = () => {
     };
     return labels[type] || 'Assessment';
   };
+
+  const formatTime = (seconds) => {
+    if (!seconds || seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const showStats = attemptedPercent && totalQuestions && answeredCount;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
@@ -110,6 +125,37 @@ const ThankYou = () => {
             <span className="text-sm font-medium text-indigo-700">
               {assessmentName || getTypeLabel(assessmentType)}
             </span>
+          </div>
+        )}
+
+        {showStats && (
+          <div className="bg-gray-50 rounded-2xl p-5 mb-8">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Target className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Questions Attempted</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {answeredCount}/{totalQuestions} ({attemptedPercent}%)
+                  </p>
+                </div>
+              </div>
+              {timeTaken && totalTime && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Time Used</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatTime(timeTaken)} / {formatTime(totalTime)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

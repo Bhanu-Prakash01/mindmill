@@ -632,11 +632,249 @@ const getBig5StaticData = (reportData) => {
   };
 };
 
+// ─────────────────────────────────────────────────────────────────
+// FIRO-B NARRATIVE GENERATORS
+// ─────────────────────────────────────────────────────────────────
+
+const FIRO_SYSTEM = `You are a senior industrial-organizational psychologist analyzing a FIRO-B (Fundamental Interpersonal Relations Orientation) profile.
+Write in clear, authoritative prose — no bullet points, no JSON, no markdown headers.
+Address the hiring manager or HR professional reading this confidential report.
+Be specific, insightful, and grounded in psychometric research regarding the interplay of Expressed and Wanted behaviors for Inclusion, Control, and Affection.`;
+
+const generateFiroCoverSummary = async (eI, wI, eC, wC, eA, wA, name) => {
+  return callLLM(
+    FIRO_SYSTEM,
+    `Write a 2-sentence executive headline for ${name}'s FIRO-B interpersonal profile.
+Scores (0-9 scale): Expressed Inclusion=${eI}, Wanted Inclusion=${wI}, Expressed Control=${eC}, Wanted Control=${wC}, Expressed Affection=${eA}, Wanted Affection=${wA}.
+The summary should capture their core social dynamic and leadership energy in 2 memorable sentences.
+Return ONLY the 2 sentences, no labels.`,
+    180
+  );
+};
+
+const generateFiroDeepProfile = async (eI, wI, eC, wC, eA, wA, name) => {
+  return callLLM(
+    FIRO_SYSTEM,
+    `Write a 3-paragraph FIRO-B personality deep-dive for ${name}.
+Scores (0-9):
+Inclusion (Involvement/Belonging): Expressed=${eI}, Wanted=${wI}
+Control (Influence/Structure): Expressed=${eC}, Wanted=${wC}
+Affection (Warmth/Closeness): Expressed=${eA}, Wanted=${wA}
+Para 1: Inclusion Dynamics. How their expressed and wanted inclusion scores shape how they join groups, integrate, and network.
+Para 2: Control Dynamics. How their control scores dictate their response to structure, authority, and taking charge versus being directed.
+Para 3: Affection Dynamics. How their affection scores affect their 1-on-1 relationships, emotional distance, and rapport building.
+3–4 sentences each. Analytical, professional, nuanced. No generic filler.
+Return ONLY the 3 paragraphs separated by blank lines.`,
+    500
+  );
+};
+
+const generateFiroLeadershipInsight = async (eI, wI, eC, wC, eA, wA, name) => {
+  return callLLM(
+    FIRO_SYSTEM,
+    `Write 2 paragraphs on ${name}'s leadership and team dynamics based on their FIRO-B profile.
+Expressed: Inclusion=${eI}, Control=${eC}, Affection=${eA}
+Wanted: Inclusion=${wI}, Control=${wC}, Affection=${wA}
+Focus on how their highest expressed need dictates their primary leadership mechanism, and how divergence between expressed and wanted needs might cause team friction or misunderstandings.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generateFiroDevelopmentNarrative = async (eI, wI, eC, wC, eA, wA, name) => {
+  return callLLM(
+    FIRO_SYSTEM,
+    `Write 2 paragraphs on professional development opportunities for ${name} based on FIRO-B friction points.
+Expressed: Inclusion=${eI}, Control=${eC}, Affection=${eA} | Wanted: Inclusion=${wI}, Control=${wC}, Affection=${wA}
+Identify the greatest potential blind spot or source of interpersonal exhaustion in their profile. Frame it constructively as a 12-month development focus. Focus on actionable self-awareness regarding their interpersonal boundaries or demands.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generateFiroClosingInsight = async (eI, wI, eC, wC, eA, wA, name) => {
+  return callLLM(
+    FIRO_SYSTEM,
+    `Write a 1-sentence manager's takeaway summarizing ${name}'s interpersonal value-add based on FIRO-B (I: ${eI}/${wI}, C: ${eC}/${wC}, A: ${eA}/${wA}). It must be a memorable, human takeaway. Return ONLY the insight.`,
+    150
+  );
+};
+
+const generateFIRONarratives = async (reportData, testTaker) => {
+  const eI = reportData.dimensions?.Expressed?.Inclusion || 0;
+  const wI = reportData.dimensions?.Wanted?.Inclusion || 0;
+  const eC = reportData.dimensions?.Expressed?.Control || 0;
+  const wC = reportData.dimensions?.Wanted?.Control || 0;
+  const eA = reportData.dimensions?.Expressed?.Affection || 0;
+  const wA = reportData.dimensions?.Wanted?.Affection || 0;
+  
+  const name = testTaker?.name || 'the candidate';
+
+  // Inline helper — splits text on double-newlines and wraps each block in <p>
+  const toParas = (text) => (text || '').split(/\n\n+/).map(s => `<p>${s.trim()}</p>`).join('');
+
+  try {
+    const [coverSummary, deepProfile, leadershipInsight, developmentNarrative, closingInsight] =
+      await Promise.all([
+        generateFiroCoverSummary(eI, wI, eC, wC, eA, wA, name),
+        generateFiroDeepProfile(eI, wI, eC, wC, eA, wA, name),
+        generateFiroLeadershipInsight(eI, wI, eC, wC, eA, wA, name),
+        generateFiroDevelopmentNarrative(eI, wI, eC, wC, eA, wA, name),
+        generateFiroClosingInsight(eI, wI, eC, wC, eA, wA, name),
+      ]);
+
+    return { 
+      coverSummary, 
+      deepProfileHtml: toParas(deepProfile), 
+      leadershipHtml: toParas(leadershipInsight), 
+      developmentHtml: toParas(developmentNarrative), 
+      closingInsight 
+    };
+  } catch (err) {
+    console.error('FIRO-B narrative generation error:', err);
+    return {
+      coverSummary: `${name} presents a distinct FIRO-B interpersonal profile that provides essential clues to their preferred social environment. Their assessment maps exactly how they engage with teams across Inclusion, Control, and Affection.`,
+      deepProfileHtml: toParas(`${name}'s inclusion dynamics indicate their fundamental approach to group involvement and networking. This dimension highlights whether they prefer to initiate contact and be in the center of activity or maintain a more detached, selective presence.\n\nTheir control dimension describes how they handle hierarchy, influence, and structured environments. It reveals the balance they strike between taking the reins and seeking direction from established leadership.\n\nFinally, their affection scores map their approach to building rapport and close 1-on-1 relationships. This dictates the level of emotional distance they naturally maintain in professional settings.`),
+      leadershipHtml: toParas(`${name}'s leadership approach is heavily influenced by the interplay of their expressed behaviors. They lead by enacting their highest behavioral drive—whether that is bringing people together, asserting structure, or fostering interpersonal trust.\n\nUnderstanding the gap between what they express and what they want helps predict how they respond to stress. Coworkers communicating in their preferred dimension will find collaboration significantly more productive.`),
+      developmentHtml: toParas(`The primary interpersonal growth opportunity for ${name} involves building awareness around any mismatch between their expressed behaviors and wanted needs. This often leads to misunderstood signals from colleagues.\n\nA deliberate focus on transparently communicating their expectations and recognizing when their internal needs are driving disproportionate reactions will enhance their leadership capacity.`),
+      closingInsight: `${name}'s interpersonal profile provides an excellent blueprint for understanding their relational needs and optimizing their placement within team structures.`,
+    };
+  }
+};
+
+const getFIROStaticData = (reportData) => {
+  // Extract scores from the new structure created in firoScoringService
+  const expressed = reportData.dimensions?.Expressed || { Inclusion: 0, Control: 0, Affection: 0 };
+  const wanted = reportData.dimensions?.Wanted || { Inclusion: 0, Control: 0, Affection: 0 };
+  const totals = reportData.totals || { totalExpressed: 0, totalWanted: 0, overallTotal: 0 };
+  
+  const eI = expressed.Inclusion, wI = wanted.Inclusion;
+  const eC = expressed.Control,   wC = wanted.Control;
+  const eA = expressed.Affection, wA = wanted.Affection;
+
+  const inclusionTotal = eI + wI;
+  const controlTotal = eC + wC;
+  const affectionTotal = eA + wA;
+
+  const getBand = (score) => {
+    if (score >= 7) return 'high';
+    if (score >= 4) return 'medium';
+    return 'low';
+  };
+
+  const getBandTotal = (score) => {
+    if (score >= 13) return 'high';
+    if (score >= 8) return 'medium';
+    return 'low';
+  };
+
+  const eI_band = getBand(eI), wI_band = getBand(wI);
+  const eC_band = getBand(eC), wC_band = getBand(wC);
+  const eA_band = getBand(eA), wA_band = getBand(wA);
+
+  // Interpretation helpers
+  const inclusionFulfillment = [];
+  if (eI_band === 'high' && wI_band === 'high') {
+    inclusionFulfillment.push('You include others and like to be included.');
+    inclusionFulfillment.push('You enjoy the opportunity to provide input.');
+    inclusionFulfillment.push('You don’t like to get cut off from information and updates.');
+    inclusionFulfillment.push('You seek recognition and endorsement from colleagues and superiors.');
+  } else if (eI_band === 'low' && wI_band === 'low') {
+    inclusionFulfillment.push('You prefer to work quietly without much interaction.');
+    inclusionFulfillment.push('You may avoid group gatherings voluntarily.');
+    inclusionFulfillment.push('You do not require constant updates or inclusions to feel secure.');
+  } else {
+    inclusionFulfillment.push('Your need to include others is balanced by an awareness of when to work independently.');
+    inclusionFulfillment.push('You engage in group activities contextually, and on your terms.');
+  }
+
+  const controlFulfillment = [];
+  if (eC_band === 'low' && wC_band === 'high') {
+    controlFulfillment.push('You may accept direction from those in authority.');
+    controlFulfillment.push('You may not be interested in gaining formal influence.');
+    controlFulfillment.push('You are a loyal and cooperative member of the organization.');
+    controlFulfillment.push('You like to perform your work according to standard operating procedures.');
+  } else if (eC_band === 'high' && wC_band === 'low') {
+    controlFulfillment.push('You naturally take charge of situations and direct others.');
+    controlFulfillment.push('You prefer autonomous work environments with minimal supervision.');
+    controlFulfillment.push('You assume leadership roles effectively when ambiguity is present.');
+  } else {
+    controlFulfillment.push('You establish a moderate balance of seeking direction and offering guidance.');
+    controlFulfillment.push('You are comfortable collaborating on shared goals with established peers.');
+  }
+
+  const affectionFulfillment = [];
+  if (eA_band === 'high' && wA_band === 'high') {
+    affectionFulfillment.push('You are friendly, open, and optimistic.');
+    affectionFulfillment.push('You value trustworthiness and meaningful personal bonds.');
+    affectionFulfillment.push('You prefer to motivate others by praise and support and are best motivated in the same way.');
+    affectionFulfillment.push('You may enjoy resolving conflicts and negotiating.');
+  } else if (eA_band === 'low' && wA_band === 'low') {
+    affectionFulfillment.push('You maintain a strictly professional demeanor at work.');
+    affectionFulfillment.push('You keep personal thoughts and feelings private.');
+    affectionFulfillment.push('You prefer objective feedback over emotional support.');
+  } else {
+    affectionFulfillment.push('You form selective, strong bonds with a few trusted individuals rather than broad arrays of people.');
+    affectionFulfillment.push('You recognize boundaries between work and social relationships effectively.');
+  }
+
+  const careerInclusion = getBandTotal(inclusionTotal) === 'high' 
+    ? ['You have a lot of opportunity to interact with others', 'There are multiple pathways for achieving recognition and status', 'The organization rewards teamwork']
+    : ['You have long stretches of uninterrupted deep work', 'Performance is measured individually rather than as a unit', 'You are given distinct tasks with clear boundaries'];
+
+  const careerControl = getBandTotal(controlTotal) === 'medium'
+    ? ['New challenges and opportunities are provided with equal amounts of support and self-direction', 'Your job responsibilities include some tasks that are all yours and others that are shared', 'There are general guidelines for performance, but flexibility to deal with exceptions']
+    : (getBandTotal(controlTotal) === 'high' ? ['You are given explicit hierarchical tracks', 'Leadership and management paths are well-defined', 'You can clearly shape and govern outcomes'] : ['The environment is flat and non-hierarchical', 'You do not have to manage complex personnel issues', 'Expectations are loose and adaptable']);
+
+  const careerAffection = getBandTotal(affectionTotal) === 'high'
+    ? ['The organizational climate is characterized by warmth and personal interest in employees', 'Encouragement and cooperation are welcomed and freely exchanged', 'The organization tries to make the workplace a home away from home']
+    : ['The primary focus is on task execution rather than social harmony', 'Feedback is direct, objective, and detached', 'Professional boundaries are strictly maintained'];
+
+  // Identify highest and lowest expressed
+  const expressedArray = [
+    { name: 'Inclusion', score: eI },
+    { name: 'Control', score: eC },
+    { name: 'Affection', score: eA }
+  ];
+  expressedArray.sort((a,b) => b.score - a.score);
+  const highestExpressed = expressedArray[0].name;
+  const lowestExpressed = expressedArray[2].name;
+
+  return {
+    scores: {
+      eI, wI, eC, wC, eA, wA,
+      inclusionTotal, controlTotal, affectionTotal,
+      totalExpressed: totals.totalExpressed,
+      totalWanted: totals.totalWanted,
+      overallTotal: totals.overallTotal
+    },
+    fulfillment: {
+      Inclusion: inclusionFulfillment,
+      Control: controlFulfillment,
+      Affection: affectionFulfillment
+    },
+    career: {
+      inclusionBand: getBandTotal(inclusionTotal),
+      inclusionTips: careerInclusion,
+      controlBand: getBandTotal(controlTotal),
+      controlTips: careerControl,
+      affectionBand: getBandTotal(affectionTotal),
+      affectionTips: careerAffection
+    },
+    leadership: {
+      highestExpressed,
+      lowestExpressed
+    }
+  };
+};
+
 module.exports = {
   generateDISCNarratives,
   generateBig5Narratives,
+  generateFIRONarratives,
   getDISCStaticData,
   getBig5StaticData,
+  getFIROStaticData,
   DISC_TRAITS,
   BIG5_TRAITS,
   PATTERN_PROFILES,

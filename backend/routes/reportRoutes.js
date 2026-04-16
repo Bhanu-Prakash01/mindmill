@@ -9,7 +9,8 @@ const {
   addAdminNotes,
   downloadReport,
   previewDiscReport,
-  previewBig5Report
+  previewBig5Report,
+  previewFiroReport
 } = require('../controllers/reportController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { optionalAuth } = require('../middleware/authMiddleware');
@@ -34,5 +35,6 @@ router.put('/:id/notes', isAdmin, idParamValidation, addAdminNotes);
 // Preview routes (Admin only)
 router.get('/preview/disc', authMiddleware, isAdmin, previewDiscReport);
 router.get('/preview/big5', authMiddleware, isAdmin, previewBig5Report);
+router.get('/preview/firo', authMiddleware, isAdmin, previewFiroReport);
 
 module.exports = router;

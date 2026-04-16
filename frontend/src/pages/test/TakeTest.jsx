@@ -38,7 +38,9 @@ const [submitting, setSubmitting] = useState(false);
   const [fullscreenExits, setFullscreenExits] = useState(0);
   const [error, setError] = useState(null);
   const [devMode, setDevMode] = useState(false);
- const attemptRef = useRef(attempt);
+  const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const attemptRef = useRef(attempt);
  const tabSwitchCountRef = useRef(0);
  const fullscreenExitsRef = useRef(0);
 
@@ -100,26 +102,34 @@ const [submitting, setSubmitting] = useState(false);
  const urlParams = new URLSearchParams(window.location.search);
  const passcode = urlParams.get('passcode');
 
- // Start attempt
- const attemptResponse = await attemptService.startAttempt(assessmentId, passcode);
- const attemptData = attemptResponse.data?.attempt;
- setAttempt(attemptData);
+  // Start attempt
+  const attemptResponse = await attemptService.startAttempt(assessmentId, passcode);
+  const attemptData = attemptResponse.data?.attempt;
+  setAttempt(attemptData);
 
- // Get assessment details
- const assessmentResponse = await assessmentService.getAssessment(assessmentId);
- setAssessment(assessmentResponse.data?.assessment);
+  // Get assessment details
+  const assessmentResponse = await assessmentService.getAssessment(assessmentId);
+  const assessmentData = assessmentResponse.data?.assessment;
+  setAssessment(assessmentData);
 
- // Get questions
- const questionsResponse = await assessmentService.getQuestions(assessmentId);
- const questionsData = questionsResponse.data?.questions || [];
- setQuestions(questionsData);
+  // Get questions
+  const questionsResponse = await assessmentService.getQuestions(assessmentId);
+  const questionsData = questionsResponse.data?.questions || [];
+  setQuestions(questionsData);
 
- // Initialize timer
- if (attemptData.expiresAt) {
- const expiresAt = new Date(attemptData.expiresAt).getTime();
- const now = Date.now();
- setTimeRemaining(Math.max(0, Math.floor((expiresAt - now) / 1000)));
- }
+  // Initialize timer
+  if (attemptData.expiresAt) {
+    const expiresAt = new Date(attemptData.expiresAt).getTime();
+    const now = Date.now();
+    const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+    setTimeRemaining(remaining);
+    setStartTime(now);
+    if (assessmentData?.timeBound?.enabled && assessmentData.timeBound.durationMinutes) {
+      setTotalTimeSeconds(assessmentData.timeBound.duration * 60);
+    } else {
+      setTotalTimeSeconds(remaining);
+    }
+  }
 
  // Request fullscreen
  requestFullscreen();
@@ -262,15 +272,32 @@ const handleRatingAnswer = (questionId, rating) => {
  });
  };
 
- const handleSubmit = async () => {
- setSubmitting(true);
- try {
-  await attemptService.submitAttempt(attempt._id);
-  const params = new URLSearchParams({
-    assessment: assessment?.title || 'Assessment',
-    type: assessment?.category || 'standard'
-  });
-  navigate(`/thank-you?${params.toString()}`);
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const answeredCount = Object.keys(answers).length;
+      const totalQuestions = questions.length;
+      const percentAttempted = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+      
+      let timeTaken = null;
+      let totalTime = null;
+      if (totalTimeSeconds > 0 && startTime) {
+        totalTime = totalTimeSeconds;
+        timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      }
+
+      await attemptService.submitAttempt(attempt._id);
+      
+      const params = new URLSearchParams({
+        assessment: assessment?.title || 'Assessment',
+        type: assessment?.category || 'standard',
+        attempted: percentAttempted.toString(),
+        answered: answeredCount.toString(),
+        total: totalQuestions.toString(),
+        timeTaken: timeTaken !== null ? timeTaken.toString() : '',
+        totalTime: totalTime !== null ? totalTime.toString() : ''
+      });
+      navigate(`/thank-you?${params.toString()}`);
   } catch (error) {
  console.error('Error submitting test:', error);
  alert(error.response?.data?.message || 'Failed to submit test');

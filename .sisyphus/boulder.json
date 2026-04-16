@@ -1,0 +1,59 @@
+{
+  "active_plan": "/home/dargon/projects/mindmill_/.sisyphus/plans/mbti-implementation.md",
+  "started_at": "2026-04-14T17:25:09.015Z",
+  "session_ids": [
+    "ses_277f031f9ffeF1dg1IoKMJabOn"
+  ],
+  "plan_name": "mbti-implementation",
+  "worktree_path": null,
+  "session_origins": {
+    "ses_277f031f9ffeF1dg1IoKMJabOn": "direct"
+  },
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Create MBTI Questions Seeder (32 questions, 8 per dimension)",
+      "session_id": "ses_272f8d1fdffeXD2UKn48Gb63Cv",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-14T17:29:03.339Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Create MBTI Scoring Service (scientific formulas)",
+      "session_id": "ses_272f4a39effe6G9RbyoP1oxUCW",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-14T17:30:56.784Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Create MBTI Controller and Routes",
+      "session_id": "ses_272f33aceffehg20PhQ54VrQxi",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-14T17:36:50.182Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Create MBTI Frontend Test Page",
+      "session_id": "ses_272ee54f3ffeoUAiStfLJZpKVr",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-14T17:44:09.393Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Create Comprehensive HTML Report Template",
+      "session_id": "ses_272e6f241ffeGHyrlRuNRh6VmB",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-14T17:48:14.556Z"
+    }
+  }
+}

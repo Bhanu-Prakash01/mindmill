@@ -50,6 +50,13 @@ const CATEGORY_META = {
       'This assessment is a widely used, non-judgmental behavioral tool that slots personality into four types namely, Dominance, Influence, Steadiness, and Conscientiousness that impacts productivity, teamwork, and communication. Allows individuals understand their natural behavioral tendencies, strengths, and motivations.',
     acknowledgement: 'Model built by Lewis Goldberg, Robert McCrae, & Paul Costa',
   },
+  firo: {
+    image: '/assessment_disc.png',
+    inspiredBy: 'FIRO-B Assessment',
+    description:
+      'The FIRO-B assessment measures interpersonal needs across three dimensions: Inclusion, Control, and Affection. It helps understand how you relate to others and what you need in relationships.',
+    acknowledgement: 'Based on Schutz FIRO-B theory',
+  },
   cognitive: {
     image: '/assessment_cognitive.png',
     inspiredBy: 'Cognitive Ability Test',
@@ -297,6 +304,7 @@ const Assessments = () => {
           <option value="professional">Professional</option>
           <option value="big5">Big Five Personality</option>
           <option value="disc">DISC Personality</option>
+          <option value="firo">FIRO-B Assessment</option>
         </select>
         <select
           value={filterStatus}

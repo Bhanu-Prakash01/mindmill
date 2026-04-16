@@ -71,13 +71,23 @@ const Reports = () => {
     const attemptId = typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id;
     if (report.assessment?.category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
     if (report.assessment?.category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
+    if (report.assessment?.category === 'firo' || report.assessment?.category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;
+  };
+
+  const formatTime = (seconds) => {
+    if (!seconds || seconds <= 0) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getTypeConfig = (type) => {
     const configs = {
       big5: { label: 'Big Five', color: 'bg-violet-100 text-violet-700', icon: Brain },
       disc: { label: 'DISC', color: 'bg-teal-100 text-teal-700', icon: Layers },
+      firo: { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
+      'firo-b': { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
       psychometric: { label: 'Psychometric', color: 'bg-purple-100 text-purple-700', icon: Brain },
       cognitive: { label: 'Cognitive', color: 'bg-blue-100 text-blue-700', icon: FileBarChart },
       situational: { label: 'Situational', color: 'bg-orange-100 text-orange-700', icon: FileBarChart },
@@ -143,6 +153,7 @@ const Reports = () => {
             <option value="all">All Types</option>
             <option value="big5">Big Five</option>
             <option value="disc">DISC</option>
+            <option value="firo">FIRO-B</option>
             <option value="psychometric">Psychometric</option>
             <option value="key_factors">Key Factors</option>
             <option value="detailed">Detailed</option>
@@ -162,6 +173,7 @@ const Reports = () => {
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Assessment</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Conducted By</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time Taken</th>
                 {isAdmin && (
                   <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Visibility</th>
                 )}
@@ -261,6 +273,15 @@ const Reports = () => {
                             hour: '2-digit',
                             minute: '2-digit'
                           })}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span>
+                          {formatTime(report.timeSpent || report.attempt?.timeSpent)}
                         </span>
                       </div>
                     </td>
