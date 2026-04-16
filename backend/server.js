@@ -31,6 +31,9 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const big5Routes = require('./routes/big5Routes');
 const discRoutes = require('./routes/discRoutes');
+const mbtiRoutes = require('./routes/mbtiRoutes');
+const firoRoutes = require('./routes/firoRoutes');
+const hoganRoutes = require('./routes/hoganRoutes');
 const inviteRoutes = require('./routes/inviteRoutes');
 
 // Initialize express app
@@ -42,21 +45,11 @@ app.set('trust proxy', 1);
 // Connect to database
 connectDB();
 
-// Manual CORS middleware - handles ALL requests including preflight
-app.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.header('Access-Control-Allow-Origin', origin);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'x-org-slug, Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  next();
-});
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['x-org-slug', 'Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+}));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -105,6 +98,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api', big5Routes);
 app.use('/api', discRoutes);
+app.use('/api', mbtiRoutes);
+app.use('/api', firoRoutes);
+app.use('/api', hoganRoutes);
 app.use('/api/invites', inviteRoutes);
 
 // 404 handler
