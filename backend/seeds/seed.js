@@ -1,5 +1,5 @@
 /**
- * Mindmill Database Seeder
+ * Mindmil Database Seeder
  *
  * ⚠️  DESTRUCTIVE: This script deletes ALL existing data before seeding.
  *     Only use for development/reset purposes.
@@ -50,7 +50,7 @@ const seedData = async () => {
     const demoOrg = await Organization.create({
       name: 'Demo Organization',
       slug: 'demo-org',
-      description: 'A demo organization for testing Mindmill Assessments',
+      description: 'A demo organization for testing Mindmil Assessments',
       primaryColor: '#6366f1',
       secondaryColor: '#8b5cf6',
       brandingEnabled: true,

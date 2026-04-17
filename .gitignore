@@ -5,6 +5,7 @@ dist/
 **/dist/
 dist-ssr/
 *.local
+.sisyphus/
 
 # Logs
 logs

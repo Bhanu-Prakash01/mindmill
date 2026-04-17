@@ -194,11 +194,11 @@ const Login = () => {
           <>
             <img
               src="/logo.png"
-              alt="Mindmill Assessments"
+              alt="Mindmil Assessments"
               className="h-16 w-auto mx-auto mb-4"
             />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome to Mindmill
+              Welcome to Mindmil
             </h1>
             <p className="text-gray-500">
               Sign in to access your assessments

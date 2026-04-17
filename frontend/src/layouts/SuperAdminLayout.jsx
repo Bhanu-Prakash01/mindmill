@@ -74,7 +74,7 @@ const SuperAdminLayout = () => {
           <Link to="/dashboard/superadmin" className="flex items-center gap-3">
             <img
               src="/logo.png"
-              alt="Mindmill Assessments"
+              alt="Mindmil Assessments"
               className="h-12 w-auto"
             />
           </Link>
