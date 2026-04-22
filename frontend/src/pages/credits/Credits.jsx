@@ -17,35 +17,43 @@ import {
 } from 'lucide-react';
 
 const Credits = () => {
- const { user } = useAuth();
+  const { user } = useAuth();
   const [creditRequests, setCreditRequests] = useState([]);
   const [organization, setOrganization] = useState(null);
- const [loading, setLoading] = useState(true);
- const [showRequestModal, setShowRequestModal] = useState(false);
- const [requestForm, setRequestForm] = useState({
- creditsRequested: 100,
- reason: '',
- });
- const [submitting, setSubmitting] = useState(false);
+  const [allOrganizations, setAllOrganizations] = useState([]);
+  const [creditSummary, setCreditSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestForm, setRequestForm] = useState({
+  creditsRequested: 100,
+  reason: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
 
- const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
- const isSuperAdmin = user?.role === 'superadmin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin';
 
- useEffect(() => {
- fetchData();
- }, []);
+  useEffect(() => {
+  fetchData();
+  }, []);
 
-  const fetchData = async () => {
+   const fetchData = async () => {
     try {
       setLoading(true);
 
-      // Get credit requests
-      const requestsResponse = isSuperAdmin
-        ? await creditService.getCreditRequests()
-        : await creditService.getMyCreditRequests();
-      setCreditRequests(requestsResponse.data?.requests || []);
+      if (isSuperAdmin) {
+        const [requestsRes, creditsRes] = await Promise.all([
+          creditService.getCreditRequests(),
+          creditService.getAllOrganizationCredits()
+        ]);
+        setCreditRequests(requestsRes.data?.requests || []);
+        setCreditSummary(creditsRes.data?.summary);
+        setAllOrganizations(creditsRes.data?.organizations || []);
+      } else {
+        const requestsResponse = await creditService.getMyCreditRequests();
+        setCreditRequests(requestsResponse.data?.requests || []);
+      }
 
-      // Get organization details for admins
       if (isAdmin && user?.organization) {
         const orgResponse = await organizationService.getMyOrganization();
         setOrganization(orgResponse.data?.organization);
@@ -274,7 +282,64 @@ const handleRejectRequest = async (id) => {
             </span>
           ) : (
             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
-          )}
+)}
+ 
+ {/* All Organizations Credits (SuperAdmin Only) */}
+ {isSuperAdmin && allOrganizations.length > 0 && (
+ <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+   <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+     <h2 className="text-lg font-semibold text-gray-900">All Organizations Credits</h2>
+     <div className="text-sm text-gray-500">
+       Total: <span className="font-bold text-indigo-600">{creditSummary?.totalCredits || 0}</span> | 
+       Available: <span className="font-bold text-green-600">{creditSummary?.totalAvailable || 0}</span>
+     </div>
+   </div>
+   <div className="overflow-x-auto">
+     <table className="w-full">
+       <thead className="bg-gray-50">
+         <tr>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Used</th>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locked</th>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+         </tr>
+       </thead>
+       <tbody className="divide-y divide-gray-200">
+         {allOrganizations.map((org) => (
+           <tr key={org._id} className="hover:bg-gray-50">
+             <td className="px-6 py-4">
+               <Link 
+                 to={`/o/${org.slug}/dashboard`}
+                 className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+               >
+                 {org.name}
+               </Link>
+               <p className="text-xs text-gray-400">{org.slug}</p>
+             </td>
+             <td className="px-6 py-4 text-sm font-bold text-gray-900">
+               {org.credits.total}
+             </td>
+             <td className="px-6 py-4 text-sm text-orange-600">
+               {org.credits.used}
+             </td>
+             <td className="px-6 py-4 text-sm text-amber-600">
+               {org.credits.locked}
+             </td>
+             <td className="px-6 py-4 text-sm font-medium text-green-600">
+               {org.credits.available}
+             </td>
+             <td className="px-6 py-4 text-sm text-gray-500">
+               {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : '-'}
+             </td>
+           </tr>
+         ))}
+       </tbody>
+     </table>
+   </div>
+ </div>
+ )}
         </td>
       </tr>
     );

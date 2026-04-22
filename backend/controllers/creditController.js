@@ -28,35 +28,59 @@ const deleteCreditRequest = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getCredits = asyncHandler(async (req, res) => {
-  let organization;
-
   if (req.user.role === 'superadmin') {
-    const { organizationId } = req.query;
+    const { organizationId, all } = req.query;
+    
     if (organizationId) {
-      organization = await Organization.findById(organizationId);
-    } else {
-      // Return summary for all organizations
-      const orgs = await Organization.find({ isActive: true });
-      const totalCredits = orgs.reduce((sum, org) => sum + org.credits.total, 0);
-      const totalUsed = orgs.reduce((sum, org) => sum + org.credits.used, 0);
-      const totalLocked = orgs.reduce((sum, org) => sum + (org.credits.locked || 0), 0);
-      
+      const organization = await Organization.findById(organizationId);
+      if (!organization) {
+        throw new ApiError(404, 'Organization not found');
+      }
       return res.json({
         success: true,
-        data: {
-          summary: {
-            totalCredits,
-            totalUsed,
-            totalLocked,
-            totalAvailable: totalCredits - totalUsed - totalLocked,
-            organizationCount: orgs.length
-          }
-        }
+        data: { organization }
       });
     }
-  } else {
-    organization = await Organization.findById(req.user.organization);
+    
+    const orgs = await Organization.find({ isActive: true })
+      .select('name slug credits.primaryColor credits.secondaryColor credits.total credits.used credits.locked createdAt')
+      .sort({ createdAt: -1 });
+    
+    const totalCredits = orgs.reduce((sum, org) => sum + org.credits.total, 0);
+    const totalUsed = orgs.reduce((sum, org) => sum + org.credits.used, 0);
+    const totalLocked = orgs.reduce((sum, org) => sum + (org.credits.locked || 0), 0);
+    
+    return res.json({
+      success: true,
+      data: {
+        summary: {
+          totalCredits,
+          totalUsed,
+          totalLocked,
+          totalAvailable: totalCredits - totalUsed - totalLocked,
+          organizationCount: orgs.length
+        },
+        organizations: orgs.map(org => ({
+          _id: org._id,
+          name: org.name,
+          slug: org.slug,
+          colors: {
+            primary: org.credits.primaryColor,
+            secondary: org.credits.secondaryColor
+          },
+          credits: {
+            total: org.credits.total,
+            used: org.credits.used,
+            locked: org.credits.locked || 0,
+            available: org.credits.total - org.credits.used - (org.credits.locked || 0)
+          },
+          createdAt: org.createdAt
+        }))
+      }
+    });
   }
+
+  const organization = await Organization.findById(req.user.organization);
 
   if (!organization) {
     throw new ApiError(404, 'Organization not found');

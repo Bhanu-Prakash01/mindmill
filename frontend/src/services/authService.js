@@ -29,12 +29,14 @@ export const authService = {
   return response.data;
  },
 
- logout: async () => {
- const response = await api.post('/auth/logout');
- localStorage.removeItem('token');
- localStorage.removeItem('user');
- return response.data;
- },
+logout: async () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    api.post('/auth/logout').catch(() => {});
+
+    return { success: true, message: 'Logout successful' };
+  },
 
  getMe: async () => {
  const response = await api.get('/auth/me');

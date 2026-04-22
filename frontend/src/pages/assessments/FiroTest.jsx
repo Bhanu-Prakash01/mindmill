@@ -156,10 +156,13 @@ const FiroTest = () => {
       setSubmitting(true);
       let res;
       if (isPublicAccess) {
-        res = await fetch(`/api/attempts/${attemptId}/submit`, {
+        res = await fetch('/api/firo/public/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ 
+            responses,
+            assessmentId: assessment?._id || attemptData?.assessment?._id || attemptData?.assessment
+          })
         });
       } else {
         res = await fetch(`/api/assessments/${id}/firo/submit`, {

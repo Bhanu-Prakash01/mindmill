@@ -23,10 +23,11 @@ router.get('/shared/:token', getSharedReport);
 // Protected routes
 router.use(authMiddleware);
 
-router.get('/', paginationValidation, getReports);
-router.get('/:id', idParamValidation, getReport);
+
 router.get('/:id/download', idParamValidation, downloadReport);
 router.post('/:id/share', idParamValidation, shareReport);
+router.get('/:id', idParamValidation, getReport);
+router.get('/', paginationValidation, getReports);
 
 // Admin only routes
 router.put('/:id/visibility', isAdmin, idParamValidation, toggleVisibility);

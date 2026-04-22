@@ -27,8 +27,9 @@ const getFiroQuestions = asyncHandler(async (req, res) => {
  * Submit FIRO-B responses and return scored results
  */
 const submitFiro = asyncHandler(async (req, res) => {
-  const { assessmentId } = req.params;
-  const { responses } = req.body;
+  const { assessmentId: paramAssessmentId } = req.params;
+  const { responses, assessmentId: bodyAssessmentId } = req.body;
+  const assessmentId = paramAssessmentId || bodyAssessmentId;
   const total = 54;
   
   const assessment = await Assessment.findById(assessmentId);
@@ -42,12 +43,19 @@ const submitFiro = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Invalid responses. Expected ${total} responses.`);
   }
 
-  // Get or create attempt
-  let attempt = await Attempt.findOne({
-    user: req.user._id,
-    assessment: assessmentId,
-    status: 'in-progress'
-  });
+  let attempt;
+  if (req.user) {
+    attempt = await Attempt.findOne({
+      user: req.user._id,
+      assessment: assessmentId,
+      status: 'in-progress'
+    });
+  } else {
+    attempt = await Attempt.findOne({
+      assessment: assessmentId,
+      status: 'in-progress'
+    });
+  }
 
   if (!attempt) {
     throw new ApiError(400, 'No active attempt found. Please start the assessment first.');
@@ -101,9 +109,11 @@ const submitFiro = asyncHandler(async (req, res) => {
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
     timeSpent: attempt.timeSpent || null,
-    FIRO: {
-      totals: firoResults.totals,
-      dimensions: firoResults.dimensions
+    dimensions: {
+      FIRO: {
+        totals: firoResults.totals,
+        dimensions: firoResults.dimensions
+      }
     }
   });
 
@@ -152,7 +162,36 @@ const getFiroResults = asyncHandler(async (req, res) => {
   }
 
   if (!attempt.firoResults) {
-    throw new ApiError(400, 'FIRO-B results not available for this attempt');
+    if (attempt.dimensionScores) {
+      const ds = attempt.dimensionScores;
+      const eI = ds.eI?.score || 0;
+      const wI = ds.wI?.score || 0;
+      const eC = ds.eC?.score || 0;
+      const wC = ds.wC?.score || 0;
+      const eA = ds.eA?.score || 0;
+      const wA = ds.wA?.score || 0;
+      
+      attempt.firoResults = {
+        dimensions: {
+          Expressed: { Inclusion: eI, Control: eC, Affection: eA },
+          Wanted: { Inclusion: wI, Control: wC, Affection: wA }
+        },
+        totals: {
+          totalExpressed: eI + eC + eA,
+          totalWanted: wI + wC + wA,
+          overall: (eI + eC + eA) + (wI + wC + wA)
+        },
+        analysis: {
+          inclusion: `Your expressed inclusion need is ${eI}/9 and wanted inclusion is ${wI}/9. ${eI > wI ? 'You tend to express more inclusion than you desire from others.' : wI > eI ? 'You desire more inclusion from others than you naturally express.' : 'Your expressed and wanted inclusion needs are balanced.'}`,
+          control: `Your expressed control need is ${eC}/9 and wanted control is ${wC}/9. ${eC > wC ? 'You take charge more than you prefer to be controlled.' : wC > eC ? 'You prefer to be led more than you take charge.' : 'Your control needs are balanced.'}`,
+          affection: `Your expressed affection need is ${eA}/9 and wanted affection is ${wA}/9. ${eA > wA ? 'You express more warmth than you seek in return.' : wA > eA ? 'You seek more warmth than you naturally express.' : 'Your affection needs are balanced.'}`,
+          leadership: 'Your interpersonal needs shape your leadership style in unique ways.',
+          summary: `Overall, your FIRO-B profile shows total expressed: ${eI + eC + eA}/27 and total wanted: ${wI + wC + wA}/27. This indicates your fundamental interpersonal orientation.`
+        }
+      };
+    } else {
+      throw new ApiError(400, 'FIRO-B results not available for this attempt');
+    }
   }
 
   // Render static interpretive content based on dimension matrix limits
@@ -165,9 +204,8 @@ const getFiroResults = asyncHandler(async (req, res) => {
     report = await Report.findById(report);
   }
 
-  let analysis = report?.analysis;
+  let analysis = report?.analysis || attempt.firoResults?.analysis;
 
-  // On-demand LLM generation if missing
   if (!analysis || !analysis.coverSummary) {
     try {
       const testTaker = { name: attempt.testTakerName || 'the candidate' };

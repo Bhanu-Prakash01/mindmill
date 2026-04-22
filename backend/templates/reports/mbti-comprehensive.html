@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>MBTI Personality Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --navy: #0F172A;
+      --navy-m: #1E293B;
+      --slate: #475569;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --surface: #F8FAFC;
+      /* Dimension colours */
+      --ei: #EC4899;
+      --ei-g: linear-gradient(135deg, #EC4899, #F9A8D4);
+      --sn: #F59E0B;
+      --sn-g: linear-gradient(135deg, #F59E0B, #FCD34D);
+      --tf: #10B981;
+      --tf-g: linear-gradient(135deg, #10B981, #6EE7B7);
+      --jp: #3B82F6;
+      --jp-g: linear-gradient(135deg, #3B82F6, #93C5FD);
+      /* accent — purple for MBTI */
+      --acc: #8B5CF6;
+      --acc-g: linear-gradient(135deg, #8B5CF6, #A78BFA);
+    }
+
+    html {
+      font-size: 10.5px;
+    }
+
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: #334155;
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ──────────────────────────────────── */
+    .page {
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    @media print {
+      .page {
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        page-break-after: avoid;
+      }
+    }
+
+    /* ── INNER PAGE CHROME ───────────────────────────── */
+    .inner-page {
+      display: flex;
+      flex-direction: column;
+      height: 297mm;
+    }
+
+    .ph {
+      height: 44px;
+      min-height: 44px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ph-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ph-logo {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .ph-logo span {
+      color: var(--acc);
+    }
+
+    .ph-sep {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    .ph-title {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .ph-name {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--slate);
+    }
+
+    .ph-pg {
+      font-size: 8px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+
+    .ph-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .pc {
+      flex: 1;
+      overflow: hidden;
+      padding: 18px 28px;
+    }
+
+    .pf {
+      height: 28px;
+      min-height: 28px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      border-top: 1px solid var(--border);
+    }
+
+    .pf p {
+      font-size: 7.5px;
+      color: var(--muted);
+    }
+
+    /* ── TYPOGRAPHY ──────────────────────────────────── */
+    .sec-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--acc);
+      margin-bottom: 4px;
+    }
+
+    .sec-hd {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      color: var(--navy);
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    .sec-hd span {
+      color: var(--acc);
+      font-style: italic;
+    }
+
+    .sec-hd em {
+      font-style: normal;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    .narrative p {
+      font-size: 10.5px;
+      color: var(--slate);
+      line-height: 1.75;
+      margin-bottom: 9px;
+    }
+
+    /* ── COVER ───────────────────────────────────────── */
+    .cover {
+      background: var(--navy);
+      height: 297mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-accent {
+      height: 4px;
+      background: var(--acc-g);
+      flex-shrink: 0;
+    }
+
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 44px 52px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cv-orb {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.07;
+    }
+
+    .cv-orb-1 {
+      width: 340px;
+      height: 340px;
+      top: -90px;
+      right: -70px;
+      background: var(--acc-g);
+    }
+
+    .cv-orb-2 {
+      width: 200px;
+      height: 200px;
+      bottom: 60px;
+      left: -50px;
+      background: var(--ei-g);
+      opacity: 0.05;
+    }
+
+    .cv-logo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    .cv-logo {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .cv-logo span {
+      color: var(--acc);
+    }
+
+    .cv-tag {
+      font-size: 8px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 500;
+    }
+
+    /* Type monogram */
+    .cv-monogram-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .cv-monogram {
+      width: 86px;
+      height: 86px;
+      border-radius: 16px;
+      background: var(--acc-g);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 12px 40px rgba(139, 92, 246, 0.4);
+    }
+
+    .cv-type-info {}
+
+    .cv-type-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 34px;
+      color: #fff;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+    }
+
+    .cv-type-archetype {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.55);
+      font-weight: 400;
+      margin-top: 4px;
+    }
+
+    .cv-desc {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+      margin-bottom: 40px;
+      max-width: 460px;
+      line-height: 1.65;
+    }
+
+    /* 4-letter breakdown */
+    .cv-letters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 40px;
+    }
+
+    .cvl-item {
+      flex: 1;
+      border-radius: 8px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+
+    .cvl-item.ei {
+      background: rgba(236, 72, 153, 0.18);
+    }
+
+    .cvl-item.sn {
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    .cvl-item.tf {
+      background: rgba(16, 185, 129, 0.14);
+    }
+
+    .cvl-item.jp {
+      background: rgba(59, 130, 246, 0.14);
+    }
+
+    .cvl-letter {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: #fff;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .cvl-label {
+      font-size: 7.5px;
+      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .cvl-pct {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.55);
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    .cvl-item.ei .cvl-letter {
+      color: #F9A8D4;
+    }
+
+    .cvl-item.sn .cvl-letter {
+      color: #FCD34D;
+    }
+
+    .cvl-item.tf .cvl-letter {
+      color: #6EE7B7;
+    }
+
+    .cvl-item.jp .cvl-letter {
+      color: #93C5FD;
+    }
+
+    .cv-meta {
+      margin-top: auto;
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      padding-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .cv-meta-lbl {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.32);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .cv-meta-val {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* ── DIMENSION ANALYSIS CARD ─────────────────────── */
+    .dim-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .dim-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .dim-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+    }
+
+    .dim-badge {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .dim-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .dim-sub {
+      font-size: 8.5px;
+      color: var(--muted);
+    }
+
+    .dim-result {
+      margin-left: auto;
+    }
+
+    .dim-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    .dim-pill.ei {
+      background: #FDF2F8;
+      color: #DB2777;
+    }
+
+    .dim-pill.sn {
+      background: #FFFBEB;
+      color: #D97706;
+    }
+
+    .dim-pill.tf {
+      background: #ECFDF5;
+      color: #059669;
+    }
+
+    .dim-pill.jp {
+      background: #EFF6FF;
+      color: #2563EB;
+    }
+
+    .dim-body {
+      padding: 8px 12px 10px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .dim-slider {
+      position: relative;
+      height: 8px;
+      background: #E2E8F0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 5px;
+    }
+
+    .dim-slider-fill {
+      height: 100%;
+      border-radius: 4px;
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+
+    .dim-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 7.5px;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .dim-pct-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dim-pct-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .dim-desc-txt {
+      font-size: 9px;
+      color: var(--slate);
+      line-height: 1.55;
+      margin-top: 5px;
+    }
+
+    /* ── PANEL CARD ─────────────────────────────────── */
+    .panel-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .panel-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .panel-sub {
+      font-size: 8.5px;
+      color: var(--muted);
+    }
+
+    .panel-body {
+      padding: 9px 12px;
+    }
+
+    .item-list {
+      list-style: none;
+    }
+
+    .item-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-size: 9.5px;
+      color: var(--slate);
+      margin-bottom: 5px;
+      line-height: 1.5;
+    }
+
+    .il-icon {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--acc);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── TWO / THREE COL ────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    /* ── HIGHLIGHT BOX ───────────────────────────────── */
+    .hb {
+      background: var(--navy);
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+    }
+
+    .hb-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 5px;
+    }
+
+    .hb-txt {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.88);
+      line-height: 1.7;
+    }
+
+    /* ── COGNITIVE FN STACK ─────────────────────────── */
+    .fn-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .fn-chip {
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .fn-chip.dom {
+      background: var(--acc);
+    }
+
+    .fn-chip.aux {
+      background: #7C3AED;
+    }
+
+    .fn-chip.ter {
+      background: #6D28D9;
+    }
+
+    .fn-chip.inf {
+      background: #5B21B6;
+    }
+
+    .fn-chip.shad {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    /* ── CROSS-PRESSURE BANNER ──────────────────────── */
+    .cp-banner {
+      background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+      border: 1px solid #F59E0B;
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .cp-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .cp-txt {
+      font-size: 9.5px;
+      color: #92400E;
+      line-height: 1.55;
+    }
+
+    .cp-txt strong {
+      font-weight: 700;
+    }
+
+    /* ── CAREER CHIPS ────────────────────────────────── */
+    .career-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .career-chip {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--acc);
+      border-radius: 5px;
+      padding: 8px 10px;
+    }
+
+    .career-chip-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 3px;
+    }
+
+    .career-chip-desc {
+      font-size: 8.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── CLOSING BANNER ──────────────────────────────── */
+    .closing-banner {
+      background: linear-gradient(135deg, var(--navy), #1e3a8a);
+      border-radius: 6px;
+      padding: 14px 20px;
+      margin-top: 10px;
+    }
+
+    .cb-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 6px;
+    }
+
+    .closing-banner p {
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.55;
+      font-style: italic;
+      margin-bottom: 0;
+    }
+
+    /* ── WORKSTYLE TAGS ──────────────────────────────── */
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--navy);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ▌PAGE 1 — COVER ▐ -->
+  <div class="page">
+    <div class="cover">
+      <div class="cover-accent"></div>
+      <div class="cover-body">
+        <div class="cv-orb cv-orb-1"></div>
+        <div class="cv-orb cv-orb-2"></div>
+
+        <div class="cv-logo-row">
+          <div class="cv-logo">Mind<span>Mil</span></div>
+          <div class="cv-tag">Personality Assessment Series</div>
+        </div>
+
+        <!-- Type hero -->
+        <div class="cv-monogram-row">
+          <div class="cv-monogram">{{mbtiType}}</div>
+          <div class="cv-type-info">
+            <div class="cv-type-name">{{typeName}}</div>
+            <div class="cv-type-archetype">Myers-Briggs Type Indicator · {{mbtiType}} Personality</div>
+          </div>
+        </div>
+
+        <div class="cv-desc">{{typeDescription}}</div>
+
+        <!-- 4-letter breakdown strip -->
+        <div class="cv-letters">
+          <div class="cvl-item ei">
+            <div class="cvl-letter">{{letterEI}}</div>
+            <div class="cvl-label">{{labelEI}}</div>
+            <div class="cvl-pct">{{pctEI}}%</div>
+          </div>
+          <div class="cvl-item sn">
+            <div class="cvl-letter">{{letterSN}}</div>
+            <div class="cvl-label">{{labelSN}}</div>
+            <div class="cvl-pct">{{pctSN}}%</div>
+          </div>
+          <div class="cvl-item tf">
+            <div class="cvl-letter">{{letterTF}}</div>
+            <div class="cvl-label">{{labelTF}}</div>
+            <div class="cvl-pct">{{pctTF}}%</div>
+          </div>
+          <div class="cvl-item jp">
+            <div class="cvl-letter">{{letterJP}}</div>
+            <div class="cvl-label">{{labelJP}}</div>
+            <div class="cvl-pct">{{pctJP}}%</div>
+          </div>
+        </div>
+
+        <div class="cv-meta">
+          <div>
+            <div class="cv-meta-lbl">Report Prepared For</div>
+            <div class="cv-meta-val">{{candidateName}}</div>
+          </div>
+          <div>
+            <div class="cv-meta-lbl">Email Address</div>
+            <div class="cv-meta-val" style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);">
+              {{candidateEmail}}</div>
+          </div>
+          <div>
+            <div class="cv-meta-lbl">Assessment Date</div>
+            <div class="cv-meta-val">{{assessmentDate}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 2 — DIMENSION ANALYSIS ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">MBTI Personality Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
+        <span class="ph-pg">2 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Four-Dimension Profile</div>
+      <div class="sec-hd">Preference <span>Dimension Analysis</span></div>
+
+      {{#if hasCrossPressure}}
+      <div class="cp-banner">
+        <div class="cp-icon">⚠️</div>
+        <div class="cp-txt"><strong>Cross-Pressure Noted:</strong> Results indicate tension in
+          {{crossPressureDimensions}} — you show meaningful qualities from both sides of these scales. This reflects
+          natural flexibility in your personality, not ambiguity.</div>
+      </div>
+      {{/if}}
+
+      <!-- E/I and S/N -->
+      <div class="dim-row">
+        <div class="dim-card">
+          <div class="dim-head">
+            <div class="dim-badge" style="background:var(--ei-g);">{{letterEI}}</div>
+            <div>
+              <div class="dim-name">Energy Orientation</div>
+              <div class="dim-sub">Extraversion vs Introversion</div>
+            </div>
+            <div class="dim-result">
+              <span class="dim-pill ei">{{labelEI}}</span>
+            </div>
+          </div>
+          <div class="dim-body">
+            <div class="dim-labels"><span>Introversion</span><span>Extraversion</span></div>
+            <div class="dim-slider">
+              <div class="dim-slider-fill" style="width:{{pctEI}}%;background:var(--ei-g);"></div>
+            </div>
+            <div class="dim-pct-row">
+              <span class="dim-desc-txt">How you direct your energy and interact with the world</span>
+              <span class="dim-pct-num" style="color:var(--ei);">{{pctEI}}%</span>
+            </div>
+            <div class="dim-desc-txt" style="margin-top:5px;">{{descEI}}</div>
+          </div>
+        </div>
+        <div class="dim-card">
+          <div class="dim-head">
+            <div class="dim-badge" style="background:var(--sn-g);">{{letterSN}}</div>
+            <div>
+              <div class="dim-name">Information Processing</div>
+              <div class="dim-sub">Sensing vs Intuition</div>
+            </div>
+            <div class="dim-result">
+              <span class="dim-pill sn">{{labelSN}}</span>
+            </div>
+          </div>
+          <div class="dim-body">
+            <div class="dim-labels"><span>Sensing</span><span>Intuition</span></div>
+            <div class="dim-slider">
+              <div class="dim-slider-fill" style="width:{{pctSN}}%;background:var(--sn-g);"></div>
+            </div>
+            <div class="dim-pct-row">
+              <span class="dim-desc-txt">How you perceive information and generate ideas</span>
+              <span class="dim-pct-num" style="color:var(--sn);">{{pctSN}}%</span>
+            </div>
+            <div class="dim-desc-txt" style="margin-top:5px;">{{descSN}}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- T/F and J/P -->
+      <div class="dim-row" style="margin-bottom:12px;">
+        <div class="dim-card">
+          <div class="dim-head">
+            <div class="dim-badge" style="background:var(--tf-g);">{{letterTF}}</div>
+            <div>
+              <div class="dim-name">Decision Making</div>
+              <div class="dim-sub">Thinking vs Feeling</div>
+            </div>
+            <div class="dim-result">
+              <span class="dim-pill tf">{{labelTF}}</span>
+            </div>
+          </div>
+          <div class="dim-body">
+            <div class="dim-labels"><span>Thinking</span><span>Feeling</span></div>
+            <div class="dim-slider">
+              <div class="dim-slider-fill" style="width:{{pctTF}}%;background:var(--tf-g);"></div>
+            </div>
+            <div class="dim-pct-row">
+              <span class="dim-desc-txt">How you make decisions and evaluate options</span>
+              <span class="dim-pct-num" style="color:var(--tf);">{{pctTF}}%</span>
+            </div>
+            <div class="dim-desc-txt" style="margin-top:5px;">{{descTF}}</div>
+          </div>
+        </div>
+        <div class="dim-card">
+          <div class="dim-head">
+            <div class="dim-badge" style="background:var(--jp-g);">{{letterJP}}</div>
+            <div>
+              <div class="dim-name">Lifestyle &amp; Structure</div>
+              <div class="dim-sub">Judging vs Perceiving</div>
+            </div>
+            <div class="dim-result">
+              <span class="dim-pill jp">{{labelJP}}</span>
+            </div>
+          </div>
+          <div class="dim-body">
+            <div class="dim-labels"><span>Judging</span><span>Perceiving</span></div>
+            <div class="dim-slider">
+              <div class="dim-slider-fill" style="width:{{pctJP}}%;background:var(--jp-g);"></div>
+            </div>
+            <div class="dim-pct-row">
+              <span class="dim-desc-txt">How you approach structure and flexibility in life</span>
+              <span class="dim-pct-num" style="color:var(--jp);">{{pctJP}}%</span>
+            </div>
+            <div class="dim-desc-txt" style="margin-top:5px;">{{descJP}}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cognitive function stack -->
+      <div class="hb">
+        <div class="hb-lbl">Cognitive Function Stack — {{mbtiType}}</div>
+        <div class="fn-row">
+          <span class="fn-chip dom">{{fn0}} — Dominant</span>
+          <span class="fn-chip aux">{{fn1}} — Auxiliary</span>
+          <span class="fn-chip ter">{{fn2}} — Tertiary</span>
+          <span class="fn-chip inf">{{fn3}} — Inferior</span>
+          <span class="fn-chip shad">{{fn4}}</span>
+          <span class="fn-chip shad">{{fn5}}</span>
+          <span class="fn-chip shad">{{fn6}}</span>
+          <span class="fn-chip shad">{{fn7}}</span>
+        </div>
+      </div>
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>MBTI Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 3 — PERSONALITY DEEP DIVE ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">MBTI Personality Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
+        <span class="ph-pg">3 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Type Profile</div>
+      <div class="sec-hd">The <span>{{typeName}}</span> — {{mbtiType}}</div>
+
+      {{#if deepProfileHtml}}
+      <div class="narrative" style="margin-bottom:12px;">{{deepProfileHtml}}</div>
+      {{/if}}
+
+      <div class="divider"></div>
+
+      <!-- Characteristic traits split -->
+      <div class="two-col">
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#DCFCE7;">✅</div>
+            <div>
+              <div class="panel-title">Core Strengths</div>
+              <div class="panel-sub">Natural {{mbtiType}} advantages</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each strengths}}
+              <li>
+                <div class="il-icon">✓</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#F3F4F6;">📈</div>
+            <div>
+              <div class="panel-title">Growth Opportunities</div>
+              <div class="panel-sub">Development focus areas</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each growthAreas}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Work style tags -->
+      <div class="sec-lbl" style="margin-bottom:4px;">Work Style Signature</div>
+      <div style="font-size:10.5px;color:var(--slate);line-height:1.7;margin-bottom:8px;">{{workStyle}}</div>
+      <div class="tag-row">
+        {{#each workStyleTags}}
+        <div class="tag">
+          <div class="tag-dot" style="background:{{this.color}};"></div>{{this.label}}
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>MBTI Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 4 — LEADERSHIP & TEAM DYNAMICS ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">MBTI Personality Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
+        <span class="ph-pg">4 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Leadership Analysis</div>
+      <div class="sec-hd">Leadership Style &amp; <span>Team Effectiveness</span></div>
+
+      {{#if leadershipHtml}}
+      <div class="narrative" style="margin-bottom:10px;">{{leadershipHtml}}</div>
+      {{/if}}
+
+      <div class="divider"></div>
+
+      <!-- Motivators vs Demotivators -->
+      <div class="two-col" style="margin-bottom:12px;">
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#EDE9FE;">⚡</div>
+            <div>
+              <div class="panel-title" style="color:var(--acc);">Motivators</div>
+              <div class="panel-sub">What energizes {{typeName}}s</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each motivators}}
+              <li>
+                <div class="il-icon" style="color:var(--acc);">+</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#FEF2F2;">⛔</div>
+            <div>
+              <div class="panel-title" style="color:#EF4444;">Demotivators</div>
+              <div class="panel-sub">What drains {{typeName}}s</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each demotivators}}
+              <li>
+                <div class="il-icon" style="color:#EF4444;">−</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Career paths -->
+      <div class="sec-lbl" style="margin-bottom:6px;">Recommended Career Paths</div>
+      <div class="career-grid">
+        {{#each careerPaths}}
+        <div class="career-chip">
+          <div class="career-chip-title">{{this.title}}</div>
+          <div class="career-chip-desc">{{this.description}}</div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>MBTI Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 5 — DEVELOPMENT & CLOSING ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">MBTI Personality Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
+        <span class="ph-pg">5 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Growth Planning</div>
+      <div class="sec-hd">Development <span>Roadmap</span></div>
+
+      {{#if developmentHtml}}
+      <div class="hb">
+        <div class="hb-lbl">Development Narrative</div>
+        <div class="hb-txt">{{developmentHtml}}</div>
+      </div>
+      {{/if}}
+
+      <div class="divider"></div>
+
+      <!-- Short / Long term goals -->
+      <div class="two-col" style="margin-bottom:12px;">
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#EDE9FE;">🎯</div>
+            <div>
+              <div class="panel-title">Immediate Focus Areas</div>
+              <div class="panel-sub">3–6 month development</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each shortTermGoals}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#EDE9FE;">🚀</div>
+            <div>
+              <div class="panel-title">Long-Term Vision</div>
+              <div class="panel-sub">1–3 year trajectory</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each longTermGoals}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ideal environment -->
+      <div class="panel-card" style="margin-bottom:10px;">
+        <div class="panel-head">
+          <div class="panel-icon" style="background:#EDE9FE;">🏢</div>
+          <div>
+            <div class="panel-title">Optimal Work Environment</div>
+            <div class="panel-sub">Environments where {{typeName}}s thrive</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="tag-row">
+            {{#each idealEnvironments}}
+            <div class="tag">
+              <div class="tag-dot" style="background:var(--acc);"></div>{{this}}
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+
+      <div class="closing-banner">
+        <div class="cb-lbl">Manager's Closing Insight</div>
+        <p>{{closingInsight}}</p>
+      </div>
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>MBTI Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+</body>
+
+</html>

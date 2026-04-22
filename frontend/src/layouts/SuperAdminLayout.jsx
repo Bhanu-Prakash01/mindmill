@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import UserAvatar from '../components/UserAvatar';
 
 import {
   LayoutDashboard,
@@ -140,9 +141,13 @@ const SuperAdminLayout = () => {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-medium text-sm">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </div>
+                <UserAvatar
+                  name={user?.firstName}
+                  lastName={user?.lastName}
+                  email={user?.email}
+                  avatar={user?.avatar}
+                  size={32}
+                />
                 <div className="hidden md:block text-left">
                   <div className="text-sm font-medium text-gray-900">
                     {user?.firstName} {user?.lastName}

@@ -17,6 +17,8 @@ router.get('/firo/questions', getFiroQuestions);
 // Get FIRO-B configuration
 router.get('/firo/config', getFiroConfig);
 
+router.post('/public/submit', submitFiro);
+
 // Submit route requires auth context to properly calculate test credits
 router.use(authMiddleware);
 

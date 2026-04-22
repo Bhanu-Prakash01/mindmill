@@ -275,8 +275,66 @@ async function generateMbtiReport(attempt, assessment, mbtiResults) {
   return report;
 }
 
+/**
+ * @desc    Download MBTI report as PDF
+ * @route   GET /api/attempts/:attemptId/mbti-report/download
+ * @access  Private
+ */
+const downloadMbtiReport = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  const { type = 'comprehensive' } = req.query;
+
+  const attempt = await Attempt.findById(attemptId)
+    .populate('user', 'firstName lastName email')
+    .populate('assessment', 'title category');
+
+  if (!attempt) {
+    throw new ApiError(404, 'Attempt not found');
+  }
+
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'superadmin') {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  if (attempt.assessment.category !== 'mbti') {
+    throw new ApiError(400, 'This is not an MBTI assessment attempt');
+  }
+
+  if (!attempt.mbtiResults) {
+    throw new ApiError(400, 'MBTI results not available for this attempt');
+  }
+
+  try {
+    const { generateMbtiReportPdf } = require('../services/pdfService');
+
+    const testTaker = {
+      name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : null),
+      email: attempt.testTakerEmail || attempt.user?.email,
+      phone: attempt.testTakerPhone
+    };
+
+    const mbtiData = attempt.mbtiResults;
+    const pdfBuffer = await generateMbtiReportPdf(attempt, testTaker, { type });
+    const assessmentTitle = attempt.assessment?.title?.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_') || 'MBTI';
+    const candidateName = (testTaker.name || 'Candidate').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').substring(0, 50);
+    const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';
+    const filename = `${assessmentTitle}_${typeLabel}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('MBTI PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate PDF');
+  }
+});
+
 module.exports = {
   submitMbti,
   getMbtiResults,
-  getMbtiAnalytics
+  getMbtiAnalytics,
+  downloadMbtiReport
 };

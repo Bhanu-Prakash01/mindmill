@@ -6,7 +6,7 @@
   <title>FIRO-B Interpretive Report — {{candidateName}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
-    href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
   <style>
     *,
@@ -18,18 +18,21 @@
     }
 
     :root {
-      --brand-dark: #232b38;
-      --brand-gray: #4a5568;
-      --brand-light: #a0aec0;
-      --surface: #f7fafc;
-      --border: #e2e8f0;
-
-      --brand-blue: #3182ce;
-      --brand-gold: #d69e2e;
-      --brand-red: #e53e3e;
-
-      --font-serif: 'Crimson Pro', serif;
-      --font-sans: 'Inter', sans-serif;
+      --navy: #0F172A;
+      --navy-m: #1E293B;
+      --slate: #475569;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --surface: #F8FAFC;
+      --inc: #6366F1;
+      /* Inclusion — indigo */
+      --ctl: #F59E0B;
+      /* Control   — amber  */
+      --aff: #EC4899;
+      /* Affection — pink   */
+      --inc-g: linear-gradient(135deg, #6366F1, #818CF8);
+      --ctl-g: linear-gradient(135deg, #F59E0B, #FCD34D);
+      --aff-g: linear-gradient(135deg, #EC4899, #F9A8D4);
     }
 
     html {
@@ -37,15 +40,15 @@
     }
 
     body {
-      font-family: var(--font-sans);
-      color: var(--brand-dark);
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: #334155;
       background: #fff;
       line-height: 1.6;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
 
-    /* ── PAGE SHELL ─────────────────────────────────── */
+    /* ── PAGE SHELL ──────────────────────────────────── */
     .page {
       width: 210mm;
       height: 297mm;
@@ -54,8 +57,6 @@
       background: #fff;
       page-break-after: always;
       break-after: page;
-      display: flex;
-      flex-direction: column;
     }
 
     .page:last-child {
@@ -78,213 +79,441 @@
       }
     }
 
-    /* ── CHROME ─────────────────────────────────────── */
-    .header {
-      padding: 18px 30px;
-      border-bottom: 2px solid var(--brand-dark);
+    /* ── INNER PAGE CHROME ───────────────────────────── */
+    .inner-page {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
+    }
+
+    /* page header */
+    .ph {
+      height: 44px;
+      min-height: 44px;
+      flex-shrink: 0;
+      display: flex;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
     }
 
-    .header .logo {
-      font-family: var(--font-serif);
-      font-size: 20px;
+    .ph-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ph-logo {
+      font-size: 13px;
       font-weight: 700;
-      color: var(--brand-dark);
-      letter-spacing: -0.5px;
+      color: var(--navy);
+      font-family: 'DM Sans', sans-serif;
     }
 
-    .header .title {
+    .ph-logo span {
+      color: var(--inc);
+    }
+
+    .ph-sep {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    .ph-title {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .ph-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .ph-name {
       font-size: 9px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--brand-gray);
+      color: var(--slate);
     }
 
-    .footer {
-      padding: 14px 30px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: auto;
-    }
-
-    .footer p {
+    .ph-pg {
       font-size: 8px;
-      color: var(--brand-light);
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
     }
 
-    .content {
-      padding: 30px 40px;
+    /* page content */
+    .pc {
       flex: 1;
+      overflow: hidden;
+      padding: 20px 28px;
+    }
+
+    /* page footer */
+    .pf {
+      height: 28px;
+      min-height: 28px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      border-top: 1px solid var(--border);
+    }
+
+    .pf p {
+      font-size: 7.5px;
+      color: var(--muted);
+    }
+
+    /* ── TYPOGRAPHY ──────────────────────────────────── */
+    .sec-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--inc);
+      margin-bottom: 4px;
+    }
+
+    .sec-hd {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      color: var(--navy);
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    .sec-hd span {
+      color: var(--inc);
+      font-style: italic;
+    }
+
+    .sec-hd em {
+      font-style: normal;
+    }
+
+    .narrative p {
+      font-size: 10.5px;
+      color: var(--slate);
+      line-height: 1.75;
+      margin-bottom: 10px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 14px 0;
+    }
+
+    /* ── COVER ───────────────────────────────────────── */
+    .cover {
+      background: var(--navy);
+      height: 297mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-accent {
+      height: 4px;
+      background: var(--inc-g);
+      flex-shrink: 0;
+    }
+
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 44px 52px 36px;
+      position: relative;
       overflow: hidden;
     }
 
-    /* ── TYPOGRAPHY ─────────────────────────────────── */
-    h1 {
-      font-family: var(--font-serif);
-      font-size: 38px;
+    /* decorative shapes */
+    .cv-orb {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--inc-g);
+      opacity: 0.07;
+    }
+
+    .cv-orb-1 {
+      width: 320px;
+      height: 320px;
+      top: -80px;
+      right: -60px;
+    }
+
+    .cv-orb-2 {
+      width: 180px;
+      height: 180px;
+      bottom: 80px;
+      left: -40px;
+      background: var(--ctl-g);
+      opacity: 0.06;
+    }
+
+    .cover-logo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 64px;
+    }
+
+    .cv-logo {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
       font-weight: 700;
-      line-height: 1.1;
-      margin-bottom: 12px;
-      color: var(--brand-dark);
+      color: #fff;
     }
 
-    h2 {
-      font-family: var(--font-serif);
-      font-size: 26px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      color: var(--brand-dark);
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
+    .cv-logo span {
+      color: var(--inc);
     }
 
-    h3 {
-      font-family: var(--font-serif);
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: var(--brand-dark);
-    }
-
-    p {
-      font-size: 11px;
-      color: var(--brand-gray);
-      line-height: 1.7;
-      margin-bottom: 14px;
-    }
-
-    .lead {
-      font-size: 13px;
-      color: var(--brand-dark);
+    .cv-tag {
+      font-size: 8px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.38);
       font-weight: 500;
     }
 
-    .intro-grid {
+    .cv-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 32px;
+      padding: 7px 16px 7px 7px;
+      margin-bottom: 24px;
+      width: fit-content;
+    }
+
+    .cv-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--inc-g);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .cv-badge span {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .cv-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px;
+      line-height: 1.1;
+      color: #fff;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+    }
+
+    .cv-headline em {
+      font-style: italic;
+      color: #A5B4FC;
+    }
+
+    .cv-sub {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 44px;
+    }
+
+    /* score strip on cover */
+    .cv-scores {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-top: 24px;
+      gap: 2px;
+      margin-bottom: 44px;
     }
 
-    .intro-box {
-      background: var(--surface);
-      border-top: 3px solid var(--brand-blue);
+    .cvs-item {
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .intro-box h4 {
-      font-size: 10px;
-      font-weight: 700;
+    .cvs-item:first-child {
+      background: rgba(99, 102, 241, 0.18);
+    }
+
+    .cvs-item:nth-child(2) {
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    .cvs-item:last-child {
+      background: rgba(236, 72, 153, 0.14);
+    }
+
+    .cvs-lbl {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .cvs-val {
+      font-family: 'DM Serif Display', serif;
+      font-size: 30px;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .cvs-sub {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.38);
+    }
+
+    .cv-meta {
+      margin-top: auto;
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      padding-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .cv-meta-lbl {
+      font-size: 8px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-bottom: 8px;
-      color: var(--brand-dark);
-    }
-
-    .intro-box p {
-      font-size: 9.5px;
-      margin-bottom: 0;
-    }
-
-    .intro-box ul {
-      padding-left: 14px;
-      margin-top: 8px;
-    }
-
-    .intro-box li {
-      font-size: 9px;
-      color: var(--brand-gray);
+      color: rgba(255, 255, 255, 0.35);
       margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .cv-meta-val {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
     }
 
     /* ── MATRIX TABLE ───────────────────────────────── */
     .firo-matrix {
       width: 100%;
       border-collapse: collapse;
-      margin: 30px 0;
+      margin: 10px 0 14px;
     }
 
     .firo-matrix th {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: var(--brand-light);
-      padding: 14px;
+      padding: 8px 12px;
       text-align: center;
-      border-bottom: 2px solid var(--brand-dark);
+      border-bottom: 2px solid var(--navy);
+    }
+
+    .firo-matrix th.th-inc {
+      color: var(--inc);
+    }
+
+    .firo-matrix th.th-ctl {
+      color: var(--ctl);
+    }
+
+    .firo-matrix th.th-aff {
+      color: var(--aff);
+    }
+
+    .firo-matrix th.th-tot {
+      color: var(--muted);
     }
 
     .firo-matrix td {
       border: 1px solid var(--border);
       text-align: center;
-      padding: 20px;
+      padding: 12px 10px;
     }
 
-    .firo-matrix td.label {
+    .firo-matrix td.row-lbl {
       text-align: left;
       font-weight: 700;
-      font-size: 13px;
-      color: var(--brand-dark);
+      font-size: 11px;
+      color: #334155;
       background: var(--surface);
-      width: 25%;
+      width: 22%;
+      padding-left: 14px;
     }
 
-    .firo-score-box {
-      font-family: var(--font-serif);
-      font-size: 32px;
+    .firo-matrix .score-big {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
       font-weight: 700;
-      color: var(--brand-blue);
       line-height: 1;
     }
 
-    .firo-cell-label {
-      font-size: 8px;
-      text-transform: uppercase;
+    .firo-matrix .score-code {
+      font-size: 7.5px;
       font-weight: 600;
-      color: var(--brand-light);
-      margin-top: 6px;
-    }
-
-    .matrix-total-row td {
-      background: var(--brand-dark);
-      color: #fff;
-      border-color: var(--brand-dark);
-    }
-
-    .matrix-total-row .firo-score-box {
-      color: #fff;
-    }
-
-    .matrix-total-row td.label {
-      background: var(--brand-dark);
-      color: #fff;
+      color: var(--muted);
+      letter-spacing: 1px;
       text-transform: uppercase;
-      font-size: 11px;
+      margin-top: 3px;
+    }
+
+    .firo-matrix tr.total-row td {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: #fff;
+    }
+
+    .firo-matrix tr.total-row td.row-lbl {
+      background: var(--navy);
+      color: rgba(255, 255, 255, 0.75);
+      text-transform: uppercase;
+      font-size: 9px;
       letter-spacing: 1px;
     }
 
-    /* ── BAR CHARTS ─────────────────────────────────── */
-    .score-bar-container {
+    .firo-matrix tr.total-row .score-big {
+      color: #fff;
+    }
+
+    .firo-matrix tr.total-row .score-code {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    /* ── SCORE BARS ─────────────────────────────────── */
+    .sbar-row {
       display: flex;
       align-items: center;
-      gap: 14px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
-    .score-bar-label {
-      width: 120px;
+    .sbar-lbl {
+      min-width: 110px;
       font-size: 10px;
       font-weight: 600;
-      color: var(--brand-dark);
+      color: var(--navy);
     }
 
-    .score-bar-track {
+    .sbar-track {
       flex: 1;
       background: var(--surface);
       height: 8px;
@@ -293,478 +522,963 @@
       position: relative;
     }
 
-    .score-bar-fill {
+    .sbar-fill {
       height: 100%;
-      background: var(--brand-blue);
+      border-radius: 4px;
       position: absolute;
       left: 0;
       top: 0;
     }
 
-    .score-bar-value {
-      width: 40px;
+    .sbar-val {
+      min-width: 36px;
       text-align: right;
-      font-family: var(--font-serif);
-      font-size: 16px;
+      font-family: 'DM Serif Display', serif;
+      font-size: 15px;
       font-weight: 700;
-      color: var(--brand-dark);
+      color: var(--navy);
     }
 
-    .score-bar-scale {
+    .sbar-max {
+      font-size: 9px;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+    }
+
+    /* ── DIMENSION CARDS ───────────────────────────── */
+    .dim-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .dim-card-head {
       display: flex;
-      justify-content: space-between;
-      padding-left: 134px;
-      padding-right: 40px;
-      margin-top: -6px;
-      margin-bottom: 16px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
     }
 
-    .score-bar-scale span {
-      font-size: 7px;
-      color: var(--brand-light);
-      font-weight: 600;
-    }
-
-    /* ── SUMMARY BOX ───────────────────────────────── */
-    .summary-box {
-      background: #edf2f7;
-      border-left: 4px solid var(--brand-blue);
-      padding: 18px 24px;
-      margin-top: 24px;
-      margin-bottom: 24px;
-    }
-
-    .summary-box p {
-      font-family: var(--font-serif);
-      font-size: 16px;
-      line-height: 1.5;
-      color: var(--brand-dark);
-      font-style: italic;
-      margin-bottom: 0;
-    }
-
-    .list-section {
-      margin-bottom: 20px;
-    }
-
-    .list-section ul {
-      padding-left: 18px;
-      margin-bottom: 14px;
-    }
-
-    .list-section li {
-      font-size: 11px;
-      color: var(--brand-gray);
-      margin-bottom: 6px;
-      line-height: 1.6;
-    }
-
-    .list-section li::marker {
-      color: var(--brand-blue);
-    }
-
-    /* ── COVER STYLES ───────────────────────────────── */
-    .cover {
+    .dim-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
       display: flex;
-      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      height: 100%;
-      padding: 60px;
-      background: #fff;
-    }
-
-    .c-logo {
-      font-family: var(--font-serif);
-      font-size: 32px;
+      font-size: 14px;
       font-weight: 700;
-      color: var(--brand-dark);
-      margin-bottom: 60px;
+      color: #fff;
+      flex-shrink: 0;
     }
 
-    .c-title {
-      font-family: var(--font-serif);
-      font-size: 54px;
+    .dim-hd-info {
+      flex: 1;
+    }
+
+    .dim-name {
+      font-size: 12px;
       font-weight: 700;
-      color: var(--brand-dark);
-      line-height: 1.1;
-      margin-bottom: 20px;
+      color: var(--navy);
     }
 
-    .c-subtitle {
-      font-size: 16px;
-      color: var(--brand-gray);
-      margin-bottom: 80px;
-      font-weight: 300;
+    .dim-sub {
+      font-size: 9px;
+      color: var(--muted);
     }
 
-    .c-meta {
-      border-top: 2px solid var(--brand-dark);
-      padding-top: 24px;
+    .dim-pct {
+      font-family: 'DM Serif Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .dim-card-body {
+      padding: 10px 14px 12px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .dim-two-bars {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 8px;
     }
 
-    .c-meta-lbl {
-      font-size: 9px;
+    .dim-mini-lbl {
+      font-size: 8.5px;
+      font-weight: 600;
       text-transform: uppercase;
-      font-weight: 700;
-      color: var(--brand-light);
       letter-spacing: 1px;
       margin-bottom: 4px;
     }
 
-    .c-meta-val {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--brand-dark);
+    .dim-mini-track {
+      background: #E2E8F0;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
     }
 
-    .html-content-block h3 {
-      margin-top: 20px;
-      font-size: 14px;
+    .dim-mini-fill {
+      height: 100%;
+      border-radius: 3px;
     }
 
-    .html-content-block p {
-      font-size: 10.5px;
+    .dim-mini-val {
+      font-size: 9.5px;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .dim-desc {
+      font-size: 9.5px;
+      color: var(--slate);
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    /* ── TWO-COL ─────────────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    /* ── PANEL CARD ─────────────────────────────────── */
+    .panel-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .panel-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .panel-sub {
+      font-size: 8.5px;
+      color: var(--muted);
+    }
+
+    .panel-body {
+      padding: 10px 14px;
+    }
+
+    .item-list {
+      list-style: none;
+    }
+
+    .item-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-size: 9.5px;
+      color: var(--slate);
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .il-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--inc);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .il-neg {
+      color: #EF4444;
+    }
+
+    /* ── HIGHLIGHT BOX ───────────────────────────────── */
+    .hb {
+      background: var(--navy);
+      border-radius: 6px;
+      padding: 14px 18px;
       margin-bottom: 12px;
+    }
+
+    .hb-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 5px;
+    }
+
+    .hb-txt {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.7;
+    }
+
+    /* ── NEED BADGES ─────────────────────────────────── */
+    .need-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 4px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      margin-bottom: 6px;
+      margin-right: 6px;
+    }
+
+    .nb-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .nb-txt {
+      font-size: 9px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    /* ── CLOSING BANNER ──────────────────────────────── */
+    .closing-banner {
+      background: linear-gradient(135deg, var(--navy), #1e3a8a);
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-top: 10px;
+    }
+
+    .cb-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 6px;
+    }
+
+    .closing-banner p {
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.92);
+      line-height: 1.55;
+      margin-bottom: 0;
+      font-style: italic;
+    }
+
+    /* ── ENV TIPS ────────────────────────────────────── */
+    .env-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .env-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .env-head {
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .env-ht {
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .env-body {
+      padding: 8px 12px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .env-body li {
+      font-size: 9px;
+      color: var(--slate);
+      margin-bottom: 5px;
+      line-height: 1.5;
+      list-style: disc;
+      margin-left: 12px;
+    }
+
+    /* ── PROFILE BANNER ──────────────────────────────── */
+    .profile-banner {
+      background: linear-gradient(135deg, #0F172A, #1E293B);
+      border-radius: 6px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .pb-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--inc-g);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      font-family: 'DM Serif Display', serif;
+    }
+
+    .pb-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 2px;
+    }
+
+    .pb-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .pb-sub {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.45);
     }
   </style>
 </head>
 
 <body>
 
-  <!-- ▌COVER PAGE ▐ -->
+  <!-- ▌PAGE 1 — COVER ▐ -->
   <div class="page">
     <div class="cover">
-      <div class="c-logo">MindMil FIRO-B®</div>
-      <div class="c-title">Interpretive Report for Organizations</div>
-      <div class="c-subtitle">Fundamental Interpersonal Relations Orientation–Behavior</div>
+      <div class="cover-accent"></div>
+      <div class="cover-body">
+        <div class="cv-orb cv-orb-1"></div>
+        <div class="cv-orb cv-orb-2"></div>
 
-      <div class="c-meta" style="margin-top: auto;">
-        <div>
-          <div class="c-meta-lbl">Report Prepared For</div>
-          <div class="c-meta-val">{{candidateName}}</div>
-          <div class="c-meta-val" style="font-size: 11px; font-weight: 400; color: var(--brand-gray);">
-            {{candidateEmail}}</div>
+        <div class="cover-logo-row">
+        <div class="cover-logo">
+          {{#if logoBase64}}
+            <img src="{{logoBase64}}" alt="Logo" style="height: 28px; margin-right: 8px;">
+          {{/if}}
+          MINDMILL ASSESSMENTS
         </div>
-        <div>
-          <div class="c-meta-lbl">Date of Assessment</div>
-          <div class="c-meta-val">{{assessmentDate}}</div>
+        <div class="cover-tag">Personality Assessment Report</div>
+      </div>
+
+        <div class="cv-badge">
+          <div class="cv-dot">F</div>
+          <span>FIRO-B · Fundamental Interpersonal Relations Orientation</span>
+        </div>
+
+        <div class="cv-headline">{{candidateName}}<br><em>Interpersonal Profile</em></div>
+        <div class="cv-sub">FIRO-B® Interpretive Report · Expressed &amp; Wanted Behavioral Analysis</div>
+
+        <!-- Score strip -->
+        <div class="cv-scores">
+          <div class="cvs-item">
+            <div class="cvs-lbl">Inclusion</div>
+            <div class="cvs-val">{{inclusionTotal}}</div>
+            <div class="cvs-sub">{{eI}} expressed · {{wI}} wanted</div>
+          </div>
+          <div class="cvs-item">
+            <div class="cvs-lbl">Control</div>
+            <div class="cvs-val">{{controlTotal}}</div>
+            <div class="cvs-sub">{{eC}} expressed · {{wC}} wanted</div>
+          </div>
+          <div class="cvs-item">
+            <div class="cvs-lbl">Affection</div>
+            <div class="cvs-val">{{affectionTotal}}</div>
+            <div class="cvs-sub">{{eA}} expressed · {{wA}} wanted</div>
+          </div>
+        </div>
+
+        <div class="cv-meta">
+          <div>
+            <div class="cv-meta-lbl">Report Prepared For</div>
+            <div class="cv-meta-val">{{candidateName}}</div>
+          </div>
+          <div>
+            <div class="cv-meta-lbl">Email Address</div>
+            <div class="cv-meta-val" style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.6);">
+              {{candidateEmail}}</div>
+          </div>
+          <div>
+            <div class="cv-meta-lbl">Assessment Date</div>
+            <div class="cv-meta-val">{{assessmentDate}}</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ▌INTRODUCTION PAGE ▐ -->
-  <div class="page">
-    <div class="header">
-      <div class="logo">mindmil FIRO-B®</div>
-      <div class="title">Interpretive Report | {{candidateName}}</div>
-    </div>
-    <div class="content">
-      <h2>Introduction</h2>
-      <p class="lead">The purpose of this report is to show how your results from the FIRO-B assessment can help you
-        understand your behavior and the behavior of others in your organization.</p>
-      <p>Information from the FIRO-B tool can help you maximize the impact of your actions, identify options for
-        increasing your job satisfaction and productivity, and explore alternative ways to achieve your goals. This
-        report provides an explanation of your results and considers how your results can help you plan your career
-        development, increase your job satisfaction, improve your effectiveness on teams, and identify the strengths and
-        weaknesses of your leadership style.</p>
-
-      <div class="intro-grid">
-        <div class="intro-box">
-          <h4>Inclusion [ I ]</h4>
-          <p>The need for Inclusion relates to forming new relations and associating with others; it determines the
-            extent of contact and prominence that a person seeks. Descriptors include:</p>
-          <ul>
-            <li>Belonging</li>
-            <li>Involvement</li>
-            <li>Recognition</li>
-            <li>Distinction</li>
-          </ul>
-        </div>
-        <div class="intro-box" style="border-top-color: var(--brand-gold);">
-          <h4>Control [ C ]</h4>
-          <p>The need for Control relates to decision making, influence, and persuasion between people; it determines
-            the extent of power or dominance that a person seeks. Descriptors include:</p>
-          <ul>
-            <li>Power</li>
-            <li>Authority</li>
-            <li>Influence</li>
-            <li>Consistency</li>
-          </ul>
-        </div>
-        <div class="intro-box" style="border-top-color: var(--brand-red);">
-          <h4>Affection [ A ]</h4>
-          <p>The need for Affection relates to emotional ties and warm connections between people; it determines the
-            extent of closeness that a person seeks. Descriptors include:</p>
-          <ul>
-            <li>Personal ties</li>
-            <li>Consensus</li>
-            <li>Support</li>
-            <li>Openness</li>
-          </ul>
-        </div>
+  <!-- ▌PAGE 2 — SCORE MATRIX & EXECUTIVE SUMMARY ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">FIRO-B Interpretive Report</span>
       </div>
-
-      <div style="margin-top: 30px;">
-        <p>For each of the three interpersonal needs, the FIRO-B instrument provides a measure of how much each need is
-          <strong>expressed</strong> or <strong>wanted</strong> by you.
-        </p>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
-          <div style="background: var(--surface); padding: 14px; border-left: 2px solid var(--brand-dark);">
-            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Expressed [e]</div>
-            <div style="font-size: 10px; color: var(--brand-gray); margin-top: 4px;">The extent to which you will
-              initiate the behavior.</div>
-          </div>
-          <div style="background: var(--surface); padding: 14px; border-left: 2px solid var(--brand-dark);">
-            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Wanted [w]</div>
-            <div style="font-size: 10px; color: var(--brand-gray); margin-top: 4px;">The extent to which you want or
-              will accept that behavior from others.</div>
-          </div>
-        </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}}</span>
+        <span class="ph-pg">2 of 5</span>
       </div>
     </div>
-    <div class="footer">
-      <p>Confidential — For Internal Organizational Use Only</p>
-      <p>Page 2</p>
-    </div>
-  </div>
-
-  <!-- ▌RESULTS MATRIX PAGE ▐ -->
-  <div class="page">
-    <div class="header">
-      <div class="logo">mindmil FIRO-B®</div>
-      <div class="title">Interpretive Report | {{candidateName}}</div>
-    </div>
-    <div class="content">
-      <h2>Your FIRO-B Results</h2>
+    <div class="pc">
+      <div class="sec-lbl">Assessment Results</div>
+      <div class="sec-hd">Your FIRO-B <span>Score Matrix</span></div>
 
       <table class="firo-matrix">
         <thead>
           <tr>
             <th></th>
-            <th>Inclusion</th>
-            <th>Control</th>
-            <th>Affection</th>
-            <th style="background: var(--surface);">Total Expressed</th>
+            <th class="th-inc">Inclusion</th>
+            <th class="th-ctl">Control</th>
+            <th class="th-aff">Affection</th>
+            <th class="th-tot">Row Total</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="label">Expressed</td>
+            <td class="row-lbl">Expressed</td>
             <td>
-              <div class="firo-score-box">{{eI}}</div>
-              <div class="firo-cell-label">[eI]</div>
+              <div class="score-big" style="color:var(--inc);">{{eI}}</div>
+              <div class="score-code">[eI] · max 9</div>
             </td>
             <td>
-              <div class="firo-score-box">{{eC}}</div>
-              <div class="firo-cell-label">[eC]</div>
+              <div class="score-big" style="color:var(--ctl);">{{eC}}</div>
+              <div class="score-code">[eC] · max 9</div>
             </td>
             <td>
-              <div class="firo-score-box">{{eA}}</div>
-              <div class="firo-cell-label">[eA]</div>
+              <div class="score-big" style="color:var(--aff);">{{eA}}</div>
+              <div class="score-code">[eA] · max 9</div>
             </td>
-            <td style="background: var(--surface);">
-              <div class="firo-score-box">{{totalExpressed}}</div>
-              <div class="firo-cell-label">Behavior</div>
+            <td>
+              <div class="score-big" style="color:var(--navy);">{{totalExpressed}}</div>
+              <div class="score-code">of 27</div>
             </td>
           </tr>
           <tr>
-            <td class="label">Wanted</td>
+            <td class="row-lbl">Wanted</td>
             <td>
-              <div class="firo-score-box">{{wI}}</div>
-              <div class="firo-cell-label">[wI]</div>
+              <div class="score-big" style="color:var(--inc);">{{wI}}</div>
+              <div class="score-code">[wI] · max 9</div>
             </td>
             <td>
-              <div class="firo-score-box">{{wC}}</div>
-              <div class="firo-cell-label">[wC]</div>
+              <div class="score-big" style="color:var(--ctl);">{{wC}}</div>
+              <div class="score-code">[wC] · max 9</div>
             </td>
             <td>
-              <div class="firo-score-box">{{wA}}</div>
-              <div class="firo-cell-label">[wA]</div>
+              <div class="score-big" style="color:var(--aff);">{{wA}}</div>
+              <div class="score-code">[wA] · max 9</div>
             </td>
-            <td style="background: var(--surface);">
-              <div class="firo-score-box">{{totalWanted}}</div>
-              <div class="firo-cell-label">Behavior</div>
+            <td>
+              <div class="score-big" style="color:var(--navy);">{{totalWanted}}</div>
+              <div class="score-code">of 27</div>
             </td>
           </tr>
-          <tr class="matrix-total-row">
-            <td class="label">Total Need</td>
+          <tr class="total-row">
+            <td class="row-lbl">Total Need</td>
             <td>
-              <div class="firo-score-box">{{inclusionTotal}}</div>
+              <div class="score-big">{{inclusionTotal}}</div>
+              <div class="score-code">of 18</div>
             </td>
             <td>
-              <div class="firo-score-box">{{controlTotal}}</div>
+              <div class="score-big">{{controlTotal}}</div>
+              <div class="score-code">of 18</div>
             </td>
             <td>
-              <div class="firo-score-box">{{affectionTotal}}</div>
+              <div class="score-big">{{affectionTotal}}</div>
+              <div class="score-code">of 18</div>
             </td>
             <td>
-              <div class="firo-score-box">{{overallTotal}}</div>
-              <div class="firo-cell-label" style="color: #fff;">Overall Need</div>
+              <div class="score-big">{{overallTotal}}</div>
+              <div class="score-code">overall / 54</div>
             </td>
           </tr>
         </tbody>
       </table>
 
+      <!-- Overall bars -->
+      <div class="divider"></div>
+      <div style="margin-bottom:8px;">
+        <div class="sbar-row">
+          <div class="sbar-lbl">Overall Interpersonal</div>
+          <div class="sbar-track">
+            <div class="sbar-fill"
+              style="width:calc(({{overallTotal}}/54)*100%);background:linear-gradient(90deg,var(--inc),#818CF8);">
+            </div>
+          </div>
+          <div class="sbar-val">{{overallTotal}} <span class="sbar-max">/ 54</span></div>
+        </div>
+        <div class="sbar-row">
+          <div class="sbar-lbl">Total Expressed</div>
+          <div class="sbar-track">
+            <div class="sbar-fill"
+              style="width:calc(({{totalExpressed}}/27)*100%);background:linear-gradient(90deg,var(--ctl),#FCD34D);">
+            </div>
+          </div>
+          <div class="sbar-val">{{totalExpressed}} <span class="sbar-max">/ 27</span></div>
+        </div>
+        <div class="sbar-row">
+          <div class="sbar-lbl">Total Wanted</div>
+          <div class="sbar-track">
+            <div class="sbar-fill"
+              style="width:calc(({{totalWanted}}/27)*100%);background:linear-gradient(90deg,var(--aff),#F9A8D4);"></div>
+          </div>
+          <div class="sbar-val">{{totalWanted}} <span class="sbar-max">/ 27</span></div>
+        </div>
+      </div>
+
       {{#if coverSummary}}
-      <div class="summary-box">
-        <p>{{{coverSummary}}}</p>
+      <div class="hb" style="margin-top:10px;">
+        <div class="hb-lbl">Executive Summary</div>
+        <div class="hb-txt">{{coverSummary}}</div>
+      </div>
+      {{/if}}
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>FIRO-B Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 3 — DIMENSION DEEP DIVE ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">FIRO-B Interpretive Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}}</span>
+        <span class="ph-pg">3 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Dimension Analysis</div>
+      <div class="sec-hd">Interpersonal <span>Dimension Breakdown</span></div>
+
+      <!-- Inclusion -->
+      <div class="dim-card">
+        <div class="dim-card-head">
+          <div class="dim-badge" style="background:var(--inc-g);">I</div>
+          <div class="dim-hd-info">
+            <div class="dim-name">Inclusion</div>
+            <div class="dim-sub">Belonging · Recognition · Involvement · Prominence</div>
+          </div>
+          <div class="dim-pct" style="color:var(--inc);">{{inclusionTotal}}<span
+              style="font-size:12px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;">/18</span></div>
+        </div>
+        <div class="dim-card-body">
+          <div class="dim-two-bars">
+            <div>
+              <div class="dim-mini-lbl" style="color:var(--inc);">Expressed (eI)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill" style="width:calc(({{eI}}/9)*100%);background:var(--inc-g);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:var(--inc);">{{eI}} / 9 — How often you initiate contact</div>
+            </div>
+            <div>
+              <div class="dim-mini-lbl" style="color:#818CF8;">Wanted (wI)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill"
+                  style="width:calc(({{wI}}/9)*100%);background:linear-gradient(90deg,#818CF8,#C7D2FE);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:#818CF8;">{{wI}} / 9 — How much inclusion you desire</div>
+            </div>
+          </div>
+          <div class="dim-desc">The Inclusion dimension maps how this individual engages with groups and social
+            environments. A high expressed score means they actively draw others in; a high wanted score means they seek
+            to be included themselves.</div>
+        </div>
+      </div>
+
+      <!-- Control -->
+      <div class="dim-card">
+        <div class="dim-card-head">
+          <div class="dim-badge" style="background:var(--ctl-g);">C</div>
+          <div class="dim-hd-info">
+            <div class="dim-name">Control</div>
+            <div class="dim-sub">Power · Authority · Influence · Consistency</div>
+          </div>
+          <div class="dim-pct" style="color:var(--ctl);">{{controlTotal}}<span
+              style="font-size:12px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;">/18</span></div>
+        </div>
+        <div class="dim-card-body">
+          <div class="dim-two-bars">
+            <div>
+              <div class="dim-mini-lbl" style="color:var(--ctl);">Expressed (eC)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill" style="width:calc(({{eC}}/9)*100%);background:var(--ctl-g);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:var(--ctl);">{{eC}} / 9 — How often you take charge</div>
+            </div>
+            <div>
+              <div class="dim-mini-lbl" style="color:#D97706;">Wanted (wC)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill"
+                  style="width:calc(({{wC}}/9)*100%);background:linear-gradient(90deg,#D97706,#FCD34D);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:#D97706;">{{wC}} / 9 — How much direction you welcome</div>
+            </div>
+          </div>
+          <div class="dim-desc">Control maps the interplay between asserting authority and accepting direction. High
+            expressed Control signals a natural leader who commands situations; high wanted Control signals a
+            collaborative individual who thrives under structured guidance.</div>
+        </div>
+      </div>
+
+      <!-- Affection -->
+      <div class="dim-card">
+        <div class="dim-card-head">
+          <div class="dim-badge" style="background:var(--aff-g);">A</div>
+          <div class="dim-hd-info">
+            <div class="dim-name">Affection</div>
+            <div class="dim-sub">Personal ties · Closeness · Consensus · Support</div>
+          </div>
+          <div class="dim-pct" style="color:var(--aff);">{{affectionTotal}}<span
+              style="font-size:12px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;">/18</span></div>
+        </div>
+        <div class="dim-card-body">
+          <div class="dim-two-bars">
+            <div>
+              <div class="dim-mini-lbl" style="color:var(--aff);">Expressed (eA)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill" style="width:calc(({{eA}}/9)*100%);background:var(--aff-g);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:var(--aff);">{{eA}} / 9 — Warmth you express to others</div>
+            </div>
+            <div>
+              <div class="dim-mini-lbl" style="color:#BE185D;">Wanted (wA)</div>
+              <div class="dim-mini-track">
+                <div class="dim-mini-fill"
+                  style="width:calc(({{wA}}/9)*100%);background:linear-gradient(90deg,#BE185D,#F9A8D4);"></div>
+              </div>
+              <div class="dim-mini-val" style="color:#BE185D;">{{wA}} / 9 — Closeness you need from others</div>
+            </div>
+          </div>
+          <div class="dim-desc">Affection describes the depth of emotional closeness this individual seeks and expresses
+            in professional relationships. It differentiates those who build broad networks from those who cultivate a
+            small number of deep, trusting bonds.</div>
+        </div>
+      </div>
+
+      <!-- Personality narrative -->
+      <div class="profile-banner">
+        <div class="pb-icon">F</div>
+        <div>
+          <div class="pb-lbl">Highest Expressed Dimension</div>
+          <div class="pb-name">{{highestExpressed}}</div>
+          <div class="pb-sub">Primary interpersonal driver · FIRO-B Framework</div>
+        </div>
+      </div>
+
+      {{#if deepProfileHtml}}
+      <div class="narrative" style="margin-top:4px;">{{deepProfileHtml}}</div>
+      {{/if}}
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>FIRO-B Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 4 — NEED FULFILLMENT & LEADERSHIP ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">FIRO-B Interpretive Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}}</span>
+        <span class="ph-pg">4 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Behavioral Insights</div>
+      <div class="sec-hd">Need Fulfillment &amp; <span>Leadership Style</span></div>
+
+      <!-- 3 fulfillment panels -->
+      <div class="three-col" style="margin-bottom:12px;">
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:rgba(99,102,241,0.1);">👥</div>
+            <div>
+              <div class="panel-title" style="color:var(--inc);">Inclusion</div>
+              <div class="panel-sub">Belonging &amp; Recognition</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each inclusionFulfillment}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:rgba(245,158,11,0.1);">🎯</div>
+            <div>
+              <div class="panel-title" style="color:var(--ctl);">Control</div>
+              <div class="panel-sub">Authority &amp; Influence</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each controlFulfillment}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:rgba(236,72,153,0.1);">❤️</div>
+            <div>
+              <div class="panel-title" style="color:var(--aff);">Affection</div>
+              <div class="panel-sub">Closeness &amp; Trust</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              {{#each affectionFulfillment}}
+              <li>
+                <div class="il-icon">→</div><span>{{this}}</span>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Leadership section -->
+      <div class="sec-lbl" style="margin-bottom:4px;">Leadership Analysis</div>
+      <div class="sec-hd" style="font-size:14px;margin-bottom:8px;">Leadership &amp; <span>Team Dynamics</span></div>
+
+      {{#if leadershipHtml}}
+      <div class="narrative" style="margin-bottom:8px;">{{leadershipHtml}}</div>
+      {{/if}}
+
+      <div class="divider"></div>
+
+      <!-- Ideal environments -->
+      <div class="sec-lbl" style="margin-bottom:6px;">Optimal Work Environment</div>
+      <div class="env-grid">
+        <div class="env-card">
+          <div class="env-head" style="background:rgba(99,102,241,0.06);">
+            <span style="font-size:14px;">👥</span>
+            <div class="env-ht" style="color:var(--inc);">Inclusion</div>
+          </div>
+          <div class="env-body">
+            <ul>
+              {{#each inclusionTips}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="env-card">
+          <div class="env-head" style="background:rgba(245,158,11,0.06);">
+            <span style="font-size:14px;">⚡</span>
+            <div class="env-ht" style="color:var(--ctl);">Control</div>
+          </div>
+          <div class="env-body">
+            <ul>
+              {{#each controlTips}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        <div class="env-card">
+          <div class="env-head" style="background:rgba(236,72,153,0.06);">
+            <span style="font-size:14px;">💬</span>
+            <div class="env-ht" style="color:var(--aff);">Affection</div>
+          </div>
+          <div class="env-body">
+            <ul>
+              {{#each affectionTips}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>FIRO-B Interpretive Report · {{assessmentDate}}</p>
+    </div>
+  </div>
+
+  <!-- ▌PAGE 5 — DEVELOPMENT & CLOSING ▐ -->
+  <div class="page inner-page">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="ph-logo">Mind<span>Mill</span></span>
+        <div class="ph-sep"></div>
+        <span class="ph-title">FIRO-B Interpretive Report</span>
+      </div>
+      <div class="ph-right">
+        <span class="ph-name">{{candidateName}}</span>
+        <span class="ph-pg">5 of 5</span>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="sec-lbl">Growth Planning</div>
+      <div class="sec-hd">Development <span>Roadmap</span></div>
+
+      <!-- Need score summary badges -->
+      <div style="margin-bottom:12px;">
+        <div class="need-badge">
+          <div class="nb-dot" style="background:var(--inc-g);">I</div>
+          <div class="nb-txt">Inclusion: {{inclusionTotal}}/18 &nbsp;·&nbsp; {{eI}} expressed, {{wI}} wanted</div>
+        </div>
+        <div class="need-badge">
+          <div class="nb-dot" style="background:var(--ctl-g);">C</div>
+          <div class="nb-txt">Control: {{controlTotal}}/18 &nbsp;·&nbsp; {{eC}} expressed, {{wC}} wanted</div>
+        </div>
+        <div class="need-badge">
+          <div class="nb-dot" style="background:var(--aff-g);">A</div>
+          <div class="nb-txt">Affection: {{affectionTotal}}/18 &nbsp;·&nbsp; {{eA}} expressed, {{wA}} wanted</div>
+        </div>
+      </div>
+
+      {{#if developmentHtml}}
+      <div class="hb">
+        <div class="hb-lbl">Development Focus</div>
+        <div class="hb-txt">{{developmentHtml}}</div>
       </div>
       {{/if}}
 
-      <div style="margin-top: 30px;">
-        <h3>Psychologist's Deep Profile Narrative</h3>
-        <div class="html-content-block narrative">
-          {{{deepProfileHtml}}}
-        </div>
-      </div>
-    </div>
-    <div class="footer">
-      <p>Confidential — For Internal Organizational Use Only</p>
-      <p>Page 3</p>
-    </div>
-  </div>
+      <div class="divider"></div>
 
-  <!-- ▌INTERPERSONAL NEEDS ▐ -->
-  <div class="page">
-    <div class="header">
-      <div class="logo">mindmil FIRO-B®</div>
-      <div class="title">Interpretive Report | {{candidateName}}</div>
-    </div>
-    <div class="content">
-      <h2>Your Overall Interpersonal Needs</h2>
-      <p>The indicator of your Overall Interpersonal Needs is the total of all six individual needs (eI + wI + eC + wC +
-        eA + wA). This result represents the overall strength of your interpersonal needs; it shows how much you believe
-        that other people and human interaction can help you attain your goals and achieve personal satisfaction.</p>
-
-      <div class="score-bar-container" style="margin-top: 20px;">
-        <div class="score-bar-label">Overall Needs</div>
-        <div class="score-bar-track">
-          <div class="score-bar-fill" style="width: calc(({{overallTotal}} / 54) * 100%);"></div>
-        </div>
-        <div class="score-bar-value">{{overallTotal}}</div>
-      </div>
-      <div class="score-bar-scale">
-        <span>LOW (0-15)</span>
-        <span>MEDIUM (16-39)</span>
-        <span>HIGH (40-54)</span>
-      </div>
-
-      <h3 style="margin-top: 40px;">Total Expressed and Total Wanted Behaviors</h3>
-      <p>Your result for Total Expressed Behavior indicates how often you take the initiative in approaching others.
-        Your Total Wanted Behavior indicates how much you rely on others to get what you need.</p>
-
-      <div class="score-bar-container" style="margin-top: 20px;">
-        <div class="score-bar-label">Total Expressed</div>
-        <div class="score-bar-track">
-          <div class="score-bar-fill"
-            style="width: calc(({{totalExpressed}} / 27) * 100%); background: var(--brand-gold);"></div>
-        </div>
-        <div class="score-bar-value">{{totalExpressed}}</div>
-      </div>
-      <div class="score-bar-scale">
-        <span>LOW (0-7)</span>
-        <span>MEDIUM (8-19)</span>
-        <span>HIGH (20-27)</span>
-      </div>
-
-      <div class="score-bar-container">
-        <div class="score-bar-label">Total Wanted</div>
-        <div class="score-bar-track">
-          <div class="score-bar-fill" style="width: calc(({{totalWanted}} / 27) * 100%); background: var(--brand-red);">
+      <!-- Two-col: strength areas + growth ops -->
+      <div class="two-col" style="margin-bottom:12px;">
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#DCFCE7;">✅</div>
+            <div>
+              <div class="panel-title">Interpersonal Strengths</div>
+              <div class="panel-sub">Highest expressed dimension: {{highestExpressed}}</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              <li>
+                <div class="il-icon">✓</div><span>Natural behavioral driver in the {{highestExpressed}} dimension
+                  creates distinctive team value</span>
+              </li>
+              <li>
+                <div class="il-icon">✓</div><span>Expressed behaviors aligned with core interpersonal orientation</span>
+              </li>
+              <li>
+                <div class="il-icon">✓</div><span>Overall interpersonal need profile: {{overallTotal}}/54 — distinctly
+                  oriented profile</span>
+              </li>
+            </ul>
           </div>
         </div>
-        <div class="score-bar-value">{{totalWanted}}</div>
-      </div>
-      <div class="score-bar-scale">
-        <span>LOW (0-7)</span>
-        <span>MEDIUM (8-19)</span>
-        <span>HIGH (20-27)</span>
+        <div class="panel-card">
+          <div class="panel-head">
+            <div class="panel-icon" style="background:#FEF3C7;">📈</div>
+            <div>
+              <div class="panel-title">Growth Opportunities</div>
+              <div class="panel-sub">Lowest expressed dimension: {{lowestExpressed}}</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              <li>
+                <div class="il-icon">→</div><span>Build awareness of gaps between expressed behaviors and wanted needs
+                  to prevent misread signals</span>
+              </li>
+              <li>
+                <div class="il-icon">→</div><span>Strengthen intentional communication in the {{lowestExpressed}}
+                  dimension</span>
+              </li>
+              <li>
+                <div class="il-icon">→</div><span>Recognize when internal needs are driving disproportionate
+                  interpersonal reactions</span>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
-      <h3 style="margin-top: 40px;">Patterns of Need Fulfillment</h3>
-      <div class="list-section">
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Inclusion Needs:</h4>
-        <ul>
-          {{#each inclusionFulfillment}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Control Needs:</h4>
-        <ul>
-          {{#each controlFulfillment}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Affection Needs:</h4>
-        <ul>
-          {{#each affectionFulfillment}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
+      <div class="closing-banner">
+        <div class="cb-lbl">Manager's Closing Insight</div>
+        <p>{{closingInsight}}</p>
       </div>
     </div>
-    <div class="footer">
-      <p>Confidential — For Internal Organizational Use Only</p>
-      <p>Page 4</p>
-    </div>
-  </div>
-
-  <!-- ▌LEADERSHIP & TEAM EFFECTIVENESS ▐ -->
-  <div class="page">
-    <div class="header">
-      <div class="logo">mindmil FIRO-B®</div>
-      <div class="title">Interpretive Report | {{candidateName}}</div>
-    </div>
-    <div class="content">
-      <h2>Leadership Style & Team Effectiveness</h2>
-
-      <div class="html-content-block narrative">
-        {{{leadershipHtml}}}
-      </div>
-
-      <h3 style="margin-top: 30px;">Team Environmental Demands</h3>
-      <p>Based on your profile, experience suggests you will favor specific environments regarding the extent of
-        integration and authority.</p>
-
-      <div class="list-section">
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Inclusion Environment:</h4>
-        <ul>
-          {{#each inclusionTips}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Control Environment:</h4>
-        <ul>
-          {{#each controlTips}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
-        <h4 style="font-size: 11px; margin-bottom: 6px; color: var(--brand-dark);">Affection Environment:</h4>
-        <ul>
-          {{#each affectionTips}}
-          <li>{{this}}</li>
-          {{/each}}
-        </ul>
-      </div>
-
-      <h3 style="margin-top: 30px;">Development & Roadmap</h3>
-      <div class="html-content-block narrative">
-        {{{developmentHtml}}}
-      </div>
-
-      <div class="summary-box" style="margin-top: 30px; border-left-color: var(--brand-gold);">
-        <p style="font-size: 14px; font-weight: 600;">Manager's Insight: {{{closingInsight}}}</p>
-      </div>
-
-    </div>
-    <div class="footer">
-      <p>Confidential — For Internal Organizational Use Only</p>
-      <p>Page 5</p>
+    <div class="pf">
+      <p>MindMill Assessments — Confidential</p>
+      <p>FIRO-B Interpretive Report · {{assessmentDate}}</p>
     </div>
   </div>
 

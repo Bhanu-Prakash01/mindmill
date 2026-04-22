@@ -1,5 +1,6 @@
 const { Attempt, Assessment, Question, Report, Organization, TestTakerInvite } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { scoreMBTI, calculateMBTIScores, determineMBTIType, generateCognitiveFunctions, generateInterpretation } = require('../services/mbtiScoringService');
 
 /**
  * @desc    Get user's attempts
@@ -383,12 +384,18 @@ const submitAttempt = asyncHandler(async (req, res) => {
 
   const assessment = await Assessment.findById(attempt.assessment);
 
-  // Route Big5 and DISC assessments to their specialized scoring
-  if (assessment.category === 'big5') {
-    return await handleBig5Submit(req, res, attempt, assessment);
-  }
+  // Route Big5, DISC, and MBTI assessments to their specialized scoring
+if (assessment.subCategory === 'Big5') {
+      return redirectToAssessment(assessment._id, 'big5');
+    }
+    if (assessment.subCategory === 'DISC') {
+      return redirectToAssessment(assessment._id, 'disc');
+    }
   if (assessment.category === 'disc') {
     return await handleDiscSubmit(req, res, attempt, assessment);
+  }
+  if (assessment.category === 'mbti') {
+    return await handleMbtiSubmit(req, res, attempt, assessment);
   }
 
   // Calculate scores
@@ -1359,6 +1366,106 @@ async function handleDiscSubmit(req, res, attempt, assessment) {
     success: true,
     message: 'DISC assessment completed successfully',
     data: { attempt, results: discResults, report }
+  });
+}
+
+/**
+ * Handle MBTI submit — delegates to MBTI scoring and report generation
+ */
+async function handleMbtiSubmit(req, res, attempt, assessment) {
+  let responses = {};
+
+  if (req.body && req.body.responses && typeof req.body.responses === 'object' && Object.keys(req.body.responses).length > 0) {
+    responses = req.body.responses;
+  }
+
+  if (Object.keys(responses).length === 0 && attempt.answers && attempt.answers.length > 0) {
+    attempt.answers.forEach(answer => {
+      if (answer.question) {
+        const qOrder = answer.question.order || 0;
+        if (answer.ratingAnswer !== undefined && answer.ratingAnswer !== null) {
+          responses[qOrder] = answer.ratingAnswer;
+        } else if (answer.selectedOption !== undefined && answer.selectedOption !== null) {
+          responses[qOrder] = answer.selectedOption;
+        }
+      }
+    });
+  }
+
+  if (!responses || Object.keys(responses).length === 0) {
+    throw new ApiError(400, 'Invalid MBTI responses format');
+  }
+
+  const totalQuestionsCount = assessment.questions?.length || Object.keys(responses).length;
+  const mbtiResults = scoreMBTI(responses);
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.mbtiResults = mbtiResults;
+  attempt.answeredQuestions = totalQuestionsCount;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'mbti',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: {
+      total: mbtiResults.percentages ?
+        Math.round((mbtiResults.percentages.EI + mbtiResults.percentages.SN +
+                   mbtiResults.percentages.TF + mbtiResults.percentages.JP) / 4) : 0,
+      maxScore: 100,
+      percentage: mbtiResults.percentages ?
+        Math.round((mbtiResults.percentages.EI + mbtiResults.percentages.SN +
+                   mbtiResults.percentages.TF + mbtiResults.percentages.JP) / 4) : 0
+    },
+    dimensions: {
+      MBTI: {
+        EI: mbtiResults.percentages?.EI || 50,
+        SN: mbtiResults.percentages?.SN || 50,
+        TF: mbtiResults.percentages?.TF || 50,
+        JP: mbtiResults.percentages?.JP || 50,
+        type: mbtiResults.type || '',
+        typeName: mbtiResults.name || '',
+        description: mbtiResults.description || ''
+      },
+      cognitiveFunctions: mbtiResults.cognitiveFunctions || []
+    },
+    analysis: {
+      summary: mbtiResults.description || '',
+      strengths: mbtiResults.dimensions ?
+        Object.values(mbtiResults.dimensions).map(d => `${d.label} (${d.percentage}%)`) : [],
+      workStyle: mbtiResults.interpretation || '',
+      personalityProfile: mbtiResults.type || ''
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'MBTI assessment completed successfully',
+    data: { attempt, results: mbtiResults, report }
   });
 }
 

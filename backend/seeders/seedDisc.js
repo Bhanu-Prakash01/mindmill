@@ -64,8 +64,8 @@ const seedDisc = async () => {
     const assessment = await Assessment.create({
       title: 'DISC Personality Assessment',
       description: 'The DISC assessment measures four behavioral styles: Dominance (D), Influence (I), Steadiness (S), and Conscientiousness (C). This scientifically validated assessment helps you understand your natural behavioral tendencies and how you interact with others.',
-      category: 'disc',
-      subCategory: 'personality',
+      category: 'personality',
+      subCategory: 'DISC',
       organization: organization._id,
       createdBy: adminUser._id,
       difficulty: 'basic',

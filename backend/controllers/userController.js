@@ -99,19 +99,39 @@ const getUser = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin)
  */
 const createUser = asyncHandler(async (req, res) => {
-  const { email, password, firstName, lastName, role, organizationId, phone, phoneCountryCode, salutation, jobTitle, city, company, isEmailVerified, deactivationDate, deactivationReason } = req.body;
+  const { 
+    email, password, firstName, lastName, role, organizationId, phone, phoneCountryCode, 
+    salutation, jobTitle, city, company, isEmailVerified, deactivationDate, deactivationReason,
+    organizationName, organizationSlug, organizationDescription, organizationCredits
+  } = req.body;
 
-  // Check if user can create users with the specified role
   if (req.user.role === 'admin' && role === 'admin') {
     throw new ApiError(403, 'Admins cannot create other admins');
   }
 
-  // Determine organization
   let userOrganization = req.user.organization;
-  if (req.user.role === 'superadmin' && organizationId) {
-    userOrganization = await Organization.findById(organizationId);
-    if (!userOrganization) {
-      throw new ApiError(404, 'Organization not found');
+
+  if (req.user.role === 'superadmin') {
+    if (organizationId) {
+      userOrganization = await Organization.findById(organizationId);
+      if (!userOrganization) {
+        throw new ApiError(404, 'Organization not found');
+      }
+    } else if (role === 'admin' && organizationName) {
+      const slug = organizationSlug?.toLowerCase().trim() || organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-').trim();
+      const existingOrg = await Organization.findOne({ slug });
+      if (existingOrg) {
+        throw new ApiError(400, 'Organization slug already exists');
+      }
+      
+      userOrganization = await Organization.create({
+        name: organizationName,
+        slug,
+        description: organizationDescription || '',
+        primaryColor: '#6366f1',
+        secondaryColor: '#8b5cf6',
+        credits: { total: organizationCredits || 50, used: 0 }
+      });
     }
   }
 
@@ -140,10 +160,12 @@ const createUser = asyncHandler(async (req, res) => {
     deactivationReason
   });
 
+  await user.populate('organization');
+
   res.status(201).json({
     success: true,
-    message: 'User created successfully',
-    data: { user }
+    message: userOrganization && organizationName ? 'Admin and organization created successfully' : 'User created successfully',
+    data: { user, organization: userOrganization }
   });
 });
 
@@ -153,7 +175,11 @@ const createUser = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin, Owner)
  */
 const updateUser = asyncHandler(async (req, res) => {
-  const { firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, isActive, role, city, company, isEmailVerified, deactivationDate, deactivationReason } = req.body;
+  const { 
+    firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, isActive, role, city, company, 
+    isEmailVerified, deactivationDate, deactivationReason,
+    organizationName, organizationSlug, organizationDescription, organizationCredits
+  } = req.body;
 
   let user = await User.findById(req.params.id);
 
@@ -174,17 +200,34 @@ const updateUser = asyncHandler(async (req, res) => {
     });
   } else {
     // Admin/SuperAdmin can update more fields
-    const updateData = { firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, isActive, city, company, isEmailVerified, deactivationDate, deactivationReason };
+    const updateData = { 
+      firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, 
+      isActive, city, company, isEmailVerified, deactivationDate, deactivationReason 
+    };
     
     // Only SuperAdmin can change roles
     if (role && req.user.role === 'superadmin') {
       updateData.role = role;
     }
 
+    if (req.user.role === 'superadmin' && user.organization) {
+      const orgUpdate = {};
+      if (organizationName) orgUpdate.name = organizationName;
+      if (organizationSlug) orgUpdate.slug = organizationSlug;
+      if (organizationDescription !== undefined) orgUpdate.description = organizationDescription;
+      if (organizationCredits !== undefined) {
+        orgUpdate['credits.total'] = organizationCredits;
+      }
+      
+      if (Object.keys(orgUpdate).length > 0) {
+        await Organization.findByIdAndUpdate(user.organization, orgUpdate);
+      }
+    }
+
     user = await User.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true
-    });
+    }).populate('organization');
   }
 
   res.json({

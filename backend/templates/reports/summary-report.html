@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{assessmentName}} Summary Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy:    #0F172A;
+      --navy-m:  #1E293B;
+      --slate:   #475569;
+      --muted:   #64748B;
+      --border:  #E2E8F0;
+      --surface: #F8FAFC;
+    }
+
+    html { font-size: 11px; }
+
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: #334155;
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ──────────────────────────────────── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 38px 46px;
+      position: relative;
+      background: #fff;
+    }
+    @page { size: A4; margin: 0; }
+    @media print {
+      .page { page-break-after: always; }
+      .page:last-child { page-break-after: avoid; }
+    }
+
+    /* ── HEADER ──────────────────────────────────────── */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding-bottom: 24px; border-bottom: 4px solid {{themeColor}}; 
+      margin-bottom: 36px;
+    }
+    .hd-left {}
+    .company { font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .company span { color: {{themeColor}}; }
+    .report-type { font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .hd-right { text-align: right; }
+    .candidate { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--navy); line-height: 1.1; margin-bottom: 4px; }
+    .date { font-size: 10px; color: var(--muted); }
+
+    /* ── HERO PROFILE ────────────────────────────────── */
+    .hero {
+      background: {{themeGradient}};
+      border-radius: 16px; padding: 40px; color: #fff;
+      text-align: center; margin-bottom: 36px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.06);
+    }
+    .hero-title { font-family: 'DM Serif Display', serif; font-size: 42px; line-height: 1; margin-bottom: 10px; letter-spacing: -0.5px; }
+    .hero-sub { font-size: 14px; font-weight: 400; opacity: 0.9; }
+
+    /* ── SECTION TITLES ──────────────────────────────── */
+    .sec-title {
+      font-size: 14px; font-weight: 700; color: var(--navy);
+      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .sec-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    /* ── SCORES GRID ─────────────────────────────────── */
+    .scores-grid {
+      display: grid; gap: 14px; margin-bottom: 36px;
+    }
+    .score-row {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 12px 18px; border-radius: 10px;
+    }
+    .sr-badge {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .sr-info { flex: 1; }
+    .sr-name { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .sr-track { height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; position: relative; }
+    .sr-fill { height: 100%; border-radius: 4px; position: absolute; left: 0; top: 0; }
+    .sr-value { font-size: 16px; font-weight: 700; width: 60px; text-align: right; }
+
+    /* ── INSIGHTS (TWO COL) ──────────────────────────── */
+    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 36px; }
+    
+    .panel {
+      border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; break-inside: avoid;
+    }
+    .panel-head {
+      padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-head-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .panel-head-title { font-size: 12px; font-weight: 700; color: var(--navy); }
+    .panel-body { padding: 18px; }
+    .item-list { list-style: none; }
+    .item-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 11px; color: var(--slate); line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .item-list li:last-child { margin-bottom: 0; }
+    .il-bullet { width: 16px; height: 16px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: {{themeColor}}; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── FOOTER ──────────────────────────────────────── */
+    .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .footer p { font-size: 9px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <!-- Header -->
+  <div class="header">
+    <div class="hd-left">
+      <div class="company">
+        {{#if logoBase64}}
+          <img src="{{logoBase64}}" alt="Logo" style="height: 18px; margin-right: 6px; vertical-align: middle;">
+        {{/if}}
+        MINDMILL ASSESSMENTS
+      </div>
+      <div class="report-type">{{assessmentName}} Executive Summary</div>
+    </div>
+    <div class="hd-right">
+      <div class="candidate">{{candidateName}}</div>
+      <div class="date">{{candidateEmail}}</div>
+      <div class="date">{{assessmentDate}} {{#if hasAttemptMetrics}}· {{attemptPct}}% Att. · Time: {{timeTakenMins}}m{{/if}}</div>
+    </div>
+  </div>
+
+  <!-- Hero Profile -->
+  <div class="hero">
+    <div class="hero-title">{{title}}</div>
+    <div class="hero-sub">{{subtitle}}</div>
+  </div>
+
+  <!-- Scores Section -->
+  <div class="sec-title">Score Overview</div>
+  <div class="scores-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+    {{#each scores}}
+    <div class="score-row">
+      <div class="sr-badge" style="background: {{this.color}};">{{this.label}}</div>
+      <div class="sr-info">
+        <div class="sr-name">{{this.name}}</div>
+        <div class="sr-track">
+          <div class="sr-fill" style="width: {{this.percentage}}%; background: {{this.color}};"></div>
+        </div>
+      </div>
+      <div class="sr-value" style="color: {{this.color}};">{{this.text}}</div>
+    </div>
+    {{/each}}
+  </div>
+
+  <!-- Narrative Panels -->
+  {{#if hasStrengths}}
+  <div class="insights-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:#DCFCE7;">✅</div>
+        <div class="panel-head-title">Core Strengths</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each strengths}}
+          <li><div class="il-bullet">✓</div><span>{{this}}</span></li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:#F3F4F6;">📈</div>
+        <div class="panel-head-title">Growth Opportunities</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each growthAreas}}
+          <li><div class="il-bullet">→</div><span>{{this}}</span></li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{#if hasMotivators}}
+  <div class="insights-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:#EDE9FE;">⚡</div>
+        <div class="panel-head-title">Motivators & Behavior</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each motivators}}
+          <li><div class="il-bullet">+</div><span>{{this}}</span></li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    
+    {{#if hasCareerPaths}}
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:#EFF6FF;">🎯</div>
+        <div class="panel-head-title">Aligned Paths</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each careerPaths}}
+          <li><div class="il-bullet" style="color:#3B82F6;">★</div><span>{{this}}</span></li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>MindMill Executive Summary</p>
+    <p>Confidential · Generated {{assessmentDate}}</p>
+  </div>
+
+</div>
+
+</body>
+</html>

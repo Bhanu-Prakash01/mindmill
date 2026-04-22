@@ -31,24 +31,31 @@ export const reportService = {
     return response.data;
   },
 
-  // Download report as PDF - returns blob for direct download
-  downloadReport: async (id, type = 'comprehensive', filename = 'report.pdf') => {
+// Download report as PDF - returns blob for direct download
+  downloadReport: async (id, type = 'comprehensive') => {
     const response = await api.get(`/reports/${id}/download`, {
       params: { type, _t: Date.now() },
       responseType: 'blob',
     });
-  
-   // Create download link and trigger it
-   const url = window.URL.createObjectURL(new Blob([response.data]));
-   const link = document.createElement('a');
-   link.href = url;
-   link.setAttribute('download', filename);
-   document.body.appendChild(link);
-   link.click();
-   link.parentNode.removeChild(link);
-   window.URL.revokeObjectURL(url);
-  
-   return true;
+
+    const headers = response.headers;
+    const cd = headers['content-disposition'] || headers['Content-Disposition'] || '';
+    let filename = `Assessment_Report_${Date.now()}.pdf`;
+    const match = cd.match(/filename[^;]*=([^;]+)/);
+    if (match) {
+      filename = match[1].replace(/"/g, '').trim();
+    }
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+   
+    return true;
   },
 
   // Generate comprehensive LLM-powered report

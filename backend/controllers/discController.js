@@ -334,9 +334,67 @@ async function generateDiscReport(attempt, assessment, discResults) {
   return report;
 }
 
+/**
+ * @desc    Download DISC assessment PDF report
+ * @route   GET /api/attempts/:attemptId/disc-report/download
+ * @access  Private
+ */
+const downloadDiscReport = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  const { type = 'comprehensive' } = req.query;
+
+  const attempt = await Attempt.findById(attemptId)
+    .populate('user', 'firstName lastName email')
+    .populate('assessment', 'title category');
+
+  if (!attempt) {
+    throw new ApiError(404, 'Attempt not found');
+  }
+
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'superadmin') {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  if (attempt.assessment.category !== 'disc') {
+    throw new ApiError(400, 'This is not a DISC assessment attempt');
+  }
+
+  if (!attempt.discResults) {
+    throw new ApiError(400, 'DISC results not available for this attempt');
+  }
+
+  try {
+    const { generateDiscReportPdf } = require('../services/pdfService');
+
+    const testTaker = {
+      name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : null),
+      email: attempt.testTakerEmail || attempt.user?.email,
+      phone: attempt.testTakerPhone
+    };
+
+    const discData = attempt.discResults;
+    const pdfBuffer = await generateDiscReportPdf(attempt, testTaker, { type });
+    const assessmentTitle = attempt.assessment?.title?.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_') || 'DISC';
+    const candidateName = (testTaker.name || 'Candidate').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').substring(0, 50);
+    const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';
+    const filename = `${assessmentTitle}_${typeLabel}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('DISC PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate PDF');
+  }
+});
+
 module.exports = {
   submitDisc,
   getDiscResults,
   getDiscAnalytics,
-  getDiscComparison
+  getDiscComparison,
+  downloadDiscReport
 };

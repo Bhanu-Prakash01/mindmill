@@ -71,6 +71,7 @@ const Reports = () => {
     const attemptId = typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id;
     if (report.assessment?.category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
     if (report.assessment?.category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
+    if (report.assessment?.category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
     if (report.assessment?.category === 'firo' || report.assessment?.category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;
   };
@@ -86,6 +87,7 @@ const Reports = () => {
     const configs = {
       big5: { label: 'Big Five', color: 'bg-violet-100 text-violet-700', icon: Brain },
       disc: { label: 'DISC', color: 'bg-teal-100 text-teal-700', icon: Layers },
+      mbti: { label: 'MBTI', color: 'bg-purple-100 text-purple-700', icon: Brain },
       firo: { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
       'firo-b': { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
       psychometric: { label: 'Psychometric', color: 'bg-purple-100 text-purple-700', icon: Brain },

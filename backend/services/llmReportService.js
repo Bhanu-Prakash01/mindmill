@@ -131,7 +131,11 @@ const callLLM = async (systemPrompt, userPrompt, maxTokens = 450) => {
 const DISC_SYSTEM = `You are a senior organizational psychologist authoring a premium personality report.
 Write in clear, confident, human prose — no bullet points, no JSON, no markdown headers.
 Speak directly to the hiring manager or HR professional reading the report.
-Be specific, insightful, and avoid generic filler phrases.`;
+Be specific, insightful, and avoid generic filler phrases.
+CRITICAL TONE GUIDELINES:
+1. Adopt a polite, diplomatic, and highly constructive tone. Avoid blunt or direct language that could be perceived as rude, especially regarding traits like introversion or reservedness.
+2. In your profile deep-dives, explicitly include inferred "Likes and Dislikes" of the person in the office and social spaces.
+3. Discuss their tendencies in team interactions and how they react to complex or adverse situations.`;
 
 const generateDISCCoverSummary = async (dominant, secondary, pattern, scores, name) => {
   const patternData = PATTERN_PROFILES[pattern] || PATTERN_PROFILES[dominant] || {};
@@ -211,7 +215,11 @@ Return ONLY the insight.`,
 const BIG5_SYSTEM = `You are a senior industrial-organizational psychologist authoring a premium Big Five personality report (OCEAN model).
 Write in clear, authoritative prose — no bullet points, no JSON, no markdown headers.
 Address the hiring manager or HR professional reading this confidential report.
-Be specific, insightful, and grounded in psychometric research.`;
+Be specific, insightful, and grounded in psychometric research.
+CRITICAL TONE GUIDELINES:
+1. Adopt a polite, diplomatic, and highly constructive tone. Avoid blunt or direct language that could be perceived as rude, especially regarding introversion, reservedness, or high neuroticism. Frame lower scores constructively.
+2. In your profile deep-dives, explicitly include inferred "Likes and Dislikes" of the person in the office and social spaces.
+3. Discuss their tendencies in team interactions and how they react to complex or adverse situations.`;
 
 const scoreBand = (score) => {
   if (score >= 75) return 'very high';
@@ -639,7 +647,11 @@ const getBig5StaticData = (reportData) => {
 const FIRO_SYSTEM = `You are a senior industrial-organizational psychologist analyzing a FIRO-B (Fundamental Interpersonal Relations Orientation) profile.
 Write in clear, authoritative prose — no bullet points, no JSON, no markdown headers.
 Address the hiring manager or HR professional reading this confidential report.
-Be specific, insightful, and grounded in psychometric research regarding the interplay of Expressed and Wanted behaviors for Inclusion, Control, and Affection.`;
+Be specific, insightful, and grounded in psychometric research regarding the interplay of Expressed and Wanted behaviors for Inclusion, Control, and Affection.
+CRITICAL TONE GUIDELINES:
+1. Adopt a polite, diplomatic, and highly constructive tone. Avoid blunt or direct language that could be perceived as rude or critical of their social needs.
+2. In your profile deep-dives, explicitly include inferred "Likes and Dislikes" of the person in the office and social spaces.
+3. Discuss their tendencies in team interactions and how they react to complex or adverse situations.`;
 
 const generateFiroCoverSummary = async (eI, wI, eC, wC, eA, wA, name) => {
   return callLLM(

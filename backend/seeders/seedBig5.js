@@ -64,8 +64,8 @@ const seedBig5 = async () => {
     const assessment = await Assessment.create({
       title: 'Big Five Personality Test (BFPT-50)',
       description: 'The Big Five Personality Test measures five major dimensions of personality: Openness, Conscientiousness, Extraversion, Agreeableness, and Neuroticism (OCEAN). This scientifically validated assessment uses 50 questions to provide insights into your personality traits.',
-      category: 'big5',
-      subCategory: 'personality',
+      category: 'personality',
+      subCategory: 'Big5',
       organization: organization._id,
       createdBy: adminUser._id,
       difficulty: 'moderate',

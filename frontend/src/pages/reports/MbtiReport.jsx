@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { attemptService } from '../../services';
 import {
   ArrowLeft,
   Download,
@@ -14,8 +13,12 @@ import {
   Sparkles,
   Brain,
   Target,
-  FileBarChart
+  FileBarChart,
+  MessageCircle,
+  Crown,
+  Lightbulb
 } from 'lucide-react';
+import { getTypeInsights } from './mbtiTypeInsights';
 import {
   BarChart,
   Bar,
@@ -50,17 +53,17 @@ const MbtiReport = () => {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      const response = await attemptService.getAttempt(attemptId);
-      const attempt = response.data?.attempt;
+      const response = await fetch(`/api/attempts/${attemptId}/mbti/results`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
 
-      if (attempt && attempt.mbtiResults) {
-        setReport(attempt.mbtiResults);
-        setTestTaker({
-          name: attempt.testTakerName || null,
-          email: attempt.testTakerEmail || null,
-          phone: attempt.testTakerPhone || null
-        });
-        setCompletedAt(attempt.completedAt);
+      if (data.success && data.data && data.data.results) {
+        setReport(data.data.results);
+        setTestTaker(data.data.testTaker);
+        setCompletedAt(data.data.completedAt);
       } else {
         setError('MBTI results not found for this attempt');
       }
@@ -422,6 +425,192 @@ const MbtiReport = () => {
           </div>
         </div>
       )}
+
+      {(() => {
+        const insights = getTypeInsights(type);
+        const strengths = [];
+        const devAreas = [];
+        
+        Object.entries(dimensions).forEach(([dim, data]) => {
+          if (data.percentage >= 60) {
+            strengths.push({
+              dim,
+              label: data.label,
+              percentage: data.percentage,
+              desc: `${data.label}s tend to be ${data.percentage >= 75 ? 'highly' : 'particularly'} drawn to environments where they can apply their strengths.`
+            });
+          } else if (data.percentage <= 40) {
+            devAreas.push({
+              dim,
+              label: data.label,
+              percentage: data.percentage,
+              desc: `Developing greater flexibility toward ${dim === 'EI' ? (data.letter === 'I' ? 'extraversion' : 'introversion') :
+                dim === 'SN' ? (data.letter === 'N' ? 'intuition' : 'sensing') :
+                dim === 'TF' ? (data.letter === 'F' ? 'feeling' : 'thinking') :
+                (data.letter === 'P' ? 'perceiving' : 'judging')} can expand your effectiveness.`
+            });
+          }
+        });
+        
+        if (strengths.length === 0) {
+          strengths.push({ dim: 'All', label: '', percentage: 0, desc: insights.strength });
+        }
+        
+        return (
+          <>
+            {strengths.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Award className="w-5 h-5 mr-2 text-green-600" />
+                  Your Strengths
+                </h3>
+                <ul className="space-y-3">
+                  {insights.strength.split(', ').map((strength, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                      <span className="text-gray-700">{strength.trim()}</span>
+                    </li>
+                  ))}
+                  {Object.entries(dimensions).slice(0, 2).map(([dim, data]) => (
+                    <li key={dim} className="flex items-start">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                      <span className="text-gray-700">
+                        Strong {data.label} ({data.percentage}%) - brings {data.percentage >= 70 ? 'decisive' : 'clear'} {data.label.toLowerCase()} approach to situations
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {devAreas.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <TrendingUp className="w-5 h-5 mr-2 text-amber-600" />
+                  Development Areas
+                </h3>
+                <ul className="space-y-3">
+                  {devAreas.slice(0, 3).map((area, idx) => (
+                    <li key={area.dim} className="flex items-start">
+                      <span className="w-2 h-2 bg-amber-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                      <span className="text-gray-700">{area.desc}</span>
+                    </li>
+                  ))}
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    <span className="text-gray-700">
+                      Embrace flexibility in your less-preferred dimensions to adapt to varied situations
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Briefcase className="w-5 h-5 mr-2 text-indigo-600" />
+                Work Style
+              </h3>
+              <p className="text-gray-700 mb-4">
+                {insights.communication.style} individuals who bring {insights.strength.split(', ')[0] || 'versatility'} to their work.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Problem Solving</h4>
+                  <p className="text-sm text-gray-600">
+                    Approaches challenges by {insights.leadership.style.toLowerCase()}, prioritizing thorough analysis
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Work Environment</h4>
+                  <p className="text-sm text-gray-600">
+                    Thrives when {type.includes('I') ? 'given autonomy and focused work time' : 'able to collaborate and communicate openly'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <MessageCircle className="w-5 h-5 mr-2 text-indigo-600" />
+                Communication Style
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Your Approach</h4>
+                  <p className="text-sm text-gray-600">{insights.communication.style.toLowerCase()} communication</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Listening Style</h4>
+                  <p className="text-sm text-gray-600">{insights.communication.listening.toLowerCase()}</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mt-4">
+                {insights.communication.approach}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Crown className="w-5 h-5 mr-2 text-indigo-600" />
+                Leadership Style
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Your Approach</h4>
+                  <p className="text-sm text-gray-600">{insights.leadership.style.toLowerCase()} leadership</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">What Motivates You</h4>
+                  <p className="text-sm text-gray-600">{insights.leadership.motivation.toLowerCase()}</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                <h4 className="font-medium text-gray-900 mb-2">Decision Making</h4>
+                <p className="text-sm text-gray-600">{insights.leadership.decisions.toLowerCase()}</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-indigo-600" />
+                Team Dynamics
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Your Contribution</h4>
+                  <p className="text-sm text-gray-600">{insights.team.contribution.toLowerCase()}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Ideal Partners</h4>
+                  <p className="text-sm text-gray-600">Works well with {insights.team.idealPartners.join(' and ')} types</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                <h4 className="font-medium text-gray-900 mb-2">Handling Conflict</h4>
+                <p className="text-sm text-gray-600">{insights.team.conflict.toLowerCase()}</p>
+              </div>
+            </div>
+
+            <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-6">
+              <h3 className="text-lg font-semibold text-indigo-900 mb-4 flex items-center">
+                <Lightbulb className="w-5 h-5 mr-2" />
+                Personalized Recommendations
+              </h3>
+              <ul className="space-y-3">
+                {insights.recommendations.slice(0, 5).map((rec, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="text-indigo-800">{rec}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        );
+      })()}
 
       <div className="text-center text-sm text-gray-500 pt-8 border-t border-gray-200">
         <p>This MBTI assessment is based on the Open Extended Jungian Type Scales (OEJTS) methodology.</p>

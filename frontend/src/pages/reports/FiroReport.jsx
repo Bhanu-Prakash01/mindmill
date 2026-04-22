@@ -172,9 +172,9 @@ const FiroReport = () => {
   const { dimensions, totals } = results;
 
   const chartData = [
-    { name: 'Inclusion', Expressed: dimensions?.eI || 0, Wanted: dimensions?.wI || 0, fullMark: 9 },
-    { name: 'Control', Expressed: dimensions?.eC || 0, Wanted: dimensions?.wC || 0, fullMark: 9 },
-    { name: 'Affection', Expressed: dimensions?.eA || 0, Wanted: dimensions?.wA || 0, fullMark: 9 }
+    { name: 'Inclusion', Expressed: dimensions?.Expressed?.Inclusion || 0, Wanted: dimensions?.Wanted?.Inclusion || 0, fullMark: 9 },
+    { name: 'Control', Expressed: dimensions?.Expressed?.Control || 0, Wanted: dimensions?.Wanted?.Control || 0, fullMark: 9 },
+    { name: 'Affection', Expressed: dimensions?.Expressed?.Affection || 0, Wanted: dimensions?.Wanted?.Affection || 0, fullMark: 9 }
   ];
 
   const dimensionGradients = {
@@ -388,25 +388,25 @@ const FiroReport = () => {
                 
                 <div className="grid lg:grid-cols-12 gap-10">
                   <div className="lg:col-span-8 prose prose-lg prose-indigo max-w-none text-gray-600 leading-relaxed font-medium">
-                    <p className="first-letter:text-6xl first-letter:font-black first-letter:text-indigo-600 first-letter:mr-2 first-letter:float-left first-letter:leading-none">{analysis.inclusion}</p>
-                    <p className="mt-6">{analysis.control}</p>
-                    <p className="mt-6">{analysis.affection}</p>
+                    <p className="first-letter:text-6xl first-letter:font-black first-letter:text-indigo-600 first-letter:mr-2 first-letter:float-left first-letter:leading-none">{(analysis.deepProfileHtml || '').replace(/<[^>]*>/g, '')}</p>
+                    <p className="mt-6">{Array.isArray(analysis.fulfillment?.Control) ? analysis.fulfillment.Control.join(' ') : ''}</p>
+                    <p className="mt-6">{Array.isArray(analysis.fulfillment?.Affection) ? analysis.fulfillment.Affection.join(' ') : ''}</p>
                   </div>
                   
                   <div className="lg:col-span-4 space-y-6">
                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden">
                        <div className="absolute top-0 right-0 p-8 bg-indigo-200/50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                         <h3 className="font-bold text-indigo-900 mb-3 text-sm uppercase tracking-widest relative z-10">Leadership Dynamic</h3>
-                        <p className="text-indigo-800 leading-relaxed font-medium relative z-10">{analysis.leadership}</p>
+                        <p className="text-indigo-800 leading-relaxed font-medium relative z-10">{analysis.leadership?.highestExpressed || analysis.leadershipHtml?.replace(/<[^>]*>/g, '') || 'N/A'}</p>
                      </div>
                      <div className="bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/50 border border-fuchsia-100 rounded-2xl p-6 relative overflow-hidden">
                        <div className="absolute bottom-0 right-0 p-8 bg-fuchsia-200/50 rounded-full blur-2xl translate-y-1/2 translate-x-1/2"></div>
                         <h3 className="font-bold text-fuchsia-900 mb-3 text-sm uppercase tracking-widest relative z-10">Overall Demand Vector</h3>
-                        <p className="text-fuchsia-800 leading-relaxed font-medium relative z-10 mb-4">{analysis.summary}</p>
+                        <p className="text-fuchsia-800 leading-relaxed font-medium relative z-10 mb-4">{analysis.coverSummary || ''}</p>
                         
                         <div className="pt-4 border-t border-fuchsia-200/50 relative z-10">
                            <p className="text-xs font-bold text-fuchsia-700 uppercase tracking-widest mb-1">Global Interaction Score</p>
-                           <p className="text-3xl font-black text-fuchsia-600">{totals?.overall ?? 0} <span className="text-lg text-fuchsia-400 font-medium">/ 54</span></p>
+                           <p className="text-3xl font-black text-fuchsia-600">{totals?.overallTotal ?? 0} <span className="text-lg text-fuchsia-400 font-medium">/ 54</span></p>
                         </div>
                      </div>
                   </div>

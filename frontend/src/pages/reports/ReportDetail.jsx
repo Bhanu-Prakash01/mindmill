@@ -32,10 +32,6 @@ const ReportDetail = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
 
-  useEffect(() => {
-    fetchReport();
-  }, [id]);
-
   const fetchReport = async () => {
     try {
       setLoading(true);

@@ -1,7 +1,37 @@
 const { Report, Attempt, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
-const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
+const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateMbtiReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
 const crypto = require('crypto');
+
+const getAssessmentTitle = (report) => {
+  if (report.assessment?.title) {
+    return report.assessment.title.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
+  }
+  const category = report.assessment?.category || report.type || '';
+  const categoryMap = {
+    'disc': 'DISC',
+    'big5': 'BigFive',
+    'mbti': 'MBTI',
+    'firo': 'FIRO',
+    'firo-b': 'FIRO'
+  };
+  return (categoryMap[category] || category || 'Assessment').toUpperCase();
+};
+
+const sanitizeName = (name) => {
+  if (!name) return 'Candidate';
+  return name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').substring(0, 50);
+};
+
+const formatDate = () => new Date().toISOString().split('T')[0];
+
+const generateFilename = (report, testTaker, type, category) => {
+  const candidateName = sanitizeName(testTaker?.name);
+  const assessmentName = getAssessmentTitle(report);
+  const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';
+  const dateStr = formatDate();
+  return `${assessmentName}_${typeLabel}_${candidateName}_${dateStr}.pdf`;
+};
 
 /**
  * @desc    Get all reports
@@ -273,7 +303,7 @@ const generateReportPdf = async (report, testTaker, type) => {
 
   if (type === 'summary') {
     let summaryData;
-    if (category === 'disc') {
+    if (report.subCategory === 'DISC') {
       const disc = report.dimensions?.DISC || {};
       const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
       const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
@@ -281,22 +311,30 @@ const generateReportPdf = async (report, testTaker, type) => {
         percentages: { D: disc.D?.percentage||0, I: disc.I?.percentage||0, S: disc.S?.percentage||0, C: disc.C?.percentage||0 },
         dominant, secondary, pattern: report.dimensions?.pattern || `${dominant}${secondary}`
       };
+      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
+    } else if (category === 'firo' || category === 'firo-b') {
+      const firoRaw = (report.dimensions?.FIRO || report.FIRO) || {};
+      summaryData = {
+        dimensions: firoRaw.dimensions || {},
+        totals: firoRaw.totals || { totalExpressed: 0, totalWanted: 0, overallTotal: 0 }
+      };
+      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
     } else {
       const bigFive = report.dimensions?.BigFive || {};
       const byTrait = report.scores?.byTrait || {};
       summaryData = {
         scores: {
-          Openness: bigFive.openness || byTrait.O?.score || 0,
-          Conscientiousness: bigFive.conscientiousness || byTrait.C?.score || 0,
-          Extraversion: bigFive.extraversion || byTrait.E?.score || 0,
-          Agreeableness: bigFive.agreeableness || byTrait.A?.score || 0,
-          Neuroticism: bigFive.neuroticism || byTrait.N?.score || 0,
+          Openness: (bigFive.openness ?? bigFive.Openness) ?? byTrait?.O?.score ?? 0,
+          Conscientiousness: (bigFive.conscientiousness ?? bigFive.Conscientiousness) ?? byTrait?.C?.score ?? 0,
+          Extraversion: (bigFive.extraversion ?? bigFive.Extraversion) ?? byTrait?.E?.score ?? 0,
+          Agreeableness: (bigFive.agreeableness ?? bigFive.Agreeableness) ?? byTrait?.A?.score ?? 0,
+          Neuroticism: (bigFive.neuroticism ?? bigFive.Neuroticism) ?? byTrait?.N?.score ?? 0,
         }
       };
+      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
     }
-    pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
-    filename = `Summary_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
-  } else if (category === 'disc') {
+    filename = generateFilename(report, testTaker, type, category);
+  } else if (report.subCategory === 'DISC') {
     const disc = report.dimensions?.DISC || {};
     const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
     const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
@@ -315,33 +353,39 @@ const generateReportPdf = async (report, testTaker, type) => {
       dimensions: disc,
     };
     pdfBuffer = await generateDiscReportPdf(discData, testTaker);
-    filename = `DISC_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
-  } else if (category === 'big5') {
+    filename = generateFilename(report, testTaker, type, category);
+  } else if (report.subCategory === 'Big5') {
     const bigFive = report.dimensions?.BigFive || {};
     const byTrait = report.scores?.byTrait || {};
     const big5Data = {
       scores: {
-        Openness:          bigFive.openness        || byTrait.O?.score || 0,
-        Conscientiousness: bigFive.conscientiousness|| byTrait.C?.score || 0,
-        Extraversion:      bigFive.extraversion     || byTrait.E?.score || 0,
-        Agreeableness:     bigFive.agreeableness    || byTrait.A?.score || 0,
-        Neuroticism:       bigFive.neuroticism      || byTrait.N?.score || 0,
+        Openness: (bigFive.openness ?? bigFive.Openness) ?? byTrait?.O?.score ?? 0,
+        Conscientiousness: (bigFive.conscientiousness ?? bigFive.Conscientiousness) ?? byTrait?.C?.score ?? 0,
+        Extraversion: (bigFive.extraversion ?? bigFive.Extraversion) ?? byTrait?.E?.score ?? 0,
+        Agreeableness: (bigFive.agreeableness ?? bigFive.Agreeableness) ?? byTrait?.A?.score ?? 0,
+        Neuroticism: (bigFive.neuroticism ?? bigFive.Neuroticism) ?? byTrait?.N?.score ?? 0,
       },
       traits: bigFive,
       analysis: report.analysis || {}
     };
     pdfBuffer = await generateBig5ReportPdf(big5Data, testTaker);
-    filename = `Big5_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    filename = generateFilename(report, testTaker, type, category);
+  } else if (
+    category === 'mbti' || report.type === 'mbti' ||
+    report.dimensions?.MBTI?.type
+  ) {
+    pdfBuffer = await generateMbtiReportPdf(report, testTaker, { type });
+    filename = generateFilename(report, testTaker, type, category);
   } else if (
     category === 'firo' || category === 'firo-b' ||
     report.type === 'firo' || report.type === 'firo-b' ||
-    report.dimensions?.FIRO?.dimensions || report.dimensions?.FIRO?.totals
+    (report.dimensions?.FIRO?.dimensions || report.dimensions?.FIRO?.totals)
   ) {
     pdfBuffer = await generateFiroReportPdf(report, testTaker, { type });
-    filename = `FIRO_Report_${testTaker.name || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    filename = generateFilename(report, testTaker, type, category);
   } else {
     pdfBuffer = await generateGenericReportPdf(report);
-    filename = `Assessment_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+    filename = generateFilename(report, testTaker, type, category);
   }
 
   return { pdfBuffer, filename };
@@ -370,20 +414,29 @@ const downloadReport = asyncHandler(async (req, res) => {
   try {
     const cached = getCachedPdf(report._id.toString(), type);
     let pdfBuffer, filename;
+    const category = report.assessment?.category || report.type;
 
     if (cached) {
       pdfBuffer = cached;
-      const ext = type === 'summary' ? 'Summary' : 'Report';
       const category = report.assessment?.category || report.type;
-      const name = report.attempt?.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim() || 'Report';
-      filename = `${category}_${ext}_${name}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const testTakerObj = report.attempt ? {
+        name: report.attempt.testTakerName || `${report.user?.firstName || ''} ${report.user?.lastName || ''}`.trim()
+      } : {
+        name: `${report.user?.firstName || ''} ${report.user?.lastName || ''}`.trim()
+      };
+      filename = generateFilename(report, testTakerObj, type, category);
     } else {
       const testTaker = report.attempt ? {
-        name: report.attempt.testTakerName || `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+        name: report.attempt.testTakerName || `${report.user?.firstName || ''} ${report.user?.lastName || ''}`.trim(),
         email: report.attempt.testTakerEmail || report.user?.email,
-        phone: report.attempt.testTakerPhone
+        phone: report.attempt.testTakerPhone,
+        startedAt: report.attempt.startedAt,
+        completedAt: report.attempt.completedAt,
+        timeSpent: report.attempt.timeSpent,
+        totalQuestions: report.attempt.totalQuestions,
+        answeredQuestions: report.attempt.answeredQuestions
       } : {
-        name: `${report.user?.firstName} ${report.user?.lastName}`.trim(),
+        name: `${report.user?.firstName || ''} ${report.user?.lastName || ''}`.trim(),
         email: report.user?.email
       };
 

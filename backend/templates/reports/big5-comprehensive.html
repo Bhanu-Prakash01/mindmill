@@ -45,7 +45,7 @@
 
     body {
       font-family: 'Inter', 'DM Sans', sans-serif;
-      color: var(--navy);
+      color: #334155;
       background: #fff;
       line-height: 1.6;
       -webkit-print-color-adjust: exact;
@@ -100,6 +100,8 @@
       flex: 1;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
+      justify-content: space-between;
       padding: 44px 52px 36px;
       position: relative;
       overflow: hidden;
@@ -129,7 +131,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 60px;
+      margin-bottom: auto;
     }
 
     .cover-logo {
@@ -137,6 +139,10 @@
       font-size: 16px;
       font-weight: 700;
       color: #fff;
+      display: flex;
+      align-items: center;
+      display: flex;
+      align-items: center;
     }
 
     .cover-logo span {
@@ -201,7 +207,7 @@
     }
 
     .cover-headline em {
-      font-style: italic;
+      font-style: normal;
       color: var(--accent);
     }
 
@@ -398,13 +404,17 @@
       font-family: 'DM Sans', sans-serif;
       font-size: 17px;
       font-weight: 700;
-      color: var(--navy);
+      color: #334155;
       line-height: 1.2;
       margin-bottom: 16px;
     }
 
     .sec-hd span {
       color: var(--accent);
+    }
+
+    .sec-hd em {
+      font-style: normal;
     }
 
     .divider {
@@ -415,7 +425,7 @@
 
     /* ── PAGE 2: EXEC SUMMARY ───────────────────────── */
     .exec-hero {
-      background: var(--navy);
+      background: #334155;
       border-radius: 12px;
       padding: 20px 24px;
       margin-bottom: 14px;
@@ -587,7 +597,7 @@
     }
 
     .pent-section {
-      background: var(--navy);
+      background: #334155;
       border-radius: 12px;
       padding: 18px 22px;
       display: flex;
@@ -1106,7 +1116,7 @@
     .pc-val {
       font-size: 11px;
       font-weight: 600;
-      color: var(--navy);
+      color: #334155;
     }
 
     .ns {
@@ -1403,7 +1413,7 @@
     .closing-banner p {
       font-family: 'DM Serif Display', serif;
       font-size: 13px;
-      font-style: italic;
+      font-style: normal;
       color: rgba(255, 255, 255, 0.88);
       line-height: 1.75;
     }
@@ -1419,8 +1429,13 @@
       <div class="cover-diagonal"></div>
       <div class="cover-stripe"></div>
       <div class="cover-logo-row">
-        <div class="cover-logo">Mind<span>Mil</span></div>
-        <div class="cover-tag">Big Five Personality Assessment</div>
+        <div class="cover-logo">
+          {{#if logoBase64}}
+          <img src="{{logoBase64}}" alt="Logo" style="height: 28px; margin-right: 8px;">
+          {{/if}}
+          MINDMILL ASSESSMENTS
+        </div>
+        <div class="cover-tag">Personality Assessment Report</div>
       </div>
       <div class="ocean-badge">
         <div class="ocean-letter o">O</div>
@@ -1475,7 +1490,8 @@
   <!-- ▌PAGE 2 — EXECUTIVE SUMMARY ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">2 of 8</span></div>
@@ -1512,6 +1528,20 @@
           <div class="ci-lbl">Assessment Date</div>
           <div class="ci-val">{{assessmentDate}}</div>
         </div>
+        {{#if hasAttemptMetrics}}
+        <div class="cand-item">
+          <div class="ci-lbl">Started At</div>
+          <div class="ci-val">{{startTimeFormatted}}</div>
+        </div>
+        <div class="cand-item">
+          <div class="ci-lbl">Time Taken vs Avg</div>
+          <div class="ci-val">{{timeTakenMins}} min / {{averageTimeMins}} min</div>
+        </div>
+        <div class="cand-item">
+          <div class="ci-lbl">Questions Attempted</div>
+          <div class="ci-val">{{attemptPct}}%</div>
+        </div>
+        {{/if}}
       </div>
       <div class="divider"></div>
       <div class="ocean-bars">
@@ -1616,7 +1646,8 @@
   <!-- ▌PAGE 3 — TRAIT CARDS ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">3 of 8</span></div>
@@ -1741,7 +1772,8 @@
   <!-- ▌PAGE 4 — PERSONALITY DEEP DIVE ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">4 of 8</span></div>
@@ -1768,7 +1800,8 @@
   <!-- ▌PAGE 5 — STRENGTHS & CAREER ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">5 of 8</span></div>
@@ -1835,7 +1868,8 @@
   <!-- ▌PAGE 6 — WORK STYLE & EI ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">6 of 8</span></div>
@@ -1907,7 +1941,8 @@
   <!-- ▌PAGE 7 — INTERVIEW & WELLBEING ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">7 of 8</span></div>
@@ -1953,7 +1988,8 @@
   <!-- ▌PAGE 8 — DEVELOPMENT ROADMAP ▐ -->
   <div class="page inner-page">
     <div class="ph">
-      <div class="ph-left"><span class="ph-logo">mindmil</span>
+      <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
+            src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
         <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">8 of 8</span></div>

@@ -141,8 +141,8 @@ const Settings = () => {
  description: org.description || '',
  primaryColor: org.primaryColor || '#6366f1',
  secondaryColor: org.secondaryColor || '#8b5cf6',
- brandingEnabled: org.brandingEnabled || false,
- publicProfileEnabled: org.publicProfileEnabled || false,
+brandingEnabled: org.brandingEnabled || false,
+  publicProfileEnabled: org.publicProfileEnabled !== undefined ? org.publicProfileEnabled : true,
  moderatorName: org.moderatorName || '',
  headline: org.publicProfile?.headline || '',
  about: org.publicProfile?.about || '',
@@ -167,26 +167,29 @@ const Settings = () => {
  setTimeout(() => setMessage(null), 3000);
  };
 
- const handleProfileUpdate = async (e) => {
- e.preventDefault();
- setSaving(true);
- try {
- const dataToUpdate = {
- firstName: profileForm.firstName,
- lastName: profileForm.lastName,
- city: profileForm.city,
- avatar: profileForm.avatar,
- };
- await authService.updateProfile(dataToUpdate);
- updateUser(dataToUpdate);
- showMessage('Profile updated successfully');
- } catch (error) {
- console.error('Error updating profile:', error);
- showMessage(error.response?.data?.message || 'Failed to update profile', 'error');
- } finally {
- setSaving(false);
- }
- };
+const handleProfileUpdate = async (e) => {
+  e.preventDefault();
+  setSaving(true);
+  try {
+    const dataToUpdate = {
+      firstName: profileForm.firstName,
+      lastName: profileForm.lastName,
+      city: profileForm.city,
+      avatar: profileForm.avatar,
+    };
+    const response = await authService.updateProfile(dataToUpdate);
+    const updatedUser = response.data?.user;
+    if (updatedUser) {
+      updateUser({ ...user, ...updatedUser });
+    }
+    showMessage('Profile updated successfully');
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    showMessage(error.response?.data?.message || 'Failed to update profile', 'error');
+  } finally {
+    setSaving(false);
+  }
+};
 
  const handleAvatarSelect = (colorClass) => {
  setProfileForm({ ...profileForm, avatar: colorClass });

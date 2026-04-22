@@ -40,6 +40,10 @@ const EMPTY_FORM = {
   status: 'active',
   deactivationDate: '',
   deactivationReason: '',
+  organizationName: '',
+  organizationSlug: '',
+  organizationDescription: '',
+  organizationCredits: 50,
 };
 
 const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
@@ -223,29 +227,34 @@ const UserManagement = () => {
     reader.readAsText(file);
   };
 
-   const openEditModal = (user) => {
-   setEditingUser(user);
-   setFormData({
-     salutation: user.salutation || '',
-     firstName: user.firstName,
-     lastName: user.lastName,
-     email: user.email,
-     role: user.role,
-     jobTitle: user.jobTitle || '',
-     phoneCountryCode: user.phoneCountryCode || '',
-     phone: user.phone || '',
-     city: user.city || '',
-     company: user.company || '',
-     status: user.isActive ? 'active' : 'inactive',
-     deactivationDate: user.deactivationDate
-       ? new Date(user.deactivationDate).toISOString().split('T')[0]
-       : '',
-     deactivationReason: user.deactivationReason || '',
-   });
-   setShowPasswordReset(false);
-   setNewPassword('');
-   setShowAddModal(true);
-};
+const openEditModal = (user) => {
+    setEditingUser(user);
+    const userOrg = user.organization;
+    setFormData({
+      salutation: user.salutation || '',
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      jobTitle: user.jobTitle || '',
+      phoneCountryCode: user.phoneCountryCode || '',
+      phone: user.phone || '',
+      city: user.city || '',
+      company: user.company || '',
+      status: user.isActive ? 'active' : 'inactive',
+      deactivationDate: user.deactivationDate
+        ? new Date(user.deactivationDate).toISOString().split('T')[0]
+        : '',
+      deactivationReason: user.deactivationReason || '',
+      organizationName: userOrg?.name || '',
+      organizationSlug: userOrg?.slug || '',
+      organizationDescription: userOrg?.description || '',
+      organizationCredits: userOrg?.credits?.total || 0,
+    });
+    setShowPasswordReset(false);
+    setNewPassword('');
+    setShowAddModal(true);
+  };
 
  const filteredUsers = users.filter((user) => {
  const matchesSearch =
@@ -558,6 +567,62 @@ const UserManagement = () => {
       </div>
     )}
   </div>
+
+  {currentUser?.role === 'superadmin' && (editingUser || formData.role === 'admin') && (
+    <div className="p-4 bg-indigo-50 rounded-lg space-y-4">
+      <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Organization Details</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Organization Name
+          </label>
+          <input
+            type="text"
+            value={formData.organizationName}
+            onChange={(e) => setFormData({ ...formData, organizationName: e.target.value, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-') })}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            placeholder="Acme Corp"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Organization Slug
+          </label>
+          <input
+            type="text"
+            value={formData.organizationSlug}
+            onChange={(e) => setFormData({ ...formData, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '') })}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            placeholder="acme-corp"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Credits
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={formData.organizationCredits}
+            onChange={(e) => setFormData({ ...formData, organizationCredits: parseInt(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea
+            value={formData.organizationDescription}
+            onChange={(e) => setFormData({ ...formData, organizationDescription: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            rows={2}
+            placeholder="Organization description..."
+          />
+        </div>
+      </div>
+    </div>
+  )}
 
   {/* Phone */}
   <div>

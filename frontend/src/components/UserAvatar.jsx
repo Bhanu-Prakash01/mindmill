@@ -70,6 +70,39 @@ const UserAvatar = ({
     );
   }
 
+  // Cartoon style (cartoon:avataaars, cartoon:notionists, etc.)
+  if (avatar && avatar.startsWith('cartoon:')) {
+    const style = avatar.replace('cartoon:', '');
+    const seed = email || `${name} ${lastName}`.trim() || 'user';
+    const encoded = encodeURIComponent(seed);
+    const customUrl = `https://api.dicebear.com/9.x/${style}/svg?seed=${encoded}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50`;
+
+    if (imgError) {
+      const initials = `${name?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+      const [from, to] = getGradient(seed);
+      return (
+        <div
+          className={`bg-gradient-to-br ${from} ${to} rounded-full flex items-center justify-center shrink-0 ${className}`}
+          style={{ width: size, height: size, fontSize: size * 0.35 }}
+        >
+          <span className="text-white font-bold">{initials}</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={customUrl}
+        alt={name || email || 'User'}
+        width={size}
+        height={size}
+        className={`rounded-full object-cover shrink-0 bg-slate-100 ${className}`}
+        style={{ width: size, height: size }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
   // If a Tailwind bg- color class was stored as avatar, show gradient initials
   if (avatar && avatar.startsWith('bg-')) {
     const initials = `${name?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
