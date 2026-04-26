@@ -2,6 +2,7 @@ const { Attempt, Assessment, Report, User, Organization } = require('../models')
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 const { scoreHogan, calculateHoganScores } = require('../services/hoganScoringService');
 const { generateHoganReport } = require('../services/hoganReportService');
+const { generateHoganReportPdf } = require('../services/pdfService');
 
 const submitHogan = asyncHandler(async (req, res) => {
   const { assessmentId } = req.params;
@@ -333,11 +334,77 @@ const submitHoganPublic = asyncHandler(async (req, res) => {
   });
 });
 
+const downloadHoganPdf = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  const { type = 'comprehensive' } = req.query;
+
+  const attempt = await Attempt.findById(attemptId)
+    .populate('assessment', 'title category subCategory')
+    .populate('user', 'firstName lastName email');
+
+  if (!attempt) {
+    throw new ApiError(404, 'Attempt not found');
+  }
+
+  if (!attempt.hoganResults) {
+    throw new ApiError(400, 'No Hogan results found for this attempt');
+  }
+
+  const isOwner = attempt.user && attempt.user._id.toString() === req.user._id.toString() ||
+    req.user.role === 'superadmin' || 
+    req.user.role === 'admin';
+
+  if (!isOwner) {
+    throw new ApiError(403, 'Not authorized to download this report');
+  }
+
+  const testTaker = {
+    name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : 'Candidate'),
+    email: attempt.testTakerEmail || attempt.user?.email,
+    phone: attempt.testTakerPhone,
+    startedAt: attempt.startedAt,
+    completedAt: attempt.completedAt,
+    timeSpent: attempt.timeSpent,
+    totalQuestions: attempt.assessment?.questions?.length || 50,
+    answeredQuestions: attempt.answeredQuestions
+  };
+
+  const reportData = {
+    type: 'hogan',
+    attemptId: attempt._id,
+    user: attempt.user,
+    assessment: attempt.assessment,
+    dimensions: {
+      Hogan: attempt.hoganResults.scales
+    },
+    dominantScale: attempt.hoganResults.dominantScale,
+    secondaryScale: attempt.hoganResults.secondaryScale,
+    analysis: attempt.hoganResults.analysis || {}
+  };
+
+  try {
+    const pdfBuffer = await generateHoganReportPdf(reportData, testTaker, { type });
+    
+    const candidateName = testTaker.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `Hogan_${type === 'summary' ? 'Summary' : 'Comprehensive'}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Hogan PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate PDF report');
+  }
+});
+
 module.exports = {
   submitHogan,
   submitHoganPublic,
   getHoganResults,
   startHogan,
   saveHoganProgress,
-  getHoganAnalytics
+  getHoganAnalytics,
+  downloadHoganPdf
 };

@@ -52,6 +52,12 @@ const DiscTest = () => {
   const totalPages = Math.ceil(totalQuestions / QUESTIONS_PER_PAGE);
 
   useEffect(() => {
+    if (!loading && !error && questions.length === 0 && totalQuestions > 0) {
+      console.warn('DISC Test: No questions loaded! questions:', questions, 'totalQuestions:', totalQuestions);
+    }
+  }, [loading, error, questions, totalQuestions]);
+
+  useEffect(() => {
     if (isPublicAccess) {
       fetchPublicAssessment();
     } else {
@@ -127,6 +133,7 @@ const DiscTest = () => {
       const questionsRes = await assessmentService.getQuestions(id);
       const sortedQuestions = (questionsRes.data?.questions || []).sort((a, b) => a.order - b.order);
       
+      console.log('DISC questions loaded:', sortedQuestions.length, 'First question:', sortedQuestions[0]);
       setQuestions(sortedQuestions);
 
       const attemptRes = await attemptService.startAttempt(id);
@@ -173,7 +180,9 @@ const DiscTest = () => {
       setAssessment(attemptData?.assessment);
 
       // Extract and sort questions from the populated assessment
-      const sortedQuestions = (attemptData?.assessment?.questions || []).sort((a, b) => a.order - b.order);
+      const loadedQuestions = attemptData?.assessment?.questions || [];
+      console.log('Public DISC questions loaded:', loadedQuestions.length, 'First Q:', loadedQuestions[0]);
+      const sortedQuestions = loadedQuestions.sort((a, b) => a.order - b.order);
       setQuestions(sortedQuestions);
 
       if (attemptData?.expiresAt) {
@@ -189,14 +198,14 @@ const DiscTest = () => {
         }
       }
 
-      // Initialize responses
+      // Initialize responses from actual loaded questions
       const initialResponses = {};
-      for (let idx = 0; idx < 28; idx++) {
+      sortedQuestions.forEach((q, idx) => {
         initialResponses[idx + 1] = {
-          questionId: null,
+          questionId: q._id,
           answers: []
         };
-      }
+      });
       setResponses(initialResponses);
 
       requestFullscreen();
@@ -261,6 +270,12 @@ const DiscTest = () => {
         }
       };
     });
+
+    if (attemptId) {
+      attemptService.saveAnswer(attemptId, questions[questionOrder - 1]?._id, {
+        selectedOption: selectionType === 'most' ? 0 : 1
+      }).catch(err => console.error('Auto-save failed:', err));
+    }
   };
 
   const getSelection = (questionOrder, statementIndex, selectionType) => {
@@ -484,6 +499,26 @@ const DiscTest = () => {
     );
   }
 
+  if (!loading && questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md p-6">
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Questions Found</h3>
+          <p className="text-gray-600 mb-4">
+            This DISC assessment doesn't have any questions. Please contact the administrator.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentQuestions = questions.slice(
     currentPage * QUESTIONS_PER_PAGE,
     (currentPage + 1) * QUESTIONS_PER_PAGE
@@ -610,48 +645,54 @@ const DiscTest = () => {
 
                 {/* Statements - Professional DISC Forced-Choice Format */}
                 <div className="space-y-2 ml-11">
-                  {(question.statements?.length > 0 ? question.statements : question.options)?.map((statement, stmtIndex) => {
-                    const selection = getStatementSelection(questionNumber, stmtIndex);
-                    const isMostSelected = selection === 'most';
-                    const isLeastSelected = selection === 'least';
+                  {(question.statements?.length > 0 ? question.statements : question.options)?.length > 0 ? (
+                    (question.statements?.length > 0 ? question.statements : question.options)?.map((statement, stmtIndex) => {
+                      const selection = getStatementSelection(questionNumber, stmtIndex);
+                      const isMostSelected = selection === 'most';
+                      const isLeastSelected = selection === 'least';
 
-                    return (
-                      <div key={stmtIndex} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                        isMostSelected ? 'bg-green-50 border border-green-300' : 
-                        isLeastSelected ? 'bg-red-50 border border-red-300' : 
-                        'bg-gray-50'
-                      }`}>
-                        <span className={`flex-shrink-0 w-6 h-6 rounded text-xs font-bold text-white flex items-center justify-center ${getTraitColor(statement.trait)}`}>
-                          {statement.trait}
-                        </span>
-                        <p className="flex-1 text-gray-700 text-sm">{statement.text}</p>
+                      return (
+                        <div key={stmtIndex} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                          isMostSelected ? 'bg-green-50 border border-green-300' : 
+                          isLeastSelected ? 'bg-red-50 border border-red-300' : 
+                          'bg-gray-50'
+                        }`}>
+                          <span className={`flex-shrink-0 w-6 h-6 rounded text-xs font-bold text-white flex items-center justify-center ${getTraitColor(statement.trait)}`}>
+                            {statement.trait}
+                          </span>
+                          <p className="flex-1 text-gray-700 text-sm">{statement.text}</p>
 
-                        {/* MOST / LEAST Selection Buttons */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleSelection(questionNumber, stmtIndex, 'most')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                              isMostSelected
-                                ? 'bg-green-600 text-white shadow-md'
-                                : 'bg-white border border-gray-300 text-gray-600 hover:border-green-500 hover:text-green-600'
-                            }`}
-                          >
-                            MOST
-                          </button>
-                          <button
-                            onClick={() => handleSelection(questionNumber, stmtIndex, 'least')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                              isLeastSelected
-                                ? 'bg-red-600 text-white shadow-md'
-                                : 'bg-white border border-gray-300 text-gray-600 hover:border-red-500 hover:text-red-600'
-                            }`}
-                          >
-                            LEAST
-                          </button>
+                          {/* MOST / LEAST Selection Buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleSelection(questionNumber, stmtIndex, 'most')}
+                              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                                isMostSelected
+                                  ? 'bg-green-600 text-white shadow-md'
+                                  : 'bg-white border border-gray-300 text-gray-600 hover:border-green-500 hover:text-green-600'
+                              }`}
+                            >
+                              MOST
+                            </button>
+                            <button
+                              onClick={() => handleSelection(questionNumber, stmtIndex, 'least')}
+                              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                                isLeastSelected
+                                  ? 'bg-red-600 text-white shadow-md'
+                                  : 'bg-white border border-gray-300 text-gray-600 hover:border-red-500 hover:text-red-600'
+                              }`}
+                            >
+                              LEAST
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                      This question is missing options. Please contact the assessment administrator.
+                    </div>
+                  )}
                 </div>
 
                 {/* Legend */}

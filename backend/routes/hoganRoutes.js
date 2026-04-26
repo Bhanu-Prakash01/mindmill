@@ -6,7 +6,8 @@ const {
   startHogan, 
   saveHoganProgress,
   getHoganAnalytics,
-  submitHoganPublic
+  submitHoganPublic,
+  downloadHoganPdf
 } = require('../controllers/hoganController');
 const { authMiddleware, optionalAuth } = require('../middleware/authMiddleware');
 const { isAdmin } = require('../middleware/roleMiddleware');
@@ -25,5 +26,7 @@ router.post('/assessments/:assessmentId/hogan/submit', submitHogan);
 router.put('/attempts/:attemptId/hogan/progress', saveHoganProgress);
 
 router.get('/hogan/analytics', isAdmin, getHoganAnalytics);
+
+router.get('/attempts/:attemptId/hogan-report/download', downloadHoganPdf);
 
 module.exports = router;

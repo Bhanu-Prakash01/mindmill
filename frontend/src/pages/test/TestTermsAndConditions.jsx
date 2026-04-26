@@ -84,22 +84,38 @@ const TestTermsAndConditions = () => {
   };
 
   const navigateToTest = () => {
-    const testCategory = category || assessment?.category;
+    const urlCategoryPrefix = category ? category + '/' : '';
+    const assessmentCategoryLower = (assessment?.category || assessment?.subCategory || category || '').toLowerCase();
+    const assessmentCategory = assessment?.subCategory?.toLowerCase() || assessment?.category?.toLowerCase() || category?.toLowerCase() || '';
+
+    console.log('Navigate - assessment:', assessment?.title, 'category:', assessmentCategory, 'subCategory:', assessment?.subCategory);
 
     if (isPublicAccess) {
-      if (testCategory === 'big5') {
-        navigate(`/take/${category ? category + '/' : ''}${token}/big5/${attemptId}`);
-      } else if (testCategory === 'disc') {
-        navigate(`/take/${category ? category + '/' : ''}${token}/disc/${attemptId}`);
+      if (assessmentCategory === 'big5' || assessment?.subCategory === 'BIG5') {
+        navigate(`/take/${urlCategoryPrefix}${token}/big5/${attemptId}`);
+      } else if (assessmentCategory === 'disc' || assessment?.subCategory === 'DISC') {
+        navigate(`/take/${urlCategoryPrefix}${token}/disc/${attemptId}`);
+      } else if (assessmentCategory === 'hogan' || assessment?.subCategory === 'HOGAN') {
+        navigate(`/take/${urlCategoryPrefix}${token}/hogan/${attemptId}`);
+      } else if (assessmentCategory === 'mbti' || assessmentCategory === 'mbbti' || assessment?.subCategory === 'MBTI') {
+        navigate(`/take/${urlCategoryPrefix}${token}/mbti/${attemptId}`);
+      } else if (assessmentCategory === 'firo-b' || assessmentCategory === 'firo' || assessment?.subCategory === 'FIRO-B') {
+        navigate(`/take/${urlCategoryPrefix}${token}/firo/${attemptId}`);
       } else {
-        navigate(`/take/${category ? category + '/' : ''}${token}/test/${attemptId}`);
+        navigate(`/take/${urlCategoryPrefix}${token}/test/${attemptId}`);
       }
     } else {
       const prefix = orgSlug ? `/o/${orgSlug}` : '';
-      if (testCategory === 'big5') {
+      if (assessmentCategory === 'big5' || assessmentCategory === 'bigfive' || assessment?.subCategory?.toLowerCase() === 'big5') {
         navigate(`${prefix}/assessments/${id}/big5`);
-      } else if (testCategory === 'disc') {
+      } else if (assessmentCategory === 'disc' || assessment?.subCategory?.toLowerCase() === 'disc') {
         navigate(`${prefix}/assessments/${id}/disc`);
+      } else if (assessmentCategory === 'mbti' || assessment?.subCategory?.toLowerCase() === 'mbti') {
+        navigate(`${prefix}/assessments/${id}/mbti`);
+      } else if (assessmentCategory === 'hogan' || assessment?.subCategory?.toLowerCase() === 'hogan') {
+        navigate(`${prefix}/assessments/${id}/hogan`);
+      } else if (assessmentCategory === 'firo-b' || assessmentCategory === 'firo' || assessment?.subCategory?.toLowerCase() === 'firo-b') {
+        navigate(`${prefix}/assessments/${id}/firo`);
       } else {
         navigate(`${prefix}/assessments/${id}/take`);
       }

@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { assessmentService, attemptService } from '../../services';
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  XCircle,
+  Bug
+} from 'lucide-react';
 
-// FIRO-B Test - 54 questions, 6-point Likert scale
 const FiroTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   
   const isPublicAccess = !!token;
-  const assessmentId = isPublicAccess ? undefined : id;
 
   const [assessment, setAssessment] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -20,14 +28,19 @@ const FiroTest = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [devMode, setDevMode] = useState(false);
-  const [attemptId, setAttemptId] = useState(urlAttemptId || null);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [currentAttemptId, setCurrentAttemptId] = useState(urlAttemptId || null);
+  const currentAttemptIdRef = useRef(currentAttemptId);
+
+  useEffect(() => {
+    currentAttemptIdRef.current = currentAttemptId;
+  }, [currentAttemptId]);
 
   const QUESTIONS_PER_PAGE = 6;
   const TOTAL_QUESTIONS = 54;
-  const Math_TOTAL_PAGES = Math.ceil(TOTAL_QUESTIONS / QUESTIONS_PER_PAGE);
-  const TOTAL_PAGES = Math_TOTAL_PAGES;
+  const TOTAL_PAGES = Math.ceil(TOTAL_QUESTIONS / QUESTIONS_PER_PAGE);
 
-  // Load questions and attempt on mount
   useEffect(() => {
     if (isPublicAccess) {
       fetchPublicAssessment();
@@ -36,20 +49,59 @@ const FiroTest = () => {
     }
   }, [id, token]);
 
+  useEffect(() => {
+    if (timeRemaining > 0) {
+      const timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            handleSubmit();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeRemaining]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        alert("WARNING: Navigating away from the assessment tab is not allowed!");
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const requestFullscreen = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(() => {});
+    }
+  };
+
   const fetchAssessment = async () => {
     try {
       const assessmentRes = await assessmentService.getAssessment(id);
       setAssessment(assessmentRes.data?.assessment);
 
       const attemptRes = await attemptService.startAttempt(id);
-      setAttemptId(attemptRes.data?.attempt?._id);
+      setCurrentAttemptId(attemptRes.data?.attempt?._id);
 
-      // Default firo config load could happen here
-      const res = await fetch('/api/firo/questions', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
-      setupQuestions(data?.data?.questions || data?.questions || []);
+      const questionsRes = await assessmentService.getQuestions(id);
+      const sortedQuestions = (questionsRes.data?.questions || []).sort((a, b) => a.order - b.order);
+      setupQuestions(sortedQuestions);
+
+      if (attemptRes.data?.attempt?.expiresAt) {
+        const expiresAt = new Date(attemptRes.data.attempt.expiresAt).getTime();
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+        setTimeRemaining(remaining);
+      }
+      setStartTime(Date.now());
+      requestFullscreen();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load assessment');
       setLoading(false);
@@ -60,17 +112,19 @@ const FiroTest = () => {
     try {
       const attemptRes = await attemptService.getPublicAttempt(urlAttemptId);
       const attemptData = attemptRes.data?.attempt;
-      setAttemptId(attemptData?._id);
+      setCurrentAttemptId(attemptData?._id);
       setAssessment(attemptData?.assessment);
 
-      // Since public route doesn't easily hit /api/firo/questions due to auth, let's load from a generic firo endpoint
-      // Actually /api/firo/questions requires auth. So for public attempts, we'll just mock the question length
-      // For FIRO-B public tests we might need to expose it or ensure it's loaded within the assessment.
-      
       const loadedQuestions = attemptData?.assessment?.questions || [];
-      // Note: If assessment.questions wasn't populated with FIRO strings, we'll use placeholder or hit the new endpoint if we added optionalAuth.
-      // But Firo-B questions are static in seeders. Let's just create 54 numbered ones if missing.
       setupQuestions(loadedQuestions);
+
+      if (attemptData?.expiresAt) {
+        const expiresAt = new Date(attemptData.expiresAt).getTime();
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+        setTimeRemaining(remaining);
+      }
+      setStartTime(Date.now());
+      requestFullscreen();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load assessment');
       setLoading(false);
@@ -83,23 +137,19 @@ const FiroTest = () => {
       questionText: q.questionText ?? q.text ?? `Question ${idx + 1}`
     }));
     
-    // Ensure we have 54 questions total for UI stability
     const deficit = TOTAL_QUESTIONS - normalized.length;
     if (deficit > 0) {
       for (let i = 0; i < deficit; i++) {
-        normalized.push({ _id: `pad-${i}`, questionText: `Placeholder question ${normalized.length + i + 1}` });
+        normalized.push({ _id: `pad-${i}`, questionText: `Question ${normalized.length + i + 1}` });
       }
     }
     setQuestions(normalized);
     const initial = {};
     for (let i = 1; i <= TOTAL_QUESTIONS; i++) initial[i] = null;
     setResponses(initial);
-    setStartTime(Date.now());
     setLoading(false);
   };
-  // Scale defined elsewhere
 
-  // 6-point Likert scale options
   const scale = [
     { value: 1, label: 'Never' },
     { value: 2, label: 'Rarely' },
@@ -115,6 +165,13 @@ const FiroTest = () => {
 
   const handleResponse = (order, value) => {
     setResponses(prev => ({ ...prev, [order]: value }));
+
+    if (currentAttemptIdRef.current) {
+      attemptService.saveAnswer(currentAttemptIdRef.current, {
+        questionId: order.toString(),
+        selectedOption: value
+      }).catch(err => console.error('Auto-save failed:', err));
+    }
   };
 
   const getProgress = () => {
@@ -150,19 +207,14 @@ const FiroTest = () => {
       return;
     }
 
-    // Submit to API
-    const payload = { responses };
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       let res;
       if (isPublicAccess) {
-        res = await fetch('/api/firo/public/submit', {
+        res = await fetch('/api/attempts/' + currentAttemptIdRef.current + '/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            responses,
-            assessmentId: assessment?._id || attemptData?.assessment?._id || attemptData?.assessment
-          })
+          body: JSON.stringify({ responses })
         });
       } else {
         res = await fetch(`/api/assessments/${id}/firo/submit`, {
@@ -171,12 +223,13 @@ const FiroTest = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ responses })
         });
       }
 
       const data = await res.json();
       if (data?.success) {
+        document.exitFullscreen?.();
         if (isPublicAccess) {
           const params = new URLSearchParams({
             assessment: assessment?.title || 'FIRO-B Assessment',
@@ -187,7 +240,8 @@ const FiroTest = () => {
           });
           navigate(`/thank-you?${params.toString()}`);
         } else {
-          navigateToReport(attemptId);
+          const prefix = orgSlug ? `/o/${orgSlug}` : '';
+          navigate(`${prefix}/reports/firo/${currentAttemptIdRef.current}`);
         }
       } else {
         throw new Error(data?.message || 'Submit failed');
@@ -199,9 +253,18 @@ const FiroTest = () => {
     }
   };
 
-  const navigateToReport = (id) => {
-    const prefix = orgSlug ? `/o/${orgSlug}` : '';
-    navigate(`${prefix}/reports/firo/${id}`);
+  const handleQuit = async () => {
+    if (isPublicAccess) return;
+    setSubmitting(true);
+    try {
+      await attemptService.abandonAttempt(currentAttemptIdRef.current);
+      alert('Test abandoned');
+      navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/dashboard/user');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to quit test');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const toggleDevMode = () => {
@@ -213,11 +276,17 @@ const FiroTest = () => {
     setDevMode(!devMode);
   };
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading FIRO-B questions...</p>
         </div>
       </div>
@@ -241,49 +310,84 @@ const FiroTest = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">FIRO-B Test</h1>
-              <p className="text-sm text-gray-500">Question {firstQuestionIndex} of 54</p>
+              <h1 className="text-lg font-semibold text-gray-900">{assessment?.title || 'FIRO-B Test'}</h1>
+              <p className="text-sm text-gray-500">Question {firstQuestionIndex}-{Math.min(firstQuestionIndex + QUESTIONS_PER_PAGE - 1, TOTAL_QUESTIONS)} of {TOTAL_QUESTIONS}</p>
             </div>
             <div className="flex items-center gap-4">
+              {assessment?.timeBound?.enabled && (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeRemaining < 300 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono font-medium">{formatTime(timeRemaining)}</span>
+                </div>
+              )}
               <div className="hidden sm:block text-right">
                 <span className="text-sm text-gray-600">{getProgress()}% Complete</span>
                 <div className="w-32 h-2 bg-gray-200 rounded-full mt-1">
-                  <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${getProgress()}%` }} />
+                  <div className="h-full bg-teal-600 rounded-full transition-all" style={{ width: `${getProgress()}%` }} />
                 </div>
               </div>
-              <button onClick={toggleDevMode} className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-100 text-purple-700">
-                {devMode ? 'Dev Mode ON' : 'Dev Mode'}
+              <button
+                onClick={requestFullscreen}
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              <button onClick={toggleDevMode} className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${devMode ? 'bg-green-500 text-white' : 'bg-teal-100 text-teal-700'}`}>
+                {devMode ? 'Dev ON' : 'Dev'}
               </button>
             </div>
           </div>
         </div>
       </header>
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center font-semibold">i</div>
-            <div className="text-sm text-blue-700">For each statement, select the option that best describes you on the given scale.</div>
+
+      {devMode && (
+        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
+          <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+            <span className="text-sm font-medium">DEV MODE ACTIVE - All FIRO-B answers auto-filled</span>
+            <button onClick={() => setDevMode(false)} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full">Turn OFF</button>
           </div>
         </div>
+      )}
+
+      {showQuitConfirm && !isPublicAccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Quit Test?</h2>
+            <p className="text-gray-600 mb-4">{totalAnswered >= 3 ? 'Quitting will count as 1 test credit used.' : 'No credit will be deducted.'}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowQuitConfirm(false)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50">Continue</button>
+              <button onClick={handleQuit} disabled={submitting} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Quit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentPage === 0 && (
+          <div className="mb-6 p-4 bg-teal-50 rounded-lg border border-teal-200">
+            <h2 className="text-lg font-semibold text-teal-900 mb-2">FIRO-B Instructions</h2>
+            <p className="text-teal-700 text-sm">For each statement, select the option that best describes you on the given 6-point scale.</p>
+          </div>
+        )}
+
         <div className="space-y-8">
           {currentQuestions.map((q, idx) => {
             const order = currentQuestionBase + idx + 1;
             const selected = responses[order];
             return (
-              <div key={q._id ?? idx} className="bg-white rounded-xl p-6 border-2 border-gray-200">
+              <div key={q._id ?? idx} className={`bg-white rounded-xl p-6 border-2 ${selected ? 'border-green-200' : 'border-gray-200'}`}>
                 <div className="flex items-start gap-4 mb-4">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold">{order}</span>
-                  <div className="flex-1">
-                    <p className="text-gray-800 font-medium">{q.questionText}</p>
-                  </div>
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-semibold">{order}</span>
+                  <p className="flex-1 text-gray-800 font-medium">{q.questionText}</p>
+                  {selected && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
                 </div>
-                <div className="flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex flex-wrap gap-3 items-center justify-center">
                   {scale.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => handleResponse(order, opt.value)}
                       aria-label={opt.label}
-                      className={`flex flex-col items-center justify-center w-20 h-20 rounded-lg border transition-colors ${selected === opt.value ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-700 border-gray-300'}`}
+                      className={`flex flex-col items-center justify-center w-20 h-20 rounded-lg border transition-all ${selected === opt.value ? 'bg-teal-600 text-white border-teal-600 scale-105' : 'bg-gray-50 text-gray-700 border-gray-300 hover:border-teal-400'}`}
                     >
                       <span className="text-sm font-semibold">{opt.value}</span>
                       <span className="text-xs mt-1">{opt.label}</span>
@@ -294,32 +398,35 @@ const FiroTest = () => {
             );
           })}
         </div>
+
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
           <div className="flex items-center gap-2">
+            {!isPublicAccess && (
+              <button onClick={() => setShowQuitConfirm(true)} className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm">
+                <XCircle className="w-4 h-4" /> Quit
+              </button>
+            )}
             <button onClick={handlePrev} disabled={currentPage === 0} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50">
-              Prev
+              <ChevronLeft className="w-5 h-5" /> Prev
             </button>
           </div>
           <div className="flex gap-1.5">
             {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
-              <button key={i} onClick={() => setCurrentPage(i)} className={`w-2 h-2 rounded-full transition-colors ${i === currentPage ? 'bg-indigo-600' : 'bg-gray-300'}`} />
+              <button key={i} onClick={() => setCurrentPage(i)} className={`w-2 h-2 rounded-full transition-colors ${i === currentPage ? 'bg-teal-600' : 'bg-gray-300'}`} />
             ))}
           </div>
           {currentPage < TOTAL_PAGES - 1 ? (
-            <button onClick={handleNext} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Next</button>
+            <button onClick={handleNext} className="flex items-center gap-2 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Next <ChevronRight className="w-5 h-5" /></button>
           ) : (
-            <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
-              {submitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-              ) : (
-                <><CheckCircle className="w-4 h-4" /> Submit</>
-              )}
+            <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : <><CheckCircle className="w-4 h-4" /> Submit</>}
             </button>
           )}
         </div>
+
         {currentPage === TOTAL_PAGES - 1 && totalAnswered < TOTAL_QUESTIONS && (
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
-            <span className="text-amber-700 text-sm">You have answered {totalAnswered} of {TOTAL_QUESTIONS} questions. Please complete all questions before submitting.</span>
+            <span className="text-amber-700 text-sm"><AlertCircle className="w-4 h-4 inline mr-1" />You have answered {totalAnswered} of {TOTAL_QUESTIONS} questions. Please complete all before submitting.</span>
           </div>
         )}
       </main>

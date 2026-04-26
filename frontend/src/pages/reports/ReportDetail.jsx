@@ -89,6 +89,12 @@ const ReportDetail = () => {
     }
   };
 
+  useEffect(() => {
+    if (id) {
+      fetchReport();
+    }
+  }, [id]);
+
   const getPersonalityProfile = () => {
     if (!report?.dimensions) return null;
 
@@ -103,7 +109,7 @@ const ReportDetail = () => {
               {['D', 'I', 'S', 'C'].map((trait) => (
                 <div key={trait} className="text-center">
                   <div className="text-2xl font-bold text-purple-700 ">
-                    {DISC[trait] || 0}
+                    {DISC[trait]?.percentage ?? DISC[trait]?.score ?? 0}
                   </div>
                   <div className="text-xs text-purple-600 uppercase">{trait}</div>
                 </div>
@@ -286,7 +292,7 @@ const ReportDetail = () => {
           )}
 
           {/* Personality Profile */}
-          {report.type === 'psychometric' && report.dimensions && (
+          {(report.type === 'psychometric' || report.type === 'big5') && report.dimensions && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Personality Profile</h3>
               {getPersonalityProfile()}

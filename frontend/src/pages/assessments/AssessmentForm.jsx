@@ -139,6 +139,7 @@ const AssessmentForm = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const [questions, setQuestions] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [organizations, setOrganizations] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -192,14 +193,20 @@ const AssessmentForm = () => {
  explanation: '',
  });
 
-  useEffect(() => {
-  if (isEditing) {
-  fetchAssessment();
-  }
-  if (user?.role === 'superadmin') {
-  fetchOrganizations();
-  }
+useEffect(() => {
+    if (isEditing) {
+      fetchAssessment();
+    }
+    if (user?.role === 'superadmin') {
+      fetchOrganizations();
+    }
   }, [id, user]);
+
+  useEffect(() => {
+    if (isEditing && id && activeTab === 'questions') {
+      fetchQuestions();
+    }
+  }, [activeTab, id]);
 
   const fetchOrganizations = async () => {
   try {
@@ -255,14 +262,17 @@ const AssessmentForm = () => {
  }
  };
 
- const fetchQuestions = async () => {
- try {
- const response = await assessmentService.getQuestions(id);
- setQuestions(response.data?.questions || []);
- } catch (error) {
- console.error('Error fetching questions:', error);
- }
- };
+const fetchQuestions = async () => {
+    try {
+      setQuestionsLoading(true);
+      const response = await assessmentService.getQuestions(id);
+      setQuestions(response.data?.questions || []);
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
 
    const handleSubmit = async (e) => {
    e.preventDefault();
@@ -672,57 +682,104 @@ const AssessmentForm = () => {
  : 'border-transparent text-gray-500 hover:text-gray-700 '
  }`}
  >
- <span className="flex items-center gap-2">
- <FileText className="w-4 h-4" />
- Details
- </span>
- </button>
- {isEditing && formData.category !== 'big5' && formData.category !== 'disc' && (
- <button
- onClick={() => setActiveTab('questions')}
- className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
- activeTab === 'questions'
- ? 'border-indigo-600 text-indigo-600 '
- : 'border-transparent text-gray-500 hover:text-gray-700 '
- }`}
- >
- <span className="flex items-center gap-2">
- <AlertCircle className="w-4 h-4" />
- Questions ({questions.length})
- </span>
- </button>
- )}
- {isEditing && formData.category === 'big5' && (
- <button
- onClick={() => setActiveTab('questions')}
- className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
- activeTab === 'questions'
- ? 'border-indigo-600 text-indigo-600 '
- : 'border-transparent text-gray-500 hover:text-gray-700 '
- }`}
- >
- <span className="flex items-center gap-2">
- <Lock className="w-4 h-4" />
- Questions ({questions.length}/50)
- </span>
- </button>
- )}
- {isEditing && formData.category === 'disc' && (
- <button
- onClick={() => setActiveTab('questions')}
- className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
- activeTab === 'questions'
- ? 'border-indigo-600 text-indigo-600 '
- : 'border-transparent text-gray-500 hover:text-gray-700 '
- }`}
- >
- <span className="flex items-center gap-2">
- <Lock className="w-4 h-4" />
- Questions ({questions.length}/24)
- </span>
- </button>
- )}
- <button
+<span className="flex items-center gap-2">
+  <FileText className="w-4 h-4" />
+  Details
+  </span>
+  </button>
+  {/* Generic questions tab for non-psychometric/non-personality assessments */}
+  {isEditing && formData.category !== 'psychometric' && formData.category !== 'personality' && (
+  <button
+  onClick={() => setActiveTab('questions')}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length})
+  </span>
+  </button>
+  )}
+  {/* Dedicated question forms for psychometric/personality tests */}
+  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'FIRO-B' && (
+  <button
+  onClick={() => navigate(`/assessments/${id}/questions/firo`)}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length}/54)
+  </span>
+  </button>
+  )}
+  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'Hogan' && (
+  <button
+  onClick={() => navigate(`/assessments/${id}/questions/hogan`)}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length}/70)
+  </span>
+  </button>
+  )}
+  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'MBTI' && (
+  <button
+  onClick={() => navigate(`/assessments/${id}/questions/mbti`)}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length}/32)
+  </span>
+  </button>
+  )}
+  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'DISC' && (
+  <button
+  onClick={() => navigate(`/assessments/${id}/questions/disc`)}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length})
+  </span>
+  </button>
+  )}
+  {isEditing && formData.category === 'personality' && formData.subCategory === 'Big5' && (
+  <button
+  onClick={() => navigate(`/assessments/${id}/questions/big5`)}
+  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+    activeTab === 'questions'
+    ? 'border-indigo-600 text-indigo-600 '
+    : 'border-transparent text-gray-500 hover:text-gray-700 '
+  }`}
+  >
+  <span className="flex items-center gap-2">
+  <AlertCircle className="w-4 h-4" />
+  Questions ({questions.length}/50)
+  </span>
+  </button>
+  )}
+  <button
  onClick={() => setActiveTab('settings')}
  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
  activeTab === 'settings'
@@ -1287,7 +1344,13 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- {activeTab === 'questions' && isEditing && formData.category !== 'big5' && formData.category !== 'disc' && (
+ {activeTab === 'questions' && isEditing && formData.category !== 'big5' && formData.category !== 'disc' && questionsLoading && (
+    <div className="flex items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
+  )}
+
+  {activeTab === 'questions' && isEditing && formData.category !== 'big5' && formData.category !== 'disc' && !questionsLoading && (
  <div className="space-y-6">
  {/* Add New Question */}
  <div className="bg-gray-50 rounded-lg p-4">

@@ -106,7 +106,7 @@ const getBig5Results = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'big5') {
+  if (attempt.assessment.category !== 'big5' && !attempt.big5Results) {
     throw new ApiError(400, 'This is not a Big5 assessment attempt');
   }
 
@@ -351,9 +351,67 @@ function generateRecommendations(results) {
   return recommendations;
 }
 
+/**
+ * @desc    Download Big5 assessment PDF report
+ * @route   GET /api/attempts/:attemptId/big5-report/download
+ * @access  Private
+ */
+const downloadBig5Report = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  const { type = 'comprehensive' } = req.query;
+
+  const attempt = await Attempt.findById(attemptId)
+    .populate('user', 'firstName lastName email')
+    .populate('assessment', 'title category');
+
+  if (!attempt) {
+    throw new ApiError(404, 'Attempt not found');
+  }
+
+  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'superadmin') {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  if (attempt.assessment.category !== 'big5' && !attempt.big5Results) {
+    throw new ApiError(400, 'This is not a Big5 assessment attempt');
+  }
+
+  if (!attempt.big5Results) {
+    throw new ApiError(400, 'Big5 results not available for this attempt');
+  }
+
+  try {
+    const { downloadPdf } = require('../services/pdfDownloadService');
+
+    const testTaker = {
+      name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : null),
+      email: attempt.testTakerEmail || attempt.user?.email,
+      phone: attempt.testTakerPhone
+    };
+
+    const { buffer: pdfBuffer } = await downloadPdf(attempt.big5Results, testTaker, 'big5', type);
+    const assessmentTitle = attempt.assessment?.title?.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_') || 'Big5';
+    const candidateName = (testTaker.name || 'Candidate').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').substring(0, 50);
+    const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';
+    const filename = `${assessmentTitle}_${typeLabel}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Big5 PDF generation error:', error);
+    throw new ApiError(500, 'Failed to generate PDF');
+  }
+});
+
 module.exports = {
   submitBig5,
   getBig5Results,
   getBig5Analytics,
-  getBig5Comparison
+  getBig5Comparison,
+  generateBig5Report,
+  downloadBig5Report
 };

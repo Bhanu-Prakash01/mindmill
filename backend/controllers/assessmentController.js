@@ -1229,7 +1229,10 @@ const getAssessmentByInviteToken = asyncHandler(async (req, res) => {
   const invite = await TestTakerInvite.findOne({ token })
     .populate({
       path: 'assessment',
-      populate: { path: 'organization', select: 'name logo primaryColor secondaryColor' }
+      populate: [
+        { path: 'organization', select: 'name logo primaryColor secondaryColor' },
+        { path: 'questions', options: { sort: { order: 1 } } }
+      ]
     });
 
   if (!invite) {

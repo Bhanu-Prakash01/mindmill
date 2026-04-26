@@ -259,11 +259,13 @@ const startAttempt = asyncHandler(async (req, res) => {
     data: {
       attempt,
       questions: questions.map(q => ({
+        _id: q._id,
         id: q._id,
         type: q.type,
         questionText: q.questionText,
         questionImage: q.questionImage,
         options: assessment.randomizeOptions ? [...q.options].sort(() => Math.random() - 0.5) : q.options,
+        statements: q.statements || [],
         order: q.order,
         marks: q.marks,
         timeLimit: q.timeLimit
@@ -382,20 +384,30 @@ const submitAttempt = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Attempt is already completed');
   }
 
-  const assessment = await Assessment.findById(attempt.assessment);
+const assessment = await Assessment.findById(attempt.assessment);
 
-  // Route Big5, DISC, and MBTI assessments to their specialized scoring
-if (assessment.subCategory === 'Big5') {
-      return redirectToAssessment(assessment._id, 'big5');
-    }
-    if (assessment.subCategory === 'DISC') {
-      return redirectToAssessment(assessment._id, 'disc');
-    }
-  if (assessment.category === 'disc') {
+  const assessCategory = (assessment.category || '').toLowerCase();
+  const assessSubCategory = (assessment.subCategory || '').toLowerCase();
+  const isDiscAssessment = assessSubCategory === 'disc' || assessCategory === 'disc' || assessCategory === 'personality' || assessment.reportConfig?.type === 'auto-psychometric';
+  
+  if (assessSubCategory === 'big5' || assessCategory === 'big5') {
+    return await handleBig5Submit(req, res, attempt, assessment);
+  }
+  
+  if (isDiscAssessment && assessment.questions && assessment.questions.some(q => q.type === 'disc-ranking')) {
     return await handleDiscSubmit(req, res, attempt, assessment);
   }
-  if (assessment.category === 'mbti') {
+  
+  if (assessSubCategory === 'mbti' || assessCategory === 'mbti') {
     return await handleMbtiSubmit(req, res, attempt, assessment);
+  }
+  
+  if (assessSubCategory === 'hogan' || assessCategory === 'hogan') {
+    return await handleHoganSubmit(req, res, attempt, assessment);
+  }
+  
+  if (assessSubCategory === 'firo' || assessSubCategory === 'firo-b' || assessCategory === 'firo' || assessCategory === 'firo-b') {
+    return await handleFiroSubmit(req, res, attempt, assessment);
   }
 
   // Calculate scores
@@ -1030,7 +1042,7 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
   const invite = await TestTakerInvite.findOne({ token })
     .populate({
       path: 'assessment',
-      populate: { path: 'questions' }
+      populate: { path: 'questions', options: { sort: { order: 1 } } }
     });
 
   if (!invite) {
@@ -1255,11 +1267,11 @@ async function handleBig5Submit(req, res, attempt, assessment) {
     },
     dimensions: {
       BigFive: {
-        extraversion: big5Results.E.score,
-        agreeableness: big5Results.A.score,
-        conscientiousness: big5Results.C.score,
-        neuroticism: big5Results.N.score,
-        openness: big5Results.O.score
+        extraversion: big5Results.E.percent,
+        agreeableness: big5Results.A.percent,
+        conscientiousness: big5Results.C.percent,
+        neuroticism: big5Results.N.percent,
+        openness: big5Results.O.percent
       },
       dominantTraits: getDominantTraits(big5Results),
       narrative: generateNarrative(big5Results)
@@ -1295,10 +1307,19 @@ async function handleDiscSubmit(req, res, attempt, assessment) {
 
   // DiscTest sends formattedResponses as array in body
   const responses = req.body.responses;
-  if (!responses || !Array.isArray(responses)) {
-    throw new ApiError(400, 'Invalid DISC responses format');
+  
+  if (responses === undefined || responses === null) {
+    throw new ApiError(400, 'DISC responses are required. Expected format: { responses: [{ questionId, answers: [{ trait, score, type }] }] }');
   }
-
+  
+  if (!Array.isArray(responses)) {
+    throw new ApiError(400, `Invalid DISC responses format. Expected array, got ${typeof responses}`);
+  }
+  
+  if (responses.length === 0) {
+    throw new ApiError(400, 'No DISC responses provided. Please answer all questions before submitting.');
+  }
+  
   const totalQuestionsCount = assessment.questions?.length || responses.length;
   const discResults = calculateDISCScores(responses, totalQuestionsCount);
 
@@ -1466,6 +1487,155 @@ async function handleMbtiSubmit(req, res, attempt, assessment) {
     success: true,
     message: 'MBTI assessment completed successfully',
     data: { attempt, results: mbtiResults, report }
+  });
+}
+
+async function handleHoganSubmit(req, res, attempt, assessment) {
+  const { scoreHogan } = require('../services/hoganScoringService');
+
+  let responses = {};
+  if (req.body && req.body.responses && typeof req.body.responses === 'object') {
+    responses = req.body.responses;
+  }
+
+  if (Object.keys(responses).length === 0 && attempt.answers && attempt.answers.length > 0) {
+    attempt.answers.forEach(answer => {
+      if (answer.question) {
+        const qOrder = answer.question.order || 0;
+        responses[qOrder] = answer.ratingAnswer || answer.selectedOption;
+      }
+    });
+  }
+
+  if (!responses || Object.keys(responses).length === 0) {
+    throw new ApiError(400, 'Invalid Hogan responses format');
+  }
+
+  const responseKeys = Object.keys(responses);
+  const totalQuestionsCount = assessment.questions?.length || 50;
+
+  if (responseKeys.length < totalQuestionsCount * 0.67) {
+    throw new ApiError(400, 'Please answer at least 67% of questions');
+  }
+
+  const hoganResults = scoreHogan(responses);
+  if (!hoganResults.success) {
+    throw new ApiError(400, hoganResults.error || 'Failed to score Hogan assessment');
+  }
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.hoganResults = hoganResults.results;
+  attempt.answeredQuestions = responseKeys.length;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'hogan',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: hoganResults.results,
+    analysis: {
+      summary: hoganResults.results?.description || 'Hogan Personality Assessment completed'
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Hogan assessment completed successfully',
+    data: { attempt, results: hoganResults.results, report }
+  });
+}
+
+async function handleFiroSubmit(req, res, attempt, assessment) {
+  const { calculateFiroScores } = require('../services/firoScoringService');
+
+  let responses = {};
+  if (req.body && req.body.responses && typeof req.body.responses === 'object') {
+    responses = req.body.responses;
+  }
+
+  if (Object.keys(responses).length === 0 && attempt.answers && attempt.answers.length > 0) {
+    attempt.answers.forEach(answer => {
+      if (answer.question) {
+        const qOrder = answer.question.order || 0;
+        responses[qOrder] = answer.selectedOption;
+      }
+    });
+  }
+
+  if (!responses || Object.keys(responses).length === 0) {
+    throw new ApiError(400, 'Invalid FIRO responses format');
+  }
+
+  const totalQuestionsCount = assessment.questions?.length || 54;
+  const firoResults = calculateFiroScores(responses, totalQuestionsCount);
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.firoResults = firoResults;
+  attempt.answeredQuestions = Object.keys(responses).length;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'firo',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: firoResults,
+    analysis: {
+      summary: 'FIRO-B Assessment completed'
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'FIRO-B assessment completed successfully',
+    data: { attempt, results: firoResults, report }
   });
 }
 

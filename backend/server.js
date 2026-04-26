@@ -4,8 +4,8 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from backend/.env
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // Import database connection
 const connectDB = require('./config/database');
@@ -23,6 +23,7 @@ const assessmentRoutes = require('./routes/assessmentRoutes');
 const questionRoutes = require('./routes/questionRoutes');
 const questionBankRoutes = require('./routes/questionBankRoutes');
 const attemptRoutes = require('./routes/attemptRoutes');
+const simpleReportRoutes = require('./routes/simpleReport');
 const reportRoutes = require('./routes/reportRoutes');
 const creditRoutes = require('./routes/creditRoutes');
 const supportRoutes = require('./routes/supportRoutes');
@@ -87,7 +88,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/assessments', assessmentRoutes);
-app.use('/api/attempts', attemptRoutes); // Must be before questionRoutes (which has catch-all auth middleware on /api)
+app.use('/api/attempts', attemptRoutes);
+app.use('/api/attempts', simpleReportRoutes);
 app.use('/api', questionRoutes); // Question routes include /assessments/:id/questions
 app.use('/api/question-banks', questionBankRoutes); // Question bank management for super admin
 app.use('/api/reports', reportRoutes);

@@ -115,7 +115,7 @@ Complete all 28 questions honestly for accurate results.`,
       discQuestions.map(q => 
         Question.create({
           assessment: assessment._id,
-          type: 'disc-forced-choice',
+          type: 'disc-ranking',
           questionText: q.questionText,
           statements: q.statements.map(s => ({
             text: s.text,

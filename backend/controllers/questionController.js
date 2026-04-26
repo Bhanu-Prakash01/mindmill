@@ -272,7 +272,7 @@ const reorderQuestions = asyncHandler(async (req, res) => {
  */
 const bulkCreateQuestions = asyncHandler(async (req, res) => {
   const { assessmentId } = req.params;
-  const { questions } = req.body;
+  const { questions, replaceExisting } = req.body;
 
   const assessment = await Assessment.findById(assessmentId);
 
@@ -280,7 +280,6 @@ const bulkCreateQuestions = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Assessment not found');
   }
 
-  // Check permissions
   if (req.user.role !== 'superadmin') {
     if (assessment.organization && req.user.organization &&
       assessment.organization.toString() !== req.user.organization._id.toString()) {
@@ -288,18 +287,22 @@ const bulkCreateQuestions = asyncHandler(async (req, res) => {
     }
   }
 
-  // Get starting order
-  const lastQuestion = await Question.findOne({ assessment: assessmentId })
-    .sort({ order: -1 });
-  let startOrder = lastQuestion ? lastQuestion.order + 1 : 1;
+  if (replaceExisting || (questions[0] && questions[0].type === 'disc-ranking')) {
+    const existingDiscQ = await Question.find({ assessment: assessmentId, type: 'disc-ranking' });
+    if (existingDiscQ.length > 0) {
+      const deletedIds = existingDiscQ.map(q => q._id);
+      await Question.deleteMany({ _id: { $in: deletedIds } });
+      assessment.questions = assessment.questions.filter(qId => !deletedIds.some(dId => dId.toString() === qId.toString()));
+      await assessment.save();
+    }
+  }
 
-  // Create questions
   const createdQuestions = await Promise.all(
     questions.map(async (q, index) => {
       const question = await Question.create({
         assessment: assessmentId,
         ...q,
-        order: startOrder + index
+        order: index + 1
       });
       return question;
     })

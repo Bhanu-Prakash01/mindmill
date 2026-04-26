@@ -1,6 +1,7 @@
 const { Report, Attempt, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
-const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateMbtiReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
+const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateMbtiReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, generateHoganReportPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
+const { downloadPdf, AssessmentType, DownloadType } = require('../services/pdfDownloadService');
 const crypto = require('crypto');
 
 const getAssessmentTitle = (report) => {
@@ -298,97 +299,53 @@ const addAdminNotes = asyncHandler(async (req, res) => {
  */
 const generateReportPdf = async (report, testTaker, type) => {
   const category = report.assessment?.category || report.type;
-  let pdfBuffer;
-  let filename;
-
-  if (type === 'summary') {
-    let summaryData;
-    if (report.subCategory === 'DISC') {
-      const disc = report.dimensions?.DISC || {};
-      const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
-      const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
-      summaryData = {
-        percentages: { D: disc.D?.percentage||0, I: disc.I?.percentage||0, S: disc.S?.percentage||0, C: disc.C?.percentage||0 },
-        dominant, secondary, pattern: report.dimensions?.pattern || `${dominant}${secondary}`
-      };
-      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
-    } else if (category === 'firo' || category === 'firo-b') {
-      const firoRaw = (report.dimensions?.FIRO || report.FIRO) || {};
-      summaryData = {
-        dimensions: firoRaw.dimensions || {},
-        totals: firoRaw.totals || { totalExpressed: 0, totalWanted: 0, overallTotal: 0 }
-      };
-      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
-    } else {
-      const bigFive = report.dimensions?.BigFive || {};
-      const byTrait = report.scores?.byTrait || {};
-      summaryData = {
-        scores: {
-          Openness: (bigFive.openness ?? bigFive.Openness) ?? byTrait?.O?.score ?? 0,
-          Conscientiousness: (bigFive.conscientiousness ?? bigFive.Conscientiousness) ?? byTrait?.C?.score ?? 0,
-          Extraversion: (bigFive.extraversion ?? bigFive.Extraversion) ?? byTrait?.E?.score ?? 0,
-          Agreeableness: (bigFive.agreeableness ?? bigFive.Agreeableness) ?? byTrait?.A?.score ?? 0,
-          Neuroticism: (bigFive.neuroticism ?? bigFive.Neuroticism) ?? byTrait?.N?.score ?? 0,
-        }
-      };
-      pdfBuffer = await generateQuickSummaryPdf(category, summaryData, testTaker);
+  
+  // Map category to assessment type strings
+  // PRIORITY: use report.type FIRST (what was stored), then fallback to assessment.category
+  const getAssessmentType = (cat) => {
+    const lowerCat = (cat || '').toLowerCase().trim();
+    
+    const reportType = (report.type || '').toLowerCase().trim();
+    console.log('[PDF] === Category Debug ===');
+    console.log('[PDF] Using report.type FIRST:', reportType);
+    console.log('[PDF] report.assessment?.category:', report.assessment?.category);
+    console.log('[PDF] ==========================');
+    
+    if (reportType === 'disc') return AssessmentType.DISC;
+    if (reportType === 'big5' || reportType === 'bigfive') return AssessmentType.BIG5;
+    if (reportType === 'firo' || reportType === 'firo-b' || reportType === 'firo_b') return AssessmentType.FIRO;
+    if (reportType === 'mbti') return AssessmentType.MBTI;
+    if (reportType === 'hogan') return AssessmentType.HOGAN;
+    if (reportType === 'psychometric' || reportType === 'personality') {
+      // Check if it's a DISC assessment by looking at assessment's subCategory
+      const assessCat = (report.assessment?.subCategory || report.assessment?.category || '').toLowerCase();
+      if (assessCat === 'disc' || assessCat === 'personality') return AssessmentType.DISC;
+      return AssessmentType.DISC;
     }
-    filename = generateFilename(report, testTaker, type, category);
-  } else if (report.subCategory === 'DISC') {
-    const disc = report.dimensions?.DISC || {};
-    const dominant = report.dimensions?.dominantTraits?.[0] || 'D';
-    const secondary = report.dimensions?.dominantTraits?.[1] || 'I';
-    const pattern = report.dimensions?.pattern || `${dominant}${secondary}`;
-    const discData = {
-      percentages: {
-        D: disc.D?.percentage || 0,
-        I: disc.I?.percentage || 0,
-        S: disc.S?.percentage || 0,
-        C: disc.C?.percentage || 0,
-      },
-      dominant,
-      secondary,
-      pattern,
-      analysis: report.analysis || {},
-      dimensions: disc,
-    };
-    pdfBuffer = await generateDiscReportPdf(discData, testTaker);
-    filename = generateFilename(report, testTaker, type, category);
-  } else if (report.subCategory === 'Big5') {
-    const bigFive = report.dimensions?.BigFive || {};
-    const byTrait = report.scores?.byTrait || {};
-    const big5Data = {
-      scores: {
-        Openness: (bigFive.openness ?? bigFive.Openness) ?? byTrait?.O?.score ?? 0,
-        Conscientiousness: (bigFive.conscientiousness ?? bigFive.Conscientiousness) ?? byTrait?.C?.score ?? 0,
-        Extraversion: (bigFive.extraversion ?? bigFive.Extraversion) ?? byTrait?.E?.score ?? 0,
-        Agreeableness: (bigFive.agreeableness ?? bigFive.Agreeableness) ?? byTrait?.A?.score ?? 0,
-        Neuroticism: (bigFive.neuroticism ?? bigFive.Neuroticism) ?? byTrait?.N?.score ?? 0,
-      },
-      traits: bigFive,
-      analysis: report.analysis || {}
-    };
-    pdfBuffer = await generateBig5ReportPdf(big5Data, testTaker);
-    filename = generateFilename(report, testTaker, type, category);
-  } else if (
-    category === 'mbti' || report.type === 'mbti' ||
-    report.dimensions?.MBTI?.type
-  ) {
-    pdfBuffer = await generateMbtiReportPdf(report, testTaker, { type });
-    filename = generateFilename(report, testTaker, type, category);
-  } else if (
-    category === 'firo' || category === 'firo-b' ||
-    report.type === 'firo' || report.type === 'firo-b' ||
-    (report.dimensions?.FIRO?.dimensions || report.dimensions?.FIRO?.totals)
-  ) {
-    pdfBuffer = await generateFiroReportPdf(report, testTaker, { type });
-    filename = generateFilename(report, testTaker, type, category);
-  } else {
-    pdfBuffer = await generateGenericReportPdf(report);
-    filename = generateFilename(report, testTaker, type, category);
-  }
-
-  return { pdfBuffer, filename };
+    
+    if (reportType === 'standard') {
+      if (lowerCat === 'hogan' || lowerCat === 'personality') return AssessmentType.HOGAN;
+    }
+    
+    if (lowerCat === 'disc') return AssessmentType.DISC;
+    if (lowerCat === 'big5' || lowerCat === 'big five') return AssessmentType.BIG5;
+    if (lowerCat === 'firo' || lowerCat === 'firo-b' || lowerCat === 'firo_b' || lowerCat === 'firob' || lowerCat === 'firo b') return AssessmentType.FIRO;
+    if (lowerCat === 'mbti') return AssessmentType.MBTI;
+    if (lowerCat === 'hogan' || lowerCat === 'personality') return AssessmentType.HOGAN;
+    
+    console.log('[PDF] Decision: Defaulting to FIRO');
+    return AssessmentType.FIRO;
+  };
+  
+  const assessmentType = getAssessmentType(category);
+  const downloadType = type === 'summary' ? DownloadType.SUMMARY : DownloadType.COMPREHENSIVE;
+  
+  const result = await downloadPdf(report, testTaker, assessmentType, downloadType);
+  
+  // Use existing filename generation for backward compatibility
+  const filename = generateFilename(report, testTaker, type, category);
+  
+  return { pdfBuffer: result.buffer, filename };
 };
 
 const downloadReport = asyncHandler(async (req, res) => {

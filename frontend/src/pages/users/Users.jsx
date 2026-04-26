@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { userService } from '../../services';
+import { userService, organizationService } from '../../services';
 import {
   Users,
   Plus,
@@ -22,6 +22,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  CreditCard,
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 
@@ -49,14 +50,16 @@ const EMPTY_FORM = {
 const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
 
 const UserManagement = () => {
- const { user: currentUser } = useAuth();
- const [users, setUsers] = useState([]);
- const [loading, setLoading] = useState(true);
- const [searchQuery, setSearchQuery] = useState('');
- const [filterRole, setFilterRole] = useState('all');
- const [showAddModal, setShowAddModal] = useState(false);
- const [editingUser, setEditingUser] = useState(null);
- const [formData, setFormData] = useState(EMPTY_FORM);
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('users');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [bulkUploadModal, setBulkUploadModal] = useState(false);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -65,21 +68,27 @@ const UserManagement = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
- useEffect(() => {
-  fetchUsers();
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+
+useEffect(() => {
+    fetchData();
   }, []);
 
- const fetchUsers = async () => {
- try {
- setLoading(true);
- const response = await userService.getUsers();
- setUsers(response.data?.users || []);
- } catch (error) {
- console.error('Error fetching users:', error);
- } finally {
- setLoading(false);
- }
- };
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const usersRes = await userService.getUsers();
+      setUsers(usersRes.data?.users || []);
+      if (isSuperAdmin) {
+        const orgsRes = await organizationService.getOrganizations();
+        setOrganizations(orgsRes.data?.organizations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
  const handleCreateUser = async (e) => {
  e.preventDefault();
@@ -93,7 +102,7 @@ const UserManagement = () => {
       });
  setShowAddModal(false);
  setFormData(EMPTY_FORM);
- fetchUsers();
+ fetchData();
  } catch (error) {
  console.error('Error creating user:', error);
  alert(error.response?.data?.message || 'Failed to create user');
@@ -112,7 +121,7 @@ const UserManagement = () => {
  });
  setEditingUser(null);
  setFormData(EMPTY_FORM);
- fetchUsers();
+ fetchData();
  } catch (error) {
  console.error('Error updating user:', error);
  alert(error.response?.data?.message || 'Failed to update user');
@@ -123,7 +132,7 @@ const UserManagement = () => {
  if (!confirm('Are you sure you want to delete this user?')) return;
  try {
  await userService.deleteUser(id);
- fetchUsers();
+ fetchData();
  } catch (error) {
  console.error('Error deleting user:', error);
  alert(error.response?.data?.message || 'Failed to delete user');
@@ -133,7 +142,7 @@ const UserManagement = () => {
    const handleToggleStatus = async (id) => {
    try {
    await userService.toggleUserStatus(id);
-   fetchUsers();
+   fetchData();
    } catch (error) {
    console.error('Error toggling user status:', error);
    }
@@ -214,7 +223,7 @@ const UserManagement = () => {
         const response = await userService.bulkUpload({ users });
         setBulkUploadResult(response.data);
         setBulkUploading(false);
-        fetchUsers();
+        fetchData();
       } catch (error) {
         setBulkUploading(false);
         alert(error.message || 'Failed to process CSV file');
@@ -291,79 +300,121 @@ const openEditModal = (user) => {
  );
  }
 
- return (
-<div className="space-y-6">
+return (
+  <div className="space-y-6">
+    {/* Tabs */}
+    {isSuperAdmin && (
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-8">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'users'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Users
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('organizations')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'organizations'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Organizations
+            </div>
+          </button>
+        </nav>
+      </div>
+    )}
+
   {/* Header */}
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 ">Users</h1>
-      <p className="text-gray-500 mt-1">Manage users and their permissions</p>
+      <h1 className="text-2xl font-bold text-gray-900 ">
+        {isSuperAdmin ? (activeTab === 'organizations' ? 'Organizations' : 'Users') : 'Users'}
+      </h1>
+      <p className="text-gray-500 mt-1">
+        {isSuperAdmin ? (activeTab === 'organizations' ? 'Manage organizations and their credits' : 'Manage users and their permissions') : 'Manage users and their permissions'}
+      </p>
     </div>
-    <div className="flex gap-3">
-      <button
-        onClick={() => {
-          setEditingUser(null);
-          setFormData(EMPTY_FORM);
-          setShowAddModal(true);
-        }}
-        className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-      >
-        <Plus className="w-4 h-4 mr-2" />
-        Add User
-      </button>
-      <button
-        onClick={() => {
-          setBulkUploadResult(null);
-          setBulkUploadModal(true);
-        }}
-        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-      >
-        <Upload className="w-4 h-4 mr-2" />
-        Bulk Upload
-      </button>
-    </div>
+    {activeTab === 'users' && (
+      <div className="flex gap-3">
+        <button
+          onClick={() => {
+            setEditingUser(null);
+            setFormData(EMPTY_FORM);
+            setShowAddModal(true);
+          }}
+          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add User
+        </button>
+        <button
+          onClick={() => {
+            setBulkUploadResult(null);
+            setBulkUploadModal(true);
+          }}
+          className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Bulk Upload
+        </button>
+      </div>
+    )}
   </div>
 
- {/* Filters */}
- <div className="flex flex-col sm:flex-row gap-4">
- <div className="relative flex-1">
- <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
- <input
- type="text"
- placeholder="Search users..."
- value={searchQuery}
- onChange={(e) => setSearchQuery(e.target.value)}
- className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
- />
- </div>
- <select
- value={filterRole}
- onChange={(e) => setFilterRole(e.target.value)}
- className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- >
- <option value="all">All Roles</option>
- <option value="superadmin">Super Admin</option>
- <option value="admin">Admin</option>
- <option value="user">User</option>
- </select>
- </div>
+{(activeTab === 'users' || !isSuperAdmin) && (
+    <div className="flex flex-col sm:flex-row gap-4">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+      </div>
+      <select
+        value={filterRole}
+        onChange={(e) => setFilterRole(e.target.value)}
+        className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="all">All Roles</option>
+        <option value="superadmin">Super Admin</option>
+        <option value="admin">Admin</option>
+        <option value="user">User</option>
+      </select>
+    </div>
+  )}
 
- {/* Users Table */}
- <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
- <div className="overflow-x-auto">
-<table className="w-full">
-  <thead className="bg-gray-50 ">
-    <tr>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
-      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-    </tr>
-  </thead>
- <tbody className="divide-y divide-gray-200 ">
- {filteredUsers.map((user) => (
+{activeTab === 'users' || !isSuperAdmin ? (
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredUsers.map((user) => (
  <tr key={user._id} className="hover:bg-gray-50 ">
  <td className="px-6 py-4">
  <div className="flex items-center">
@@ -436,17 +487,76 @@ const openEditModal = (user) => {
  </div>
  </td>
  </tr>
- ))}
- </tbody>
- </table>
- </div>
- {filteredUsers.length === 0 && (
- <div className="text-center py-12">
- <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
- <p className="text-gray-500 ">No users found</p>
- </div>
- )}
- </div>
+))}
+            </tbody>
+          </table>
+        </div>
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No users found</p>
+          </div>
+        )}
+      </div>
+    </>
+  ) : (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Used</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {organizations.map((org) => (
+              <tr key={org._id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-gray-900">{org.name}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-500 font-mono">{org.slug}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-900">{org.admin?.firstName} {org.admin?.lastName}</div>
+                  <div className="text-xs text-gray-500">{org.admin?.email}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-indigo-600 flex items-center gap-1">
+                    <CreditCard className="w-3 h-3" />
+                    {org.credits?.total || 0}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-orange-600">{org.credits?.used || 0}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-green-600">{org.credits?.total - org.credits?.used - (org.credits?.locked || 0)}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-500">
+                    {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : 'N/A'}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {organizations.length === 0 && (
+        <div className="text-center py-12">
+          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No organizations found</p>
+        </div>
+      )}
+    </div>
+  )}
 
  {/* Add/Edit Modal */}
  {showAddModal && (

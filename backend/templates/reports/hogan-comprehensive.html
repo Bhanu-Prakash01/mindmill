@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hogan Personality Inventory Report — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --navy: #0F172A;
+      --navy-m: #1E293B;
+      --slate: #475569;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --surface: #F8FAFC;
+      --primary: #4F46E5;
+      --primary-g: linear-gradient(135deg, #4F46E5, #818CF8);
+      --primary-light: rgba(79, 70, 229, 0.1);
+    }
+    html { font-size: 10.5px; }
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif;
+      color: #334155;
+      background: #fff;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page { width: 210mm; height: 297mm; overflow: hidden; position: relative; background: #fff; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: avoid; break-after: avoid; }
+    @page { size: A4; margin: 0; }
+    .inner-page { display: flex; flex-direction: column; }
+    .ph { height: 44px; min-height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; border-bottom: 1px solid var(--border); background: #fff; }
+    .ph-left { display: flex; align-items: center; gap: 10px; }
+    .ph-logo { font-size: 13px; font-weight: 700; color: var(--navy); font-family: 'DM Sans', sans-serif; }
+    .ph-logo span { color: var(--primary); }
+    .ph-sep { width: 1px; height: 14px; background: var(--border); }
+    .ph-title { font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .ph-right { display: flex; align-items: center; gap: 14px; }
+    .ph-name { font-size: 9px; font-weight: 600; color: var(--slate); }
+    .ph-pg { font-size: 8px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+    .pc { flex: 1; overflow: hidden; padding: 20px 28px; }
+    .pf { height: 28px; min-height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; border-top: 1px solid var(--border); }
+    .pf p { font-size: 7.5px; color: var(--muted); }
+    .sec-lbl { font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); margin-bottom: 4px; }
+    .sec-hd { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--navy); margin-bottom: 14px; line-height: 1.15; }
+    .sec-hd span { color: var(--primary); font-style: italic; }
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .cover { background: var(--navy); height: 297mm; display: flex; flex-direction: column; }
+    .cover-accent { height: 4px; background: var(--primary-g); flex-shrink: 0; }
+    .cover-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 44px 52px 36px; position: relative; overflow: hidden; }
+    .cv-orb { position: absolute; border-radius: 50%; background: var(--primary-g); opacity: 0.07; }
+    .cv-orb-1 { width: 300px; height: 300px; top: -100px; right: -80px; }
+    .cv-orb-2 { width: 200px; height: 200px; bottom: 100px; left: -60px; }
+    .cv-orb-3 { width: 150px; height: 150px; bottom: -50px; right: 80px; }
+    .cover-top { position: relative; }
+    .cv-brand { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+    .cv-brand span { color: rgba(255,255,255,0.6); }
+    .cv-lbl { font-size: 8px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 20px; }
+    .cv-title { font-family: 'DM Serif Display', serif; font-size: 32px; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+    .cv-subtitle { font-size: 14px; color: rgba(255,255,255,0.7); }
+    .cv-candidate { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .cv-name { font-family: 'DM Serif Display', serif; font-size: 36px; color: #fff; margin-bottom: 12px; }
+    .cv-email { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 24px; }
+    .cv-metrics { display: flex; gap: 24px; }
+    .cv-metric { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 14px 18px; }
+    .cv-metric-val { font-size: 20px; font-weight: 700; color: #fff; }
+    .cv-metric-lbl { font-size: 8px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .cv-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+    .cv-date { font-size: 9px; color: rgba(255,255,255,0.4); }
+    .cv-confidential { font-size: 8px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; }
+    .scales-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .scale-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .scale-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .scale-name { font-size: 11px; font-weight: 600; color: var(--navy); }
+    .scale-level { font-size: 8px; font-weight: 600; padding: 3px 8px; border-radius: 10px; }
+    .scale-bar-wrap { background: var(--surface); border-radius: 4px; height: 8px; margin-bottom: 6px; overflow: hidden; }
+    .scale-bar { height: 100%; border-radius: 4px; }
+    .scale-score { display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); }
+    .profile-summary { display: flex; gap: 16px; }
+    .profile-card { flex: 1; background: var(--primary-light); border-radius: 8px; padding: 16px; border-left: 3px solid var(--primary); }
+    .profile-card-label { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); margin-bottom: 4px; }
+    .profile-card-value { font-size: 14px; font-weight: 600; color: var(--navy); }
+    .analysis-section { margin-bottom: 16px; }
+    .analysis-title { font-size: 11px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+    .analysis-text { font-size: 10px; color: var(--slate); line-height: 1.6; }
+    .strength-item, .dev-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .strength-item:last-child, .dev-item:last-child { border-bottom: none; }
+    .item-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .item-text { font-size: 10px; color: var(--slate); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="cover">
+      <div class="cover-accent"></div>
+      <div class="cover-body">
+        <div class="cv-orb cv-orb-1"></div>
+        <div class="cv-orb cv-orb-2"></div>
+        <div class="cv-orb cv-orb-3"></div>
+        <div class="cover-top">
+          <div class="cv-brand">Mindmil <span>· Assessments</span></div>
+          <div class="cv-lbl">Psychometric Assessment Report</div>
+          <div class="cv-title">Hogan Personality Inventory</div>
+          <div class="cv-subtitle">Comprehensive Assessment Report</div>
+        </div>
+        <div class="cv-candidate">
+          <div class="cv-name">{{candidateName}}</div>
+          <div class="cv-email">{{candidateEmail}}</div>
+          <div class="cv-metrics">
+            <div class="cv-metric">
+              <div class="cv-metric-val">{{assessmentDate}}</div>
+              <div class="cv-metric-lbl">Assessment Date</div>
+            </div>
+            {{#if timeTakenMins}}
+            <div class="cv-metric">
+              <div class="cv-metric-val">{{timeTakenMins}} min</div>
+              <div class="cv-metric-lbl">Time Taken</div>
+            </div>
+            {{/if}}
+          </div>
+        </div>
+        <div class="cv-bottom">
+          <div class="cv-date">CONFIDENTIAL</div>
+          <div class="cv-confidential">For authorized use only</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="inner-page">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-sep"></div>
+          <div class="ph-title">Hogan Personality Inventory</div>
+        </div>
+        <div class="ph-right">
+          <div class="ph-name">{{candidateName}}</div>
+          <div class="ph-pg">Page 2</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="sec-lbl">Scale Profile</div>
+        <div class="sec-hd">{{candidateName}}'s <span>Hogan Assessment</span> Results</div>
+        
+        <div class="profile-summary">
+          <div class="profile-card">
+            <div class="profile-card-label">Dominant Scale</div>
+            <div class="profile-card-value">{{dominantScale}}</div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-card-label">Secondary Scale</div>
+            <div class="profile-card-value">{{secondaryScale}}</div>
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="sec-lbl">Scale Scores</div>
+        <div class="scales-grid">
+          {{#each scales}}
+          <div class="scale-card">
+            <div class="scale-card-header">
+              <div class="scale-name">{{name}}</div>
+              <div class="scale-level" style="background: {{levelBgColor}}; color: {{levelColor}};">{{level}}</div>
+            </div>
+            <div class="scale-bar-wrap">
+              <div class="scale-bar" style="width: {{percentile}}%; background: {{color}};"></div>
+            </div>
+            <div class="scale-score">
+              <span>Percentile: {{percentile}}</span>
+              <span>Score: {{rawScore}}</span>
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      <div class="pf">
+        <p>Generated by Mindmil Assessments</p>
+        <p>Page 2 of 4</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="inner-page">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-sep"></div>
+          <div class="ph-title">Hogan Personality Inventory</div>
+        </div>
+        <div class="ph-right">
+          <div class="ph-name">{{candidateName}}</div>
+          <div class="ph-pg">Page 3</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="sec-lbl">Scale Interpretations</div>
+        <div class="sec-hd">Understanding Each <span>Scale</span></div>
+        
+        {{#each scales}}
+        <div class="analysis-section">
+          <div class="analysis-title">{{name}} ({{level}})</div>
+          <div class="analysis-text">{{description}}</div>
+        </div>
+        {{/each}}
+      </div>
+      <div class="pf">
+        <p>Generated by Mindmil Assessments</p>
+        <p>Page 3 of 4</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="inner-page">
+      <div class="ph">
+        <div class="ph-left">
+          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-sep"></div>
+          <div class="ph-title">Hogan Personality Inventory</div>
+        </div>
+        <div class="ph-right">
+          <div class="ph-name">{{candidateName}}</div>
+          <div class="ph-pg">Page 4</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="sec-lbl">Key Insights</div>
+        <div class="sec-hd">Assessment <span>Summary</span></div>
+        
+        <div class="profile-summary">
+          <div class="profile-card">
+            <div class="profile-card-label">Highest Score</div>
+            <div class="profile-card-value">{{dominantScale}}</div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-card-label">Lowest Score</div>
+            <div class="profile-card-value">{{secondaryScale}}</div>
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="sec-lbl">Important Note</div>
+        <div class="analysis-text">
+          The Hogan Personality Inventory measures normal personality characteristics that predict workplace behavior. 
+          High scores indicate strong presence of a trait, while low scores indicate limited presence. 
+          Neither high nor low scores are inherently good or bad - they simply describe behavioral tendencies that 
+          should be understood in context of the individual's role and organizational culture.
+        </div>
+      </div>
+      <div class="pf">
+        <p>Generated by Mindmil Assessments</p>
+        <p>Page 4 of 4</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

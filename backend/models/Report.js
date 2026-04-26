@@ -82,7 +82,7 @@ const reportSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5', 'firo', 'firo-b', 'mbti'],
+    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5', 'firo', 'firo-b', 'mbti', 'hogan'],
     required: [true, 'Report type is required']
   },
   // Test taker details (from invite or user account)
@@ -165,6 +165,15 @@ const reportSchema = new mongoose.Schema({
     FIRO: {
       totals: { type: mongoose.Schema.Types.Mixed, default: {} },
       dimensions: { type: mongoose.Schema.Types.Mixed, default: {} }
+    },
+    Hogan: {
+      Adjustment: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Ambition: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Sociability: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Interpersonal_Sensitivity: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Prudence: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Inquisitiveness: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } },
+      Learning_Approach: { score: { type: Number, default: 0 }, percentage: { type: Number, default: 0 }, level: { type: String, default: 'Moderate' } }
     }
   },
   // Analysis

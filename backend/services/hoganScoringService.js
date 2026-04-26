@@ -1,7 +1,22 @@
-const { HOGAN_CONFIG, subscaleMapping, scoringConfig } = require('../seeders/hoganQuestions');
+const { HOGAN_CONFIG, hoganQuestions } = require('../seeders/hoganQuestions');
 
 const TOTAL_QUESTIONS = 50;
 const QUESTIONS_PER_SCALE = 7;
+
+const subscaleMapping = {
+  Adjustment: ["Calmness", "Not Anxious", "No Complaints", "Even-tempered", "Composed", "Secure", "Self-Assured"],
+  Ambition: ["Driven", "Competitive", "Leader", "Achiever", "Ambitious", "Forceful", "Decision Maker"],
+  Sociability: ["Sociable", "Talkative", "Bold", "People-Oriented", "Outgoing", "Animated", "Enthusiastic"],
+  Interpersonal_Sensitivity: ["Sensitive", "Tactful", "Caring", "Diplomatic", "Helpful", "Concerned", "Perceptive"],
+  Prudence: ["Conscientious", "Responsible", "Organized", "Planful", "Detail-Oriented", "Reliable", "Self-Disciplined"],
+  Inquisitiveness: ["Curious", "Imaginative", "Creative", "Intellectual", "Philosophical", "Wide Interests", "Questioning"],
+  Learning_Approach: ["Educated", "Continuous Learner", "Knowledge-Seeker", "Self-Improver", "Studious", "Academic", "Growth-Minded"]
+};
+
+const scoringConfig = {
+  positive: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 2 },
+  negative: { 1: 2, 2: 2, 3: 1, 4: 0, 5: 0 }
+};
 
 function calculateHoganScores(responses) {
   const rawScores = {

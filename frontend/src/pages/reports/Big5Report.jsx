@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { attemptService } from '../../services';
 import {
- Radar,
+  Radar,
  RadarChart,
  PolarGrid,
  PolarAngleAxis,
@@ -45,31 +46,32 @@ const Big5Report = () => {
  fetchResults();
  }, [attemptId]);
 
- const fetchResults = async () => {
- try {
- const response = await fetch(`/api/attempts/${attemptId}/big5/results`, {
- headers: {
- 'Authorization': `Bearer ${localStorage.getItem('token')}`
- }
- });
- const data = await response.json();
+const fetchResults = async () => {
+    try {
+      setLoading(true);
+      const response = await attemptService.getAttempt(attemptId);
+      const attempt = response.data?.attempt;
 
-  if (data.success) {
-  setResults(data.data.results);
-  setTraitDetails(data.data.traitDetails);
-  setNarrative(data.data.narrative);
-  setDominantTraits(data.data.dominantTraits);
-  setTestTaker(data.data.testTaker);
-  setCompletedAt(data.data.completedAt);
-  } else {
- throw new Error(data.message);
- }
- } catch (err) {
- setError(err.message || 'Failed to load results');
- } finally {
- setLoading(false);
- }
- };
+      if (attempt && attempt.big5Results) {
+        setResults(attempt.big5Results);
+        setTraitDetails(attempt.big5TraitDetails || null);
+        setNarrative(attempt.big5Narrative || '');
+        setDominantTraits(attempt.big5DominantTraits || []);
+        setTestTaker({
+          name: attempt.testTakerName || null,
+          email: attempt.testTakerEmail || null,
+          phone: attempt.testTakerPhone || null
+        });
+        setCompletedAt(attempt.completedAt);
+      } else {
+        throw new Error('Big5 results not found for this attempt');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load results');
+    } finally {
+      setLoading(false);
+    }
+  };
 
    const handleDownload = async (type) => {
    try {

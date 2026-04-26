@@ -194,11 +194,18 @@ const Big5Test = () => {
   }
   };
 
- const handleResponse = (questionOrder, value) => {
- setResponses(prev => ({
- ...prev,
- [questionOrder]: value
- }));
+const handleResponse = (questionOrder, value) => {
+  setResponses(prev => ({
+  ...prev,
+  [questionOrder]: value
+  }));
+
+  if (currentAttemptId) {
+    attemptService.saveAnswer(currentAttemptId, {
+      questionId: questionOrder.toString(),
+      ratingAnswer: value
+    }).catch(err => console.error('Auto-save failed:', err));
+  }
  };
 
  const handleNext = () => {

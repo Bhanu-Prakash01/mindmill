@@ -20,7 +20,6 @@ const MbtiTest = () => {
   
   const isPublicAccess = !!token;
   const assessmentId = isPublicAccess ? undefined : id;
-  const attemptId = isPublicAccess ? urlAttemptId : null;
 
   const [assessment, setAssessment] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -30,7 +29,7 @@ const MbtiTest = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [currentAttemptId, setCurrentAttemptId] = useState(attemptId);
+  const [currentAttemptId, setCurrentAttemptId] = useState(urlAttemptId || null);
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
@@ -193,6 +192,13 @@ const MbtiTest = () => {
       ...prev,
       [questionOrder]: value
     }));
+
+    if (currentAttemptIdRef.current) {
+      attemptService.saveAnswer(currentAttemptIdRef.current, {
+        questionId: questionOrder.toString(),
+        selectedOption: value
+      }).catch(err => console.error('Auto-save failed:', err));
+    }
   };
 
   const handleNext = () => {
@@ -333,7 +339,7 @@ const MbtiTest = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading assessment...</p>
         </div>
       </div>
@@ -371,7 +377,7 @@ const MbtiTest = () => {
           <div className="flex items-center justify-between h-16">
             <div>
               <h1 className="text-lg font-semibold text-gray-900">
-                {assessment?.title}
+                {assessment?.title || 'MBTI Assessment'}
               </h1>
               <p className="text-sm text-gray-500">
                 Question {currentPage * QUESTIONS_PER_PAGE + 1} - {Math.min((currentPage + 1) * QUESTIONS_PER_PAGE, TOTAL_QUESTIONS)} of {TOTAL_QUESTIONS}
@@ -380,7 +386,7 @@ const MbtiTest = () => {
 
             <div className="flex items-center gap-4">
               {assessment?.timeBound?.enabled && (
-<div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
                   timeRemaining < 300
                   ? 'bg-red-100 text-red-700'
                   : 'bg-gray-100 text-gray-700'
@@ -396,7 +402,7 @@ const MbtiTest = () => {
                 </div>
                 <div className="w-32 h-2 bg-gray-200 rounded-full mt-1">
                   <div
-                    className="h-full bg-indigo-600 rounded-full transition-all"
+                    className="h-full bg-purple-600 rounded-full transition-all"
                     style={{ width: `${getProgress()}%` }}
                   />
                 </div>
@@ -405,7 +411,6 @@ const MbtiTest = () => {
               <button
                 onClick={requestFullscreen}
                 className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-                title="Return to Fullscreen"
               >
                 <Maximize2 className="w-4 h-4" />
                 Fullscreen
@@ -418,7 +423,6 @@ const MbtiTest = () => {
                   ? 'bg-green-500 text-white hover:bg-green-600' 
                   : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                 }`}
-                title="Dev Mode: Auto-fill all answers"
               >
                 {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
                 {devMode ? 'Dev Mode ON' : 'Dev Mode'}
@@ -485,6 +489,141 @@ const MbtiTest = () => {
           </div>
         </div>
       )}
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentPage === 0 && (
+          <div className="mb-8 p-6 bg-purple-50 rounded-xl border border-purple-200">
+            <h2 className="text-lg font-semibold text-purple-900 mb-2">MBTI Instructions</h2>
+            <p className="text-purple-700 text-sm leading-relaxed">
+              For each pair of statements, choose the one that describes you better.
+              Be honest — there are no right or wrong answers. Choose based on your natural preferences.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-8">
+          {currentQuestions.map((question, index) => {
+            const questionNumber = currentPage * QUESTIONS_PER_PAGE + index + 1;
+            const isAnswered = responses[questionNumber] !== undefined;
+
+            return (
+              <div
+                key={question._id}
+                className={`bg-white rounded-xl p-6 border-2 transition-colors ${
+                  isAnswered ? 'border-green-200' : 'border-gray-200'
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-medium">
+                    {questionNumber}
+                  </span>
+                  <h3 className="flex-1 text-lg text-gray-900 leading-relaxed">
+                    {question.questionText || question.text}
+                  </h3>
+                  {isAnswered && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-center justify-center gap-2 sm:gap-4">
+                    {scaleLabels.map((scale) => (
+                      <button
+                        key={scale.value}
+                        onClick={() => handleResponse(questionNumber, scale.value)}
+                        className={`flex flex-col items-center gap-2 transition-all ${
+                          responses[questionNumber] === scale.value ? 'scale-110' : 'hover:scale-105'
+                        }`}
+                      >
+                        <div
+                          className={`${scale.size} rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                            responses[questionNumber] === scale.value
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {scale.value}
+                        </div>
+                        <span className="text-xs text-gray-500 hidden sm:block max-w-[80px] text-center">
+                          {scale.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-2 px-4">
+                    <span>Strongly Left</span>
+                    <span>Strongly Right</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            {!isPublicAccess && (
+              <button
+                onClick={() => setShowQuitConfirm(true)}
+                className="flex items-center gap-2 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm"
+              >
+                <XCircle className="w-4 h-4" />
+                Quit
+              </button>
+            )}
+            <button
+              onClick={handlePrev}
+              disabled={currentPage === 0}
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 disabled:opacity-50 hover:text-gray-900"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              Previous
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  i === currentPage ? 'bg-purple-600' : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+
+          {currentPage < TOTAL_PAGES - 1 ? (
+            <button
+              onClick={handleNext}
+              className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Next
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {submitting ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
+              ) : (
+                <><CheckCircle className="w-5 h-5" /> Submit</>
+              )}
+            </button>
+          )}
+        </div>
+
+        {currentPage === TOTAL_PAGES - 1 && Object.keys(responses).length < TOTAL_QUESTIONS && (
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700 text-sm text-center">
+              <AlertCircle className="w-4 h-4 inline mr-2" />
+              You have answered {Object.keys(responses).length} of {TOTAL_QUESTIONS} questions.
+              Please answer all questions before submitting.
+            </p>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

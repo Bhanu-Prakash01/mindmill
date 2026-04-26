@@ -23,6 +23,14 @@ import GroupMembers from './pages/groups/GroupMembers';
 import Assessments from './pages/assessments/Assessments';
 import AssessmentForm from './pages/assessments/AssessmentForm';
 
+// Question Forms for Personality Tests
+import AddFiroQuestions from './pages/assessments/AddFiroQuestions';
+import AddBig5Questions from './pages/assessments/AddBig5Questions';
+import AddHoganQuestions from './pages/assessments/AddHoganQuestions';
+import AddMbtiQuestions from './pages/assessments/AddMbtiQuestions';
+import AddDiscQuestions from './pages/assessments/AddDiscQuestions';
+import AddGenericQuestions from './pages/assessments/AddGenericQuestions';
+
 // Test Taking
 import TakeTest from './pages/test/TakeTest';
 import PublicTest from './pages/test/PublicTest';
@@ -44,6 +52,7 @@ import ComprehensiveDiscReport from './pages/reports/ComprehensiveDiscReport';
 import ComprehensiveBig5Report from './pages/reports/ComprehensiveBig5Report';
 import HoganReport from './pages/reports/HoganReport';
 import FiroReport from './pages/reports/FiroReport';
+import SimpleReport from './pages/reports/SimpleReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -198,15 +207,24 @@ const AppRoutes = () => {
 <Route path="/groups/:id/members" element={<GroupMembers />} />
      <Route path="/test-takers" element={<TestTakers />} />
      <Route path="/assessments" element={<Assessments />} />
-    <Route path="/assessments/create" element={<AssessmentForm />} />
-    <Route path="/assessments/:id" element={<AssessmentForm />} />
+<Route path="/assessments/create" element={<AssessmentForm />} />
+     <Route path="/assessments/:id" element={<AssessmentForm />} />
+     <Route path="/assessments/:id/questions/firo" element={<AddFiroQuestions />} />
+     <Route path="/assessments/:id/questions/big5" element={<AddBig5Questions />} />
+     <Route path="/assessments/:id/questions/hogan" element={<AddHoganQuestions />} />
+     <Route path="/assessments/:id/questions/mbti" element={<AddMbtiQuestions />} />
+     <Route path="/assessments/:id/questions/disc" element={<AddDiscQuestions />} />
+     <Route path="/assessments/:id/questions/generic" element={<AddGenericQuestions />} />
      <Route path="/reports" element={<Reports />} />
      <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
 <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
       <Route path="/reports/mbti/:attemptId" element={<MbtiReport />} />
       <Route path="/reports/hogan/:attemptId" element={<HoganReport />} />
-      <Route path="/reports/firo/:attemptId" element={<FiroReport />} />
-     <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
+<Route path="/reports/firo/:attemptId" element={<FiroReport />} />
+      <Route path="/reports/situational/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
      <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
      <Route path="/reports/:id" element={<ReportDetail />} />
     <Route path="/credits" element={<Credits />} />
@@ -269,14 +287,22 @@ const AppRoutes = () => {
     </ProtectedRoute>
     }
     />
-    <Route
+<Route
     path="groups/:id/members"
     element={
     <ProtectedRoute allowedRoles={['admin', 'superadmin', 'user']}>
-   <GroupMembers />
-   </ProtectedRoute>
-   }
-   />
+    <GroupMembers />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="test-takers"
+    element={
+    <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+    <TestTakers />
+    </ProtectedRoute>
+    }
+    />
 
    {/* Assessments */}
    <Route
@@ -319,22 +345,86 @@ const AppRoutes = () => {
    </ProtectedRoute>
    }
    />
-   <Route
-   path="assessments/:id/disc"
-   element={
-   <ProtectedRoute>
-   <DiscTest />
-   </ProtectedRoute>
-   }
-   />
-   <Route
-   path="assessments/:id/firo"
-   element={
-   <ProtectedRoute>
-   <FiroTest />
-   </ProtectedRoute>
-   }
-   />
+<Route
+    path="assessments/:id/disc"
+    element={
+    <ProtectedRoute>
+    <DiscTest />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/mbti"
+    element={
+    <ProtectedRoute>
+    <MbtiTest />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/hogan"
+    element={
+    <ProtectedRoute>
+    <HoganTest />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/firo"
+    element={
+    <ProtectedRoute>
+    <FiroTest />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/firo"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddFiroQuestions />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/big5"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddBig5Questions />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/hogan"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddHoganQuestions />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/mbti"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddMbtiQuestions />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/disc"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddDiscQuestions />
+    </ProtectedRoute>
+    }
+    />
+    <Route
+    path="assessments/:id/questions/generic"
+    element={
+    <ProtectedRoute allowedRoles={['superadmin']}>
+    <AddGenericQuestions />
+    </ProtectedRoute>
+    }
+    />
    <Route
    path="assessments/:id/terms"
    element={

@@ -67,12 +67,47 @@ const Reports = () => {
     }
   };
 
+  const isSimpleReportType = (report) => {
+    return report.assessment?.category === 'situational' ||
+           report.assessment?.category === 'cognitive' ||
+           report.assessment?.subCategory === 'General Aptitude';
+  };
+
+  const handleSimpleReportDownload = async (report) => {
+    const attemptId = typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/attempts/${attemptId}/simple-report/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Score_Report_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF');
+    }
+  };
+
   const getReportLink = (report) => {
     const attemptId = typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id;
-    if (report.assessment?.category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
-    if (report.assessment?.category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
+    
+    // Check both report.type (stored on report) and report.assessment?.category (from assessment)
+    const category = report.type || report.assessment?.category;
+    if (category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
+    if (category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
     if (report.assessment?.category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
     if (report.assessment?.category === 'firo' || report.assessment?.category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
+    if (report.assessment?.category === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
+    if (report.assessment?.category === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
+    if (report.assessment?.subCategory === 'General Aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;
   };
 
@@ -93,6 +128,7 @@ const Reports = () => {
       psychometric: { label: 'Psychometric', color: 'bg-purple-100 text-purple-700', icon: Brain },
       cognitive: { label: 'Cognitive', color: 'bg-blue-100 text-blue-700', icon: FileBarChart },
       situational: { label: 'Situational', color: 'bg-orange-100 text-orange-700', icon: FileBarChart },
+      professional: { label: 'Aptitude', color: 'bg-purple-100 text-purple-700', icon: FileBarChart },
       standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700', icon: FileBarChart },
       key_factors: { label: 'Key Factors', color: 'bg-amber-100 text-amber-700', icon: Key },
       detailed: { label: 'Detailed', color: 'bg-cyan-100 text-cyan-700', icon: FileText },
@@ -325,7 +361,7 @@ const Reports = () => {
                           <ExternalLink className="w-4 h-4" />
                         </Link>
                         <button
-                          onClick={() => setDownloadModalData(report)}
+                          onClick={() => isSimpleReportType(report) ? handleSimpleReportDownload(report) : setDownloadModalData(report)}
                           className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Download as PDF"
                         >

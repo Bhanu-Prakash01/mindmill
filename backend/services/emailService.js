@@ -29,6 +29,10 @@ async function sendTestInvite({ to, testTakerName, assessmentTitle, assessmentCa
   const categoryNames = {
     big5: 'Big Five Personality',
     disc: 'DISC Assessment',
+    mbti: 'MBTI Assessment',
+    hogan: 'Hogan Assessment',
+    'firo-b': 'FIRO-B Assessment',
+    firo: 'FIRO Assessment',
     general: 'Assessment'
   };
   const categoryLabel = categoryNames[assessmentCategory] || assessmentCategory?.toUpperCase() || 'Assessment';

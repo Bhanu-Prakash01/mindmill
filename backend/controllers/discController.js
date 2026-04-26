@@ -110,7 +110,7 @@ const getDiscResults = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'disc') {
+  if (attempt.assessment.category !== 'disc' && !attempt.discResults) {
     throw new ApiError(400, 'This is not a DISC assessment attempt');
   }
 
@@ -357,7 +357,7 @@ const downloadDiscReport = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'disc') {
+  if (attempt.assessment.category !== 'disc' && !attempt.discResults) {
     throw new ApiError(400, 'This is not a DISC assessment attempt');
   }
 
@@ -366,7 +366,7 @@ const downloadDiscReport = asyncHandler(async (req, res) => {
   }
 
   try {
-    const { generateDiscReportPdf } = require('../services/pdfService');
+    const { downloadPdf } = require('../services/pdfDownloadService');
 
     const testTaker = {
       name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : null),
@@ -374,8 +374,7 @@ const downloadDiscReport = asyncHandler(async (req, res) => {
       phone: attempt.testTakerPhone
     };
 
-    const discData = attempt.discResults;
-    const pdfBuffer = await generateDiscReportPdf(attempt, testTaker, { type });
+    const { buffer: pdfBuffer } = await downloadPdf(attempt.discResults, testTaker, 'disc', type);
     const assessmentTitle = attempt.assessment?.title?.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_') || 'DISC';
     const candidateName = (testTaker.name || 'Candidate').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').substring(0, 50);
     const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';

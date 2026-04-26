@@ -77,6 +77,7 @@ const render = (template, data) => {
         if (item && typeof item === 'object') {
           Object.entries(item).forEach(([k, v]) => {
             row = row.replace(new RegExp(`\\{\\{this\\.${k}\\}\\}`, 'g'), esc(v));
+            row = row.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), esc(v));
           });
         } else {
           row = row.replace(/\{\{this\}\}/g, esc(item));
@@ -301,10 +302,13 @@ const deleteCachedPdfs = (reportId) => {
 
 const generateDiscReportPdf = async (report, testTaker, options = {}) => {
   try {
+    // Normalise: Mongoose documents must be plain objects for property access
+    const reportObj = report?.toObject ? report.toObject() : report;
+
     // Parallel: LLM narratives + static data (no waiting dependency)
     const [narratives, staticData] = await Promise.all([
-      generateDISCNarratives(report, testTaker),
-      Promise.resolve(getDISCStaticData(report)),
+      generateDISCNarratives(reportObj, testTaker),
+      Promise.resolve(getDISCStaticData(reportObj)),
     ]);
 
     const { dominant, secondary, pattern, scores } = staticData;
@@ -422,9 +426,12 @@ const scoreBand = (score) => {
 
 const generateBig5ReportPdf = async (report, testTaker, options = {}) => {
   try {
+    // Normalise: Mongoose documents must be plain objects for property access
+    const reportObj = report?.toObject ? report.toObject() : report;
+
     const [narratives, staticData] = await Promise.all([
-      generateBig5Narratives(report, testTaker),
-      Promise.resolve(getBig5StaticData(report)),
+      generateBig5Narratives(reportObj, testTaker),
+      Promise.resolve(getBig5StaticData(reportObj)),
     ]);
 
     const { scores, topTrait, traitData } = staticData;
@@ -564,21 +571,23 @@ const generateBig5ReportPdf = async (report, testTaker, options = {}) => {
 
 const generateFiroReportPdf = async (report, testTaker, options = {}) => {
   try {
+    // Normalise: Mongoose documents must be plain objects for property access
+    const reportPlain = report?.toObject ? report.toObject() : report;
     let firoData;
-    if (report.dimensions?.FIRO?.dimensions || report.dimensions?.FIRO?.totals) {
+    if (reportPlain.dimensions?.FIRO?.dimensions || reportPlain.dimensions?.FIRO?.totals) {
       firoData = {
-        dimensions: report.dimensions.FIRO.dimensions,
-        totals: report.dimensions.FIRO.totals,
+        dimensions: reportPlain.dimensions.FIRO.dimensions,
+        totals: reportPlain.dimensions.FIRO.totals,
       };
-    } else if (report.FIRO?.dimensions || report.FIRO?.totals) {
-      firoData = { dimensions: report.FIRO.dimensions, totals: report.FIRO.totals };
+    } else if (reportPlain.FIRO?.dimensions || reportPlain.FIRO?.totals) {
+      firoData = { dimensions: reportPlain.FIRO.dimensions, totals: reportPlain.FIRO.totals };
     } else if (
-      (report.dimensions?.Expressed || report.dimensions?.Wanted) &&
-      report.dimensions?.FIRO
+      (reportPlain.dimensions?.Expressed || reportPlain.dimensions?.Wanted) &&
+      reportPlain.dimensions?.FIRO
     ) {
-      firoData = report;
+      firoData = reportPlain;
     } else {
-      firoData = report;
+      firoData = reportPlain;
     }
 
     const staticData = getFIROStaticData(firoData);
@@ -1128,6 +1137,97 @@ body{font-family:'DM Sans',sans-serif;background:#0F172A;min-height:100vh;displa
   return await generatePdfFromHtml(html);
 };
 
+// ─────────────────────────────────────────────────────────────────
+// HOGAN REPORT
+// ─────────────────────────────────────────────────────────────────
+
+const HOGAN_SCALES = {
+  Adjustment: { name: 'Adjustment', color: '#6366F1', description: 'Ability to maintain composure under pressure and handle stress' },
+  Ambition: { name: 'Ambition', color: '#10B981', description: 'Desire for achievement, leadership, and career advancement' },
+  Sociability: { name: 'Sociability', color: '#F59E0B', description: 'Comfort with social interaction and interpersonal engagement' },
+  Interpersonal_Sensitivity: { name: 'Interpersonal Sensitivity', color: '#EC4899', description: 'Awareness of how one affects others and sensitivity to criticism' },
+  Prudence: { name: 'Prudence', color: '#8B5CF6', description: 'Degree of self-discipline, caution, and responsibility' },
+  Inquisitiveness: { name: 'Inquisitiveness', color: '#06B6D4', description: 'Interest in learning, intellectual curiosity, and creative thinking' },
+  Learning_Approach: { name: 'Learning Approach', color: '#EF4444', description: 'Attitude toward learning and development opportunities' }
+};
+
+const getLevelLabel = (percentile) => {
+  if (percentile >= 66) return { label: 'High', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.1)' };
+  if (percentile <= 33) return { label: 'Low', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' };
+  return { label: 'Moderate', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.1)' };
+};
+
+const generateHoganReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    const reportObj = report?.toObject ? report.toObject() : report;
+    let hoganData = reportObj.dimensions?.Hogan || {};
+    
+    // Priority: Extract directly from attempt to bypass schema issues
+    const hr = reportObj.attempt?.hoganResults || reportObj.hoganResults;
+    if (hr?.percentiles) {
+      hoganData = {
+        Adjustment: { score: hr.rawScores?.Adjustment || 0, percentage: hr.percentiles?.Adjustment || 0, level: hr.levels?.Adjustment || 'Moderate' },
+        Ambition: { score: hr.rawScores?.Ambition || 0, percentage: hr.percentiles?.Ambition || 0, level: hr.levels?.Ambition || 'Moderate' },
+        Sociability: { score: hr.rawScores?.Sociability || 0, percentage: hr.percentiles?.Sociability || 0, level: hr.levels?.Sociability || 'Moderate' },
+        Interpersonal_Sensitivity: { score: hr.rawScores?.Interpersonal_Sensitivity || hr.rawScores?.InterpersonalSensitivity || 0, percentage: hr.percentiles?.Interpersonal_Sensitivity || hr.percentiles?.InterpersonalSensitivity || 0, level: hr.levels?.Interpersonal_Sensitivity || hr.levels?.InterpersonalSensitivity || 'Moderate' },
+        Prudence: { score: hr.rawScores?.Prudence || 0, percentage: hr.percentiles?.Prudence || 0, level: hr.levels?.Prudence || 'Moderate' },
+        Inquisitiveness: { score: hr.rawScores?.Inquisitiveness || hr.rawScores?.Inquisitive || 0, percentage: hr.percentiles?.Inquisitiveness || hr.percentiles?.Inquisitive || 0, level: hr.levels?.Inquisitiveness || hr.levels?.Inquisitive || 'Moderate' },
+        Learning_Approach: { score: hr.rawScores?.Learning_Approach || hr.rawScores?.LearningApproach || 0, percentage: hr.percentiles?.Learning_Approach || hr.percentiles?.LearningApproach || 0, level: hr.levels?.Learning_Approach || hr.levels?.LearningApproach || 'Moderate' }
+      };
+    }
+
+    // Ensure we iterate over the canonical 7 scales
+    const scaleKeys = ['Adjustment', 'Ambition', 'Sociability', 'Interpersonal_Sensitivity', 'Prudence', 'Inquisitiveness', 'Learning_Approach'];
+    const fallbackKeys = { 'Interpersonal_Sensitivity': 'InterpersonalSensitivity', 'Inquisitiveness': 'Inquisitive', 'Learning_Approach': 'LearningApproach' };
+
+    const scales = scaleKeys.map((key) => {
+      const scaleInfo = HOGAN_SCALES[key] || { name: key.replace('_', ' '), color: '#6366F1', description: '' };
+      const fallbackKey = fallbackKeys[key];
+      const value = hoganData[key] || (fallbackKey ? hoganData[fallbackKey] : null) || {};
+      
+      const percentile = value.percentage ?? value.score ?? 0;
+      const level = getLevelLabel(percentile);
+      return {
+        key,
+        name: scaleInfo.name,
+        color: scaleInfo.color,
+        description: scaleInfo.description,
+        percentile,
+        rawScore: value.score || value.rawScore || 0,
+        level: level.label,
+        levelColor: level.color,
+        levelBgColor: level.bgColor
+      };
+    });
+
+    const sortedScales = [...scales].sort((a, b) => b.percentile - a.percentile);
+    const domKey = report.dominantScale || reportObj.attempt?.hoganResults?.dominantScale || sortedScales[0]?.key;
+    const secKey = report.secondaryScale || reportObj.attempt?.hoganResults?.secondaryScale || sortedScales[1]?.key;
+    
+    const dominantScale = HOGAN_SCALES[domKey]?.name || domKey || 'N/A';
+    const secondaryScale = HOGAN_SCALES[secKey]?.name || secKey || 'N/A';
+
+    const templateData = {
+      candidateName: esc(testTaker?.name || 'N/A'),
+      candidateEmail: esc(testTaker?.email || 'N/A'),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      dominantScale,
+      secondaryScale,
+      scales,
+      scalesJson: JSON.stringify(scales),
+      analysis: report.analysis || {},
+      ...getAttemptMetrics(testTaker),
+    };
+
+    const template = readTemplate('hogan-comprehensive.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('Hogan PDF generation error:', err);
+    throw err;
+  }
+};
+
 module.exports = {
   generateDiscReportPdf,
   generateBig5ReportPdf,
@@ -1135,6 +1235,7 @@ module.exports = {
   generateMbtiReportPdf,
   generateQuickSummaryPdf,
   generateGenericReportPdf,
+  generateHoganReportPdf,
   savePdfToDisk,
   getCachedPdf,
   deleteCachedPdfs,

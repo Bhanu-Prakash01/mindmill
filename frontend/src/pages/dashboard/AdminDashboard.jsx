@@ -153,9 +153,12 @@ const AdminDashboard = () => {
  You have {creditsRemaining} credits remaining. Request more credits to continue creating assessments.
  </p>
  </div>
- <button className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
- Request Credits
- </button>
+<Link
+            to={`/o/${user?.organization?.slug}/credits`}
+            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+          >
+            Request Credits
+          </Link>
  </div>
  )}
 

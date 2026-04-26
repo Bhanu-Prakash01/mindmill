@@ -28,6 +28,7 @@ const TakeTest = () => {
  const [questions, setQuestions] = useState([]);
  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
  const [answers, setAnswers] = useState({});
+ const [discAnswers, setDiscAnswers] = useState({}); // { [questionId]: { most: statementIndex, least: statementIndex } }
  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
  const [loading, setLoading] = useState(true);
  const [timeRemaining, setTimeRemaining] = useState(0);
@@ -191,31 +192,49 @@ const [submitting, setSubmitting] = useState(false);
  };
 
  const handleOptionSelect = (questionId, optionIndex) => {
- handleAnswer(questionId, { selectedOption: optionIndex });
+  handleAnswer(questionId, { selectedOption: optionIndex });
  };
 
  const handleTextAnswer = (questionId, text) => {
- handleAnswer(questionId, { textAnswer: text });
+  handleAnswer(questionId, { textAnswer: text });
  };
 
-const handleRatingAnswer = (questionId, rating) => {
-    handleAnswer(questionId, { ratingAnswer: rating });
-  };
+ const handleRatingAnswer = (questionId, rating) => {
+  handleAnswer(questionId, { ratingAnswer: rating });
+ };
+
+ const handleDiscRanking = (questionId, selectionType, statementIndex) => {
+  setDiscAnswers(prev => {
+   const current = prev[questionId] || { most: null, least: null };
+   // Prevent selecting same statement for both MOST and LEAST
+   if (selectionType === 'most' && current.least === statementIndex) return prev;
+   if (selectionType === 'least' && current.most === statementIndex) return prev;
+   const updated = { ...current, [selectionType]: statementIndex };
+   // Mark as answered in generic answers state for progress tracking
+   const isAnswered = updated.most !== null && updated.least !== null;
+   if (isAnswered) {
+    handleAnswer(questionId, { selectedOption: updated.most });
+   }
+   return { ...prev, [questionId]: updated };
+  });
+ };
 
   // Dev Mode: Fill all answers randomly
   const fillAllAnswers = async () => {
     const newAnswers = {};
+    const newDiscAnswers = {};
     
     for (const question of questions) {
+      const qId = question._id;
       switch (question.type) {
         case 'mcq':
           if (question.options && question.options.length > 0) {
             const randomIndex = Math.floor(Math.random() * question.options.length);
-            newAnswers[question._id] = { selectedOption: randomIndex };
+            newAnswers[qId] = { selectedOption: randomIndex };
           }
           break;
         
-        case 'text':
+        case 'text': {
           const sampleTexts = [
             'This is a sample response for testing purposes.',
             'I believe this answer demonstrates my understanding.',
@@ -223,15 +242,27 @@ const handleRatingAnswer = (questionId, rating) => {
             'Development mode test response - sample text answer.',
             'This assessment is proceeding well in dev mode.'
           ];
-          newAnswers[question._id] = { 
+          newAnswers[qId] = { 
             textAnswer: sampleTexts[Math.floor(Math.random() * sampleTexts.length)] 
           };
           break;
+        }
         
-        case 'rating':
+        case 'rating': {
           const randomRating = Math.floor(Math.random() * 5) + 1;
-          newAnswers[question._id] = { ratingAnswer: randomRating };
+          newAnswers[qId] = { ratingAnswer: randomRating };
           break;
+        }
+
+        case 'disc-ranking': {
+          const indices = [0, 1, 2, 3];
+          const most = indices[Math.floor(Math.random() * 4)];
+          let least = indices[Math.floor(Math.random() * 4)];
+          while (least === most) least = indices[Math.floor(Math.random() * 4)];
+          newDiscAnswers[qId] = { most, least };
+          newAnswers[qId] = { selectedOption: most }; // for progress tracking
+          break;
+        }
         
         default:
           break;
@@ -240,6 +271,7 @@ const handleRatingAnswer = (questionId, rating) => {
 
     // Update local state
     setAnswers(newAnswers);
+    setDiscAnswers(newDiscAnswers);
 
     // Save all answers to backend
     try {
@@ -286,7 +318,26 @@ const handleRatingAnswer = (questionId, rating) => {
         timeTaken = Math.floor((Date.now() - startTime) / 1000);
       }
 
-      await attemptService.submitAttempt(attempt._id);
+      // Build submit body — include DISC responses if this is a DISC assessment
+      const isDisc = (assessment?.category || '').toLowerCase() === 'disc' || (assessment?.subCategory || '').toLowerCase() === 'disc';
+      let submitBody = {};
+      if (isDisc) {
+        const discResponses = questions.map(q => {
+          const qId = q._id;
+          const discAns = discAnswers[qId];
+          const stmts = q.statements || [];
+          const answerArr = stmts.map((stmt, idx) => {
+            let score = 0;
+            if (discAns?.most === idx) score = 1;
+            else if (discAns?.least === idx) score = -1;
+            return { trait: stmt.trait, score };
+          });
+          return { questionId: qId, answers: answerArr };
+        });
+        submitBody = { responses: discResponses };
+      }
+
+      await attemptService.submitAttempt(attempt._id, submitBody);
       
       const params = new URLSearchParams({
         assessment: assessment?.title || 'Assessment',
@@ -298,12 +349,12 @@ const handleRatingAnswer = (questionId, rating) => {
         totalTime: totalTime !== null ? totalTime.toString() : ''
       });
       navigate(`/thank-you?${params.toString()}`);
-  } catch (error) {
- console.error('Error submitting test:', error);
- alert(error.response?.data?.message || 'Failed to submit test');
- setSubmitting(false);
- }
- };
+    } catch (error) {
+      console.error('Error submitting test:', error);
+      alert(error.response?.data?.message || 'Failed to submit test');
+      setSubmitting(false);
+    }
+  };
 
  const handleQuit = async () => {
  setSubmitting(true);
@@ -580,6 +631,74 @@ const handleRatingAnswer = (questionId, rating) => {
  ))}
  </div>
  )}
+
+  {/* DISC Ranking */}
+  {currentQuestion.type === 'disc-ranking' && (() => {
+    const discAns = discAnswers[currentQuestion._id] || { most: null, least: null };
+    const stmts = currentQuestion.statements || [];
+    const allSelected = discAns.most !== null && discAns.least !== null;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-6 mb-2 text-sm font-medium text-gray-500">
+          <span className="ml-auto w-20 text-center text-green-700 bg-green-50 rounded-md py-1">Most Like Me</span>
+          <span className="w-20 text-center text-red-700 bg-red-50 rounded-md py-1">Least Like Me</span>
+        </div>
+        {stmts.map((stmt, idx) => {
+          const isMost = discAns.most === idx;
+          const isLeast = discAns.least === idx;
+          const canSelectMost = discAns.least !== idx;
+          const canSelectLeast = discAns.most !== idx;
+          return (
+            <div
+              key={idx}
+              className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                isMost
+                  ? 'border-green-400 bg-green-50'
+                  : isLeast
+                  ? 'border-red-400 bg-red-50'
+                  : 'border-gray-200 bg-white'
+              }`}
+            >
+              <span className="flex-1 text-gray-900 text-sm leading-snug">{stmt.text}</span>
+              <div className="flex gap-3 shrink-0">
+                <button
+                  onClick={() => canSelectMost && handleDiscRanking(currentQuestion._id, 'most', idx)}
+                  title="Most like me"
+                  className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center font-bold text-xs transition-all ${
+                    isMost
+                      ? 'border-green-600 bg-green-600 text-white shadow-md'
+                      : canSelectMost
+                      ? 'border-green-300 text-green-600 hover:border-green-500 hover:bg-green-50'
+                      : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  }`}
+                >
+                  M
+                </button>
+                <button
+                  onClick={() => canSelectLeast && handleDiscRanking(currentQuestion._id, 'least', idx)}
+                  title="Least like me"
+                  className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center font-bold text-xs transition-all ${
+                    isLeast
+                      ? 'border-red-600 bg-red-600 text-white shadow-md'
+                      : canSelectLeast
+                      ? 'border-red-300 text-red-600 hover:border-red-500 hover:bg-red-50'
+                      : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  }`}
+                >
+                  L
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {!allSelected && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+            ⚡ Select one statement as <strong>Most Like Me (M)</strong> and one as <strong>Least Like Me (L)</strong> to proceed.
+          </p>
+        )}
+      </div>
+    );
+  })()}
 
  {/* Text Answer */}
  {currentQuestion.type === 'text' && (

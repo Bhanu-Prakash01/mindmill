@@ -311,9 +311,53 @@ Return ONLY the closing insight.`,
 // MAIN EXPORT: generate all narratives in parallel
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Normalise DISC data regardless of source shape:
+ *   Shape A (attempt.discResults): { percentages:{D,I,S,C}, dominant, secondary, pattern }
+ *   Shape B (Report DB document):  { dimensions:{ DISC:{ D:{percentage}, I:{percentage}, …, dominant, secondary, pattern } } }
+ */
+const normalizeDISCData = (reportData) => {
+  const src = reportData?.attempt?.discResults || reportData;
+
+  // Shape A — from attempt.discResults (Prioritized!)
+  if (src?.percentages) {
+    return {
+      percentages: {
+        D: src.percentages.D ?? 0,
+        I: src.percentages.I ?? 0,
+        S: src.percentages.S ?? 0,
+        C: src.percentages.C ?? 0,
+      },
+      dominant:  src.dominant  || 'D',
+      secondary: src.secondary || 'I',
+      pattern:   src.pattern   || `${src.dominant || 'D'}${src.secondary || 'I'}`,
+    };
+  }
+
+  // Shape B — from Report document (Fallback)
+  if (src?.dimensions?.DISC) {
+    const disc = src.dimensions.DISC;
+    return {
+      percentages: {
+        D: disc.D?.percentage ?? 0,
+        I: disc.I?.percentage ?? 0,
+        S: disc.S?.percentage ?? 0,
+        C: disc.C?.percentage ?? 0,
+      },
+      dominant:  disc.dominant  || 'D',
+      secondary: disc.secondary || 'I',
+      pattern:   disc.pattern   || `${disc.dominant || 'D'}${disc.secondary || 'I'}`,
+    };
+  }
+  
+  return {
+    percentages: { D: 0, I: 0, S: 0, C: 0 },
+    dominant: 'D', secondary: 'I', pattern: 'DI'
+  };
+};
+
 const generateDISCNarratives = async (reportData, testTaker) => {
-  const { percentages = {}, dominant = 'D', secondary = 'I' } = reportData;
-  const pattern = reportData.pattern || `${dominant}${secondary}`;
+  const { percentages, dominant, secondary, pattern } = normalizeDISCData(reportData);
   const name = testTaker?.name || 'the candidate';
   const scores = {
     D: Math.round(percentages.D || 0),
@@ -348,15 +392,55 @@ const generateDISCNarratives = async (reportData, testTaker) => {
   }
 };
 
-const generateBig5Narratives = async (reportData, testTaker) => {
-  const scores = reportData.scores || {};
-  const normalized = {
-    Openness: Math.round(scores.Openness || scores.openness || 0),
-    Conscientiousness: Math.round(scores.Conscientiousness || scores.conscientiousness || 0),
-    Extraversion: Math.round(scores.Extraversion || scores.extraversion || 0),
-    Agreeableness: Math.round(scores.Agreeableness || scores.agreeableness || 0),
-    Neuroticism: Math.round(scores.Neuroticism || scores.neuroticism || 0),
+/**
+ * Normalise Big5 data regardless of source shape:
+ *   Shape A (attempt.big5Results): { E:{score,percent,level}, A:{…}, C:{…}, N:{…}, O:{…} }
+ *   Shape B (Report DB document):  { dimensions:{ BigFive:{ openness, conscientiousness, … } } }
+ *   Shape C (legacy / preview):    { scores:{ Openness, Conscientiousness, … } }
+ */
+const normalizeBig5Data = (reportData) => {
+  const src = reportData?.attempt?.big5Results || reportData;
+
+  // Shape A — attempt.big5Results keyed by letter {E, A, C, N, O} (Prioritized!)
+  // Returns raw scores (0-40) because pdfService.js will scale them to 0-100%
+  if (src?.E || src?.A || src?.C || src?.N || src?.O) {
+    return {
+      Openness:          Math.round(src.O?.score ?? Math.round((src.O?.percent || 0) * 40 / 100)),
+      Conscientiousness: Math.round(src.C?.score ?? Math.round((src.C?.percent || 0) * 40 / 100)),
+      Extraversion:      Math.round(src.E?.score ?? Math.round((src.E?.percent || 0) * 40 / 100)),
+      Agreeableness:     Math.round(src.A?.score ?? Math.round((src.A?.percent || 0) * 40 / 100)),
+      Neuroticism:       Math.round(src.N?.score ?? Math.round((src.N?.percent || 0) * 40 / 100)),
+    };
+  }
+
+  // Shape B — Report document with dimensions.BigFive (Fallback)
+  if (src?.dimensions?.BigFive) {
+    const bf = src.dimensions.BigFive;
+    // If the DB stored it as a percentage (e.g. 55) by mistake, we must scale it down to a raw score
+    // so pdfService.js doesn't scale it to >100%. If it's > 40, it's definitely a percentage.
+    const getRaw = (val) => val > 40 ? (val * 40 / 100) : val;
+    return {
+      Openness:          Math.round(getRaw(bf.openness || 0)),
+      Conscientiousness: Math.round(getRaw(bf.conscientiousness || 0)),
+      Extraversion:      Math.round(getRaw(bf.extraversion || 0)),
+      Agreeableness:     Math.round(getRaw(bf.agreeableness || 0)),
+      Neuroticism:       Math.round(getRaw(bf.neuroticism || 0)),
+    };
+  }
+  
+  // Shape C — { scores: { Openness, … } } or flat
+  const flat = src?.scores || src || {};
+  return {
+    Openness:          Math.round(flat.Openness          || flat.openness          || 0),
+    Conscientiousness: Math.round(flat.Conscientiousness || flat.conscientiousness || 0),
+    Extraversion:      Math.round(flat.Extraversion      || flat.extraversion      || 0),
+    Agreeableness:     Math.round(flat.Agreeableness     || flat.agreeableness     || 0),
+    Neuroticism:       Math.round(flat.Neuroticism       || flat.neuroticism       || 0),
   };
+};
+
+const generateBig5Narratives = async (reportData, testTaker) => {
+  const normalized = normalizeBig5Data(reportData);
   const name = testTaker?.name || 'the candidate';
 
   try {
@@ -387,8 +471,8 @@ const generateBig5Narratives = async (reportData, testTaker) => {
 // ─────────────────────────────────────────────────────────────────
 
 const getDISCStaticData = (reportData) => {
-  const { percentages = {}, dominant = 'D', secondary = 'I' } = reportData;
-  const pattern = reportData.pattern || `${dominant}${secondary}`;
+  const { percentages, dominant, secondary, pattern: rawPattern } = normalizeDISCData(reportData);
+  const pattern = rawPattern;
   const patternData = PATTERN_PROFILES[pattern] || PATTERN_PROFILES[dominant] || {};
 
   const scores = {
@@ -528,16 +612,9 @@ const getDISCStaticData = (reportData) => {
 };
 
 const getBig5StaticData = (reportData) => {
-  const scores = reportData.scores || {};
-  const normalized = {
-    Openness: Math.round(scores.Openness || scores.openness || 0),
-    Conscientiousness: Math.round(scores.Conscientiousness || scores.conscientiousness || 0),
-    Extraversion: Math.round(scores.Extraversion || scores.extraversion || 0),
-    Agreeableness: Math.round(scores.Agreeableness || scores.agreeableness || 0),
-    Neuroticism: Math.round(scores.Neuroticism || scores.neuroticism || 0),
-  };
+  // Use the shared normalizer that handles all three data shapes
+  const normalized = normalizeBig5Data(reportData);
 
-  // Determine dominant trait
   const topTrait = Object.entries(normalized).reduce((a, b) => a[1] >= b[1] ? a : b)[0];
 
   const strengthsMap = {

@@ -39,8 +39,8 @@ export const attemptService = {
   return response.data;
  },
 
- submitAttempt: async (id) => {
-  const response = await api.post(`/attempts/${id}/submit`);
+ submitAttempt: async (id, body = {}) => {
+  const response = await api.post(`/attempts/${id}/submit`, body);
   return response.data;
  },
 

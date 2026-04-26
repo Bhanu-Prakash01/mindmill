@@ -31,7 +31,9 @@ import {
   RotateCcw,
   Building2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ListPlus,
+  HelpCircle
 } from 'lucide-react';
 
 // Category metadata: image, description, acknowledgement
@@ -408,13 +410,15 @@ const Assessments = () => {
 
               {/* Card Body */}
               <div className="p-4 flex flex-col flex-1">
-                {/* Inspired by */}
-                {meta.inspiredBy && (
-                  <p className="text-sm italic text-gray-500 mb-0.5">Inspired by</p>
-                )}
-                <h3 className="text-base font-bold text-gray-900 mb-2 leading-tight">
-                  {meta.inspiredBy || assessment.title}
+                <h3 className="text-base font-bold text-gray-900 mb-1 leading-tight">
+                  {assessment.title}
                 </h3>
+
+                {assessment.subcategory ? (
+                  <p className="text-sm italic text-gray-500 mb-2">{assessment.subcategory}</p>
+                ) : (
+                  <p className="text-sm italic text-gray-500 mb-2">Inspired by {meta.inspiredBy}</p>
+                )}
 
                 {/* Description with Expandable See More */}
                 <div className="mb-3 flex-1 flex flex-col">
@@ -486,6 +490,13 @@ const Assessments = () => {
                     user?.role === 'superadmin' ? (
                       <div className="flex items-center gap-1">
                         <Link
+                          to={`${orgPrefix}/assessments/${assessment._id}/questions/disc`}
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Add DISC Questions"
+                        >
+                          <ListPlus className="w-4 h-4" />
+                        </Link>
+                        <Link
                           to={`${orgPrefix}/assessments/${assessment._id}`}
                           className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="Edit"
@@ -546,6 +557,15 @@ const Assessments = () => {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1">
+                        {(assessment.category === 'disc' || assessment.subCategory === 'DISC' || assessment.category === 'personality') && (
+                          <Link
+                            to={`${orgPrefix}/assessments/${assessment._id}/questions/disc`}
+                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Add/Edit Questions"
+                          >
+                            <ListPlus className="w-4 h-4" />
+                          </Link>
+                        )}
                         <button
                           onClick={() => setAssignmentModal({ show: true, assessment })}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
