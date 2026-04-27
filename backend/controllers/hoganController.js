@@ -12,7 +12,9 @@ const submitHogan = asyncHandler(async (req, res) => {
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
   }
-  if (assessment.subCategory !== 'Hogan') {
+  const category = assessment.category?.toLowerCase();
+  const subCategory = assessment.subCategory?.toLowerCase();
+  if (category !== 'hogan' && subCategory !== 'hogan') {
     throw new ApiError(400, 'This is not a Hogan assessment');
   }
 
@@ -87,7 +89,7 @@ const getHoganResults = asyncHandler(async (req, res) => {
   const { attemptId } = req.params;
 
   const attempt = await Attempt.findById(attemptId)
-    .populate('assessment', 'title category')
+    .populate('assessment', 'title category subCategory')
     .populate('report');
 
   if (!attempt) {
@@ -130,7 +132,9 @@ const startHogan = asyncHandler(async (req, res) => {
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
   }
-  if (assessment.subCategory !== 'Hogan') {
+  const category = assessment.category?.toLowerCase();
+  const subCategory = assessment.subCategory?.toLowerCase();
+  if (category !== 'hogan' && subCategory !== 'hogan') {
     throw new ApiError(400, 'This is not a Hogan assessment');
   }
   if (!assessment.isPublished) {
@@ -228,7 +232,7 @@ const getHoganAnalytics = asyncHandler(async (req, res) => {
   const { attemptId } = req.params;
 
   const attempt = await Attempt.findById(attemptId)
-    .populate('assessment', 'title category');
+    .populate('assessment', 'title category subCategory');
 
   if (!attempt || !attempt.hoganResults) {
     throw new ApiError(404, 'Hogan results not found');
@@ -277,7 +281,9 @@ const submitHoganPublic = asyncHandler(async (req, res) => {
   }
 
   const assessment = invite.assessment;
-  if (!assessment || assessment.subCategory !== 'Hogan') {
+  const category = assessment?.category?.toLowerCase();
+  const subCategory = assessment?.subCategory?.toLowerCase();
+  if (!assessment || (category !== 'hogan' && subCategory !== 'hogan')) {
     throw new ApiError(400, 'This is not a Hogan assessment');
   }
 
@@ -358,42 +364,37 @@ const downloadHoganPdf = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Not authorized to download this report');
   }
 
-  const testTaker = {
-    name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : 'Candidate'),
-    email: attempt.testTakerEmail || attempt.user?.email,
-    phone: attempt.testTakerPhone,
-    startedAt: attempt.startedAt,
-    completedAt: attempt.completedAt,
-    timeSpent: attempt.timeSpent,
-    totalQuestions: attempt.assessment?.questions?.length || 50,
-    answeredQuestions: attempt.answeredQuestions
-  };
-
-  const reportData = {
-    type: 'hogan',
-    attemptId: attempt._id,
-    user: attempt.user,
-    assessment: attempt.assessment,
-    dimensions: {
-      Hogan: attempt.hoganResults.scales
-    },
-    dominantScale: attempt.hoganResults.dominantScale,
-    secondaryScale: attempt.hoganResults.secondaryScale,
-    analysis: attempt.hoganResults.analysis || {}
-  };
-
   try {
-    const pdfBuffer = await generateHoganReportPdf(reportData, testTaker, { type });
-    
-    const candidateName = testTaker.name.replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `Hogan_${type === 'summary' ? 'Summary' : 'Comprehensive'}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const testTaker = {
+      name: attempt.testTakerName || (attempt.user ? `${attempt.user.firstName} ${attempt.user.lastName}`.trim() : 'Candidate'),
+      email: attempt.testTakerEmail || attempt.user?.email,
+      phone: attempt.testTakerPhone,
+      startedAt: attempt.startedAt,
+      completedAt: attempt.completedAt,
+      timeSpent: attempt.timeSpent,
+      totalQuestions: attempt.assessment?.questions?.length || 50,
+      answeredQuestions: attempt.answeredQuestions
+    };
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.send(pdfBuffer);
+    // Pass attempt directly — generateHoganReportPdf will read hoganResults
+    // from reportObj.hoganResults (priority 1 path) which gives accurate scores.
+    try {
+      const pdfBuffer = await generateHoganReportPdf(attempt, testTaker, { type });
+      
+      const candidateName = testTaker.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Hogan_${type === 'summary' ? 'Summary' : 'Comprehensive'}_${candidateName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Hogan PDF generation error:', error);
+      throw new ApiError(500, 'Failed to generate PDF report');
+    }
   } catch (error) {
+    if (error.status) throw error;
     console.error('Hogan PDF generation error:', error);
     throw new ApiError(500, 'Failed to generate PDF report');
   }

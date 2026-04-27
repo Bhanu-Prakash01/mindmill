@@ -26,7 +26,9 @@ const submitMbti = asyncHandler(async (req, res) => {
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
   }
-  if (assessment.category !== 'mbti') {
+  const category = assessment.category?.toLowerCase();
+  const subCategory = assessment.subCategory?.toLowerCase();
+  if (category !== 'mbti' && subCategory !== 'mbti') {
     throw new ApiError(400, 'This is not an MBTI assessment');
   }
 
@@ -99,7 +101,7 @@ const submitMbti = asyncHandler(async (req, res) => {
  */
 const getMbtiResults = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.attemptId)
-    .populate('assessment', 'title category showResultsImmediately');
+    .populate('assessment', 'title category subCategory showResultsImmediately');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -112,7 +114,10 @@ const getMbtiResults = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'mbti') {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'mbti' && subCategory !== 'mbti') {
     throw new ApiError(400, 'This is not an MBTI assessment attempt');
   }
 
@@ -286,7 +291,7 @@ const downloadMbtiReport = asyncHandler(async (req, res) => {
 
   const attempt = await Attempt.findById(attemptId)
     .populate('user', 'firstName lastName email')
-    .populate('assessment', 'title category');
+    .populate('assessment', 'title category subCategory');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -298,7 +303,10 @@ const downloadMbtiReport = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'mbti') {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'mbti' && subCategory !== 'mbti') {
     throw new ApiError(400, 'This is not an MBTI assessment attempt');
   }
 

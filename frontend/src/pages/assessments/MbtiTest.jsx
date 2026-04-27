@@ -505,6 +505,26 @@ const MbtiTest = () => {
           {currentQuestions.map((question, index) => {
             const questionNumber = currentPage * QUESTIONS_PER_PAGE + index + 1;
             const isAnswered = responses[questionNumber] !== undefined;
+            
+            let leftTrait = question.leftTrait || '';
+            let rightTrait = question.rightTrait || '';
+            
+            if (!leftTrait && !rightTrait && question.questionText) {
+              const text = question.questionText;
+              if (text.includes('|')) {
+                const parts = text.split('|').map(p => p.trim());
+                leftTrait = parts[0] || '';
+                rightTrait = parts[1] || '';
+              } else if (text.includes('\u2014')) {
+                const parts = text.split('\u2014').map(p => p.trim());
+                leftTrait = parts[0] || '';
+                rightTrait = parts[1] || '';
+              } else if (text.includes(' - ')) {
+                const parts = text.split(' - ').map(p => p.trim());
+                leftTrait = parts[0] || '';
+                rightTrait = parts[1] || '';
+              }
+            }
 
             return (
               <div
@@ -517,10 +537,28 @@ const MbtiTest = () => {
                   <span className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-medium">
                     {questionNumber}
                   </span>
-                  <h3 className="flex-1 text-lg text-gray-900 leading-relaxed">
-                    {question.questionText || question.text}
-                  </h3>
-                  {isAnswered && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-3">
+                      <p className="text-sm text-purple-600 font-medium">{question.dimension} Dimension</p>
+                      {isAnswered && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                    </div>
+                    {leftTrait && rightTrait ? (
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                          <span className="text-blue-600 font-semibold text-sm">LEFT:</span>
+                          <p className="text-gray-700 text-sm flex-1">{leftTrait}</p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border-l-4 border-pink-400">
+                          <span className="text-pink-600 font-semibold text-sm">RIGHT:</span>
+                          <p className="text-gray-700 text-sm flex-1">{rightTrait}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <h3 className="text-lg text-gray-900 leading-relaxed">
+                        {question.questionText || question.text}
+                      </h3>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-6">

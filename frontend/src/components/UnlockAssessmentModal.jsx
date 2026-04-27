@@ -100,10 +100,8 @@ const UnlockAssessmentModal = ({ assessment, onClose, onSuccess }) => {
           <div className="bg-green-50 rounded-lg p-3 mb-4 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
             <div className="text-sm">
-              <p className="text-green-800 font-medium">Already unlocked</p>
-              <p className="text-green-600">
-                {Math.max(0, assessment.orgUnlockInfo.testsAllowed - (assessment.assignedUsers?.length || 0))} of{' '}
-                {assessment.orgUnlockInfo.testsAllowed} tests remaining
+              <p className="text-green-800 font-medium">
+                {Math.max(0, assessment.orgUnlockInfo.testsAllowed - (assessment.orgUnlockInfo.testsUsed || 0))} tests remaining
               </p>
             </div>
           </div>

@@ -24,7 +24,9 @@ const submitDisc = asyncHandler(async (req, res) => {
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
   }
-  if (assessment.category !== 'disc') {
+  const category = assessment.category?.toLowerCase();
+  const subCategory = assessment.subCategory?.toLowerCase();
+  if (category !== 'disc' && subCategory !== 'disc') {
     throw new ApiError(400, 'This is not a DISC assessment');
   }
 
@@ -97,7 +99,7 @@ const submitDisc = asyncHandler(async (req, res) => {
  */
 const getDiscResults = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.attemptId)
-    .populate('assessment', 'title category showResultsImmediately');
+    .populate('assessment', 'title category subCategory showResultsImmediately');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -110,7 +112,10 @@ const getDiscResults = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'disc' && !attempt.discResults) {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'disc' && subCategory !== 'disc' && !attempt.discResults) {
     throw new ApiError(400, 'This is not a DISC assessment attempt');
   }
 
@@ -345,7 +350,7 @@ const downloadDiscReport = asyncHandler(async (req, res) => {
 
   const attempt = await Attempt.findById(attemptId)
     .populate('user', 'firstName lastName email')
-    .populate('assessment', 'title category');
+    .populate('assessment', 'title category subCategory');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -357,7 +362,10 @@ const downloadDiscReport = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'disc' && !attempt.discResults) {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'disc' && subCategory !== 'disc' && !attempt.discResults) {
     throw new ApiError(400, 'This is not a DISC assessment attempt');
   }
 

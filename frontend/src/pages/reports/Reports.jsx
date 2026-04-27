@@ -103,10 +103,11 @@ const Reports = () => {
     const category = report.type || report.assessment?.category;
     if (category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
     if (category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
-    if (report.assessment?.category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
-    if (report.assessment?.category === 'firo' || report.assessment?.category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
-    if (report.assessment?.category === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
-    if (report.assessment?.category === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
+    if (category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
+    if (category === 'firo' || category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
+    if (category === 'hogan') return `${orgPrefix}/reports/hogan/${attemptId}`;
+    if (category === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
+    if (category === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
     if (report.assessment?.subCategory === 'General Aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;
   };

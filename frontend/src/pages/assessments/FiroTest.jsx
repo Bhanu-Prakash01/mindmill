@@ -270,7 +270,7 @@ const FiroTest = () => {
   const toggleDevMode = () => {
     if (!devMode) {
       const filled = {};
-      for (let i = 1; i <= TOTAL_QUESTIONS; i++) filled[i] = 3;
+      for (let i = 1; i <= TOTAL_QUESTIONS; i++) filled[i] = 5;
       setResponses(filled);
     }
     setDevMode(!devMode);

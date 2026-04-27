@@ -31,13 +31,37 @@ export const attemptService = {
   return response.data;
  },
 
- saveAnswer: async (attemptId, questionId, answerData) => {
-  const response = await api.post(`/attempts/${attemptId}/answer`, {
-  questionId,
-  ...answerData,
-  });
-  return response.data;
- },
+saveAnswer: async (attemptId, questionIdOrData, answerData) => {
+    let questionId, selectedOption, textAnswer, ratingAnswer, timeSpent;
+    
+    // Handle both call styles:
+    // 1. saveAnswer(attemptId, '1', { selectedOption: 3 }) - string questionId
+    // 2. saveAnswer(attemptId, { questionId: '1', selectedOption: 3 }) - object form
+    if (typeof questionIdOrData === 'object' && questionIdOrData !== null) {
+      questionId = questionIdOrData.questionId;
+      selectedOption = questionIdOrData.selectedOption;
+      textAnswer = questionIdOrData.textAnswer;
+      ratingAnswer = questionIdOrData.ratingAnswer;
+      timeSpent = questionIdOrData.timeSpent;
+    } else {
+      questionId = questionIdOrData;
+      if (answerData) {
+        selectedOption = answerData.selectedOption;
+        textAnswer = answerData.textAnswer;
+        ratingAnswer = answerData.ratingAnswer;
+        timeSpent = answerData.timeSpent;
+      }
+    }
+    
+    const response = await api.post(`/attempts/${attemptId}/answer`, {
+      questionId,
+      selectedOption,
+      textAnswer,
+      ratingAnswer,
+      timeSpent,
+    });
+    return response.data;
+  },
 
  submitAttempt: async (id, body = {}) => {
   const response = await api.post(`/attempts/${id}/submit`, body);

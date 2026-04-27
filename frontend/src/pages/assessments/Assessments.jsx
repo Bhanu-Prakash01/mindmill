@@ -32,12 +32,13 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
-  ListPlus,
-  HelpCircle
+  HelpCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 // Category metadata: image, description, acknowledgement
 const CATEGORY_META = {
+  // Main categories
   big5: {
     image: '/assessment_big5.png',
     inspiredBy: 'Big 5 Assessments',
@@ -53,7 +54,7 @@ const CATEGORY_META = {
     acknowledgement: 'Model built by Lewis Goldberg, Robert McCrae, & Paul Costa',
   },
   firo: {
-    image: '/assessment_disc.png',
+    image: '/assessment_firo.png',
     inspiredBy: 'FIRO-B Assessment',
     description:
       'The FIRO-B assessment measures interpersonal needs across three dimensions: Inclusion, Control, and Affection. It helps understand how you relate to others and what you need in relationships.',
@@ -101,6 +102,37 @@ const CATEGORY_META = {
       'Professional skills assessments evaluate role-specific competencies, technical knowledge, and workplace readiness. They provide a structured way to benchmark candidates against industry standards and identify skill gaps for targeted learning and development.',
     acknowledgement: null,
   },
+  // Sub-categories (more specific)
+  MBTI: {
+    image: '/assessment_mbti.png',
+    inspiredBy: 'MBTI Assessment',
+    description: 'The Myers-Briggs Type Indicator assessment measures four dimensions of personality to help understand your unique personality type.',
+    acknowledgement: null,
+  },
+  DISC: {
+    image: '/assessment_disc.png',
+    inspiredBy: 'DISC Assessment',
+    description: 'DISC behavioral assessment categorizes personalities into Dominance, Influence, Steadiness, and Conscientiousness types.',
+    acknowledgement: null,
+  },
+  FIRO: {
+    image: '/assessment_firo.png',
+    inspiredBy: 'FIRO-B Assessment',
+    description: 'Fundamental Interpersonal Relations Orientation measures inclusion, control, and affection needs in relationships.',
+    acknowledgement: null,
+  },
+  Big5: {
+    image: '/assessment_big5.png',
+    inspiredBy: 'Big Five Assessment',
+    description: 'The Big Five personality model measures openness, conscientiousness, extraversion, agreeableness, and neuroticism.',
+    acknowledgement: null,
+  },
+  Hogan: {
+    image: '/assessment_hogan.png',
+    inspiredBy: 'Hogan Assessment',
+    description: 'Hogan personality assessments measure workplace-relevant traits and derailment risks.',
+    acknowledgement: null,
+  }
 };
 
 const getDifficultyBadge = (difficulty) => {
@@ -322,7 +354,9 @@ const Assessments = () => {
       {/* Assessments Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         {filteredAssessments.map((assessment) => {
-          const meta = CATEGORY_META[assessment.category] || {};
+          const subCategory = assessment.subCategory?.toUpperCase() || '';
+          const category = assessment.category || '';
+          let meta = CATEGORY_META[subCategory] || CATEGORY_META[category] || {};
           const heroImage = meta.image || null;
 
           return (
@@ -350,10 +384,36 @@ const Assessments = () => {
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                   >
                     <Unlock className="w-4 h-4" />
-                    Unlock Assessment
+Unlock Assessment
                   </button>
                 </div>
               )}
+
+              {isAdmin && !assessment.isLocked && assessment.orgUnlockInfo && (() => {
+                const totalAllocated = assessment.orgUnlockInfo.testsAllowed || 0;
+                const totalUsed = assessment.orgUnlockInfo.testsUsed || 0;
+                const slotsRemaining = Math.max(0, totalAllocated - totalUsed);
+                return slotsRemaining <= 0 ? (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl cursor-pointer px-6"
+                    onClick={() => setUnlockModal({ show: true, assessment })}>
+                    <AlertTriangle className="w-7 h-7 text-red-400 mb-2" />
+                    <p className="text-base font-bold text-gray-800 mb-1 text-center">
+                      No Slots Available
+                    </p>
+                    <p className="text-xs text-gray-500 mb-3 text-center">
+                      Purchase more slots to add test takers
+                    </p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setUnlockModal({ show: true, assessment }); }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                    >
+                      <Coins className="w-4 h-4" />
+                      Buy More Slots
+                    </button>
+                  </div>
+                ) : null;
+      })()}
+              
               {/* Hero Image */}
               <div className="relative w-full h-36 overflow-hidden bg-gray-100">
                 {heroImage ? (
@@ -474,28 +534,65 @@ const Assessments = () => {
                 {/* Member allocation info for users */}
                 {!isAdmin && assessment.memberAllocation && (
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
-                      <Unlock className="w-3 h-3" />
-                      {assessment.memberAllocation.testsRemaining} slots remaining
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-600 rounded-full text-xs font-medium">
-                      {assessment.memberAllocation.testsDistributed} used
-                    </span>
+                    {assessment.memberAllocation.testsRemaining <= 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded-full text-xs font-medium">
+                        <Unlock className="w-3 h-3" />
+                        No slots left
+                      </span>
+                    ) : assessment.memberAllocation.testsRemaining <= 2 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                        <Unlock className="w-3 h-3" />
+                        {assessment.memberAllocation.testsRemaining} slots left
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                        <Unlock className="w-3 h-3" />
+                        {assessment.memberAllocation.testsRemaining} slots remaining
+                      </span>
+                    )}
+                    {assessment.memberAllocation.testsRemaining > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-600 rounded-full text-xs font-medium">
+                        {assessment.memberAllocation.testsDistributed} used
+                      </span>
+                    )}
                   </div>
                 )}
+
+                {/* Admin slot info for unlocked assessments */}
+                {isAdmin && !assessment.isLocked && assessment.orgUnlockInfo && (() => {
+                  const totalAllocated = assessment.orgUnlockInfo.testsAllowed || 0;
+                  const totalUsed = assessment.orgUnlockInfo.testsUsed || 0;
+                  const slotsRemaining = Math.max(0, totalAllocated - totalUsed);
+                  return (
+                    <div className="flex items-center gap-2 mb-3">
+                      {slotsRemaining <= 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded-full text-xs font-medium">
+                          <Coins className="w-3 h-3" />
+                          No slots left
+                        </span>
+                      ) : slotsRemaining <= 2 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                          <Coins className="w-3 h-3" />
+                          {slotsRemaining} slots left
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                          <Coins className="w-3 h-3" />
+                          {slotsRemaining} slots remaining
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-600 rounded-full text-xs font-medium">
+                        {totalUsed} used
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Action row */}
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                   {isAdmin ? (
                     user?.role === 'superadmin' ? (
                       <div className="flex items-center gap-1">
-                        <Link
-                          to={`${orgPrefix}/assessments/${assessment._id}/questions/disc`}
-                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Add DISC Questions"
-                        >
-                          <ListPlus className="w-4 h-4" />
-                        </Link>
                         <Link
                           to={`${orgPrefix}/assessments/${assessment._id}`}
                           className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -557,21 +654,19 @@ const Assessments = () => {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1">
-                        {(assessment.category === 'disc' || assessment.subCategory === 'DISC' || assessment.category === 'personality') && (
-                          <Link
-                            to={`${orgPrefix}/assessments/${assessment._id}/questions/disc`}
-                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Add/Edit Questions"
-                          >
-                            <ListPlus className="w-4 h-4" />
-                          </Link>
-                        )}
                         <button
                           onClick={() => setAssignmentModal({ show: true, assessment })}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Assign & Allocate"
+                          title="Add Members"
                         >
                           <UserPlus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setUnlockModal({ show: true, assessment })}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Buy More Slots"
+                        >
+                          <Coins className="w-4 h-4" />
                         </button>
                         {assessment.isLocked === false && (
                           <>
@@ -596,14 +691,25 @@ const Assessments = () => {
                       </div>
                     )
                   ) : (
-                    assessment.memberAllocation && assessment.memberAllocation.testsRemaining > 0 && (
-                      <button
-                        onClick={() => setTestTakerModal({ show: true, assessment })}
-                        className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-                      >
-                        <Share2 className="w-4 h-4 mr-1.5" />
-                        Add Test Taker
-                      </button>
+                      assessment.memberAllocation && (
+                      <div className={`${assessment.memberAllocation.testsRemaining <= 0 ? 'opacity-50 pointer-events-none blur-[1px] select-none relative' : ''}`}>
+                        {assessment.memberAllocation.testsRemaining <= 0 && (
+                          <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-medium text-sm shadow">
+                              No slots left
+                            </div>
+                          </div>
+                        )}
+                        {assessment.memberAllocation.testsRemaining > 0 && (
+                          <button
+                            onClick={() => setTestTakerModal({ show: true, assessment })}
+                            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                          >
+                            <Share2 className="w-4 h-4 mr-1.5" />
+                            Add Test Taker
+                          </button>
+                        )}
+                      </div>
                     )
                   )}
                   {isAdmin && assessment.averageScore > 0 && (

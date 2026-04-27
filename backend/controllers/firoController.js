@@ -38,9 +38,19 @@ const submitFiro = asyncHandler(async (req, res) => {
   }
 
   // FIRO-B UI from FiroTest.jsx parses responses as an object { "1": val, "2": val... }
-  const responseValues = Object.values(responses);
-  if (!responses || typeof responses !== 'object' || responseValues.length !== total) {
+  if (!responses || typeof responses !== 'object') {
     throw new ApiError(400, `Invalid responses. Expected ${total} responses.`);
+  }
+  const responseValues = new Array(total).fill(0);
+  Object.entries(responses).forEach(([order, val]) => {
+    const idx = parseInt(order, 10) - 1;
+    if (idx >= 0 && idx < total) {
+      responseValues[idx] = val;
+    }
+  });
+
+  if (responseValues.filter(v => v !== 0).length !== total) {
+    throw new ApiError(400, `Invalid responses. Expected ${total} valid responses.`);
   }
 
   let attempt;
@@ -144,7 +154,7 @@ const getFiroConfig = asyncHandler(async (req, res) => {
  */
 const getFiroResults = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.attemptId)
-    .populate('assessment', 'title category showResultsImmediately');
+    .populate('assessment', 'title category subCategory showResultsImmediately');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -157,7 +167,10 @@ const getFiroResults = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'firo' && attempt.assessment.category !== 'firo-b') {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'firo' && category !== 'firo-b' && subCategory !== 'firo' && subCategory !== 'firo-b') {
     throw new ApiError(400, 'This is not a FIRO-B assessment attempt');
   }
 
@@ -206,27 +219,24 @@ const getFiroResults = asyncHandler(async (req, res) => {
 
   let analysis = report?.analysis || attempt.firoResults?.analysis;
 
-  if (!analysis || !analysis.coverSummary) {
-    try {
-      const testTaker = { name: attempt.testTakerName || 'the candidate' };
-      const narrativeKeys = await generateFIRONarratives(attempt.firoResults, testTaker);
-      const staticData = getFIROStaticData(dimensions, totals);
+    const staticData = getFIROStaticData(attempt.firoResults);
+    const name = attempt.testTakerName || 'the candidate';
+    
+    const toParas = (text) => (text || '').split(/\n\n+/).map(s => `<p>${s.trim()}</p>`).join('');
 
-      // Merge LLM narrative with static matrices for React
-      analysis = {
-        ...staticData,
-        ...narrativeKeys
-      };
+    analysis = {
+      ...staticData,
+      coverSummary: `${name} presents a distinct FIRO-B interpersonal profile that provides essential clues to their preferred social environment. Their assessment maps exactly how they engage with teams across Inclusion, Control, and Affection.`,
+      deepProfileHtml: toParas(`${name}'s inclusion dynamics indicate their fundamental approach to group involvement and networking. This dimension highlights whether they prefer to initiate contact and be in the center of activity or maintain a more detached, selective presence.\n\nTheir control dimension describes how they handle hierarchy, influence, and structured environments. It reveals the balance they strike between taking the reins and seeking direction from established leadership.\n\nFinally, their affection scores map their approach to building rapport and close 1-on-1 relationships. This dictates the level of emotional distance they naturally maintain in professional settings.`),
+      leadershipHtml: toParas(`${name}'s leadership approach is heavily influenced by the interplay of their expressed behaviors. They lead by enacting their highest behavioral drive—whether that is bringing people together, asserting structure, or fostering interpersonal trust.\n\nUnderstanding the gap between what they express and what they want helps predict how they respond to stress. Coworkers communicating in their preferred dimension will find collaboration significantly more productive.`),
+      developmentHtml: toParas(`The primary interpersonal growth opportunity for ${name} involves building awareness around any mismatch between their expressed behaviors and wanted needs. This often leads to misunderstood signals from colleagues.\n\nA deliberate focus on transparently communicating their expectations and recognizing when their internal needs are driving disproportionate reactions will enhance their leadership capacity.`),
+      closingInsight: `${name}'s interpersonal profile provides an excellent blueprint for understanding their relational needs and optimizing their placement within team structures.`
+    };
 
-      if (report) {
-        report.analysis = analysis;
-        await report.save();
-      }
-    } catch (err) {
-      console.error('Failed to generate FIRO analysis:', err);
-      analysis = getFIROStaticData(dimensions, totals);
+    if (report) {
+      report.analysis = analysis;
+      await report.save();
     }
-  }
 
   res.json({
     success: true,

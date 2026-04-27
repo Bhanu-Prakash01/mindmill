@@ -20,6 +20,21 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
   const [success, setSuccess] = useState(null);
   const [myAllocation, setMyAllocation] = useState(null);
 
+  // Calculate available slots
+  const getSlotsRemaining = () => {
+    if (isSuperAdmin) return Infinity;
+    if (myAllocation?.allocated) {
+      return Math.max(0, myAllocation.testsRemaining - myAllocation.activeInvites);
+    }
+    if (selectedAssessment?.orgUnlockInfo) {
+      return Math.max(0, selectedAssessment.orgUnlockInfo.testsRemaining - (selectedAssessment.orgUnlockInfo.activeInvites || 0));
+    }
+    return null;
+  };
+
+  const slotsRemaining = getSlotsRemaining();
+  const hasNoSlots = slotsRemaining !== Infinity && slotsRemaining !== null && slotsRemaining <= 0;
+
   useEffect(() => {
     if (!passedAssessment) {
       fetchAssessments();
@@ -179,19 +194,27 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
               Direct Mindmil test - no slot restrictions
             </p>
           </div>
+        ) : hasNoSlots ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-red-700">
+              <p className="font-semibold">No test slots remaining</p>
+              <p className="text-red-600 mt-1">You have used all your allocated slots for this assessment. Contact your admin to request more slots.</p>
+            </div>
+          </div>
         ) : myAllocation?.allocated ? (
-          <div className="bg-emerald-50 rounded-lg p-3 mb-5 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <p className="text-sm text-emerald-700">
-              <span className="font-semibold">{myAllocation.testsRemaining}</span> of {myAllocation.testsAllowed} allocated slots remaining
-              {myAllocation.activeInvites > 0 && <span> ({myAllocation.activeInvites} active test takers)</span>}
+          <div className={`rounded-lg p-3 mb-5 flex items-center gap-2 ${slotsRemaining <= 2 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+            <CheckCircle className={`w-4 h-4 flex-shrink-0 ${slotsRemaining <= 2 ? 'text-amber-600' : 'text-emerald-600'}`} />
+            <p className={`text-sm ${slotsRemaining <= 2 ? 'text-amber-700' : 'text-emerald-700'}`}>
+              <span className="font-semibold">{slotsRemaining}</span> of {myAllocation.testsAllowed} slots remaining
+              {myAllocation.activeInvites > 0 && <span> ({myAllocation.activeInvites} active)</span>}
             </p>
           </div>
         ) : selectedAssessment?.orgUnlockInfo ? (
-          <div className="bg-indigo-50 rounded-lg p-3 mb-5 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-            <p className="text-sm text-indigo-700">
-              {Math.max(0, selectedAssessment.orgUnlockInfo.testsRemaining)} test slots remaining
+          <div className={`rounded-lg p-3 mb-5 flex items-center gap-2 ${slotsRemaining !== null && slotsRemaining <= 2 ? 'bg-amber-50' : 'bg-indigo-50'}`}>
+            <CheckCircle className={`w-4 h-4 flex-shrink-0 ${slotsRemaining !== null && slotsRemaining <= 2 ? 'text-amber-600' : 'text-indigo-600'}`} />
+            <p className={`text-sm ${slotsRemaining !== null && slotsRemaining <= 2 ? 'text-amber-700' : 'text-indigo-700'}`}>
+              {slotsRemaining} test slots remaining
             </p>
           </div>
         ) : selectedAssessment ? (
@@ -204,7 +227,14 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
         ) : null}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className={`space-y-4 ${hasNoSlots ? 'opacity-40 pointer-events-none relative' : ''}`}>
+          {hasNoSlots && (
+            <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
+              <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium">
+                No slots available
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Test Taker Name *
@@ -287,8 +317,8 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
             </button>
             <button
               type="submit"
-              disabled={loading || !selectedAssessment}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={loading || !selectedAssessment || hasNoSlots}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

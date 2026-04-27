@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Attempt, Assessment, Question, Report, Organization, TestTakerInvite } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 const { scoreMBTI, calculateMBTIScores, determineMBTIType, generateCognitiveFunctions, generateInterpretation } = require('../services/mbtiScoringService');
@@ -98,11 +99,11 @@ const getPublicAttempt = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.id)
     .populate({
       path: 'assessment',
-      select: 'title category description timeBound instructions questions totalQuestions',
+      select: 'title category subCategory description timeBound instructions questions totalQuestions',
       populate: {
         path: 'questions',
         model: 'Question',
-        select: 'questionText order statements options type'
+        select: 'questionText order statements options type leftTrait rightTrait dimension'
       }
     });
 
@@ -283,10 +284,31 @@ const saveAnswer = asyncHandler(async (req, res) => {
   const { questionId, selectedOption, textAnswer, ratingAnswer, timeSpent } = req.body;
   const attemptId = req.params.id;
 
-  const attempt = await Attempt.findById(attemptId).select('status user userAgent ipAddress expiresAt timeLimit assessment organization isPublicAttempt creditDeducted');
+  const attempt = await Attempt.findById(attemptId)
+    .select('status user userAgent ipAddress expiresAt timeLimit assessment organization isPublicAttempt creditDeducted')
+    .populate({
+      path: 'assessment',
+      populate: { path: 'questions', select: '_id order' }
+    });
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
+  }
+
+  // Resolve actual question ObjectId from order number if needed
+  let actualQuestionId = questionId;
+  if (!mongoose.Types.ObjectId.isValid(questionId)) {
+    const questionOrder = parseInt(questionId, 10);
+    if (!isNaN(questionOrder) && attempt.assessment?.questions) {
+      const question = attempt.assessment.questions.find(q => q.order === questionOrder);
+      if (question) {
+        actualQuestionId = question._id.toString();
+      }
+    }
+    if (!actualQuestionId || actualQuestionId === questionId) {
+      console.error('Question lookup failed:', { questionId, questionOrder, questions: attempt.assessment?.questions });
+      throw new ApiError(400, 'Invalid question ID');
+    }
   }
 
   // Allow public/invite-based attempts
@@ -330,7 +352,7 @@ const saveAnswer = asyncHandler(async (req, res) => {
   }
 
   const answerData = {
-    question: questionId,
+    question: actualQuestionId,
     selectedOption: selectedOption !== undefined ? selectedOption : null,
     textAnswer: textAnswer || '',
     ratingAnswer: ratingAnswer !== undefined ? ratingAnswer : null,
@@ -340,7 +362,7 @@ const saveAnswer = asyncHandler(async (req, res) => {
 
   // Try to update existing answer using MongoDB atomic operator
   const updateResult = await Attempt.updateOne(
-    { _id: attemptId, 'answers.question': questionId },
+    { _id: attemptId, 'answers.question': actualQuestionId },
     { $set: { 'answers.$': answerData } }
   );
 
@@ -1572,26 +1594,40 @@ async function handleHoganSubmit(req, res, attempt, assessment) {
 async function handleFiroSubmit(req, res, attempt, assessment) {
   const { calculateFiroScores } = require('../services/firoScoringService');
 
-  let responses = {};
+  let responses = [];
   if (req.body && req.body.responses && typeof req.body.responses === 'object') {
-    responses = req.body.responses;
-  }
-
-  if (Object.keys(responses).length === 0 && attempt.answers && attempt.answers.length > 0) {
-    attempt.answers.forEach(answer => {
-      if (answer.question) {
-        const qOrder = answer.question.order || 0;
-        responses[qOrder] = answer.selectedOption;
-      }
+    // Convert object {1: 3, 2: 5} to array [null, 3, 5, ...]
+    const respObj = req.body.responses;
+    const maxOrder = Math.max(...Object.keys(respObj).map(Number), 0);
+    responses = new Array(maxOrder + 1).fill(0);
+    Object.entries(respObj).forEach(([order, val]) => {
+      responses[parseInt(order, 10)] = val;
     });
   }
 
-  if (!responses || Object.keys(responses).length === 0) {
-    throw new ApiError(400, 'Invalid FIRO responses format');
+  if ((!responses || responses.length === 0) && attempt.answers && attempt.answers.length > 0) {
+    // Need to populate questions to get their order
+    const attemptWithQuestions = await Attempt.findById(attempt._id)
+      .populate({
+        path: 'answers.question',
+        select: 'order'
+      });
+    
+    if (attemptWithQuestions?.answers) {
+      responses = new Array(54).fill(0);
+      attemptWithQuestions.answers.forEach(answer => {
+        if (answer.question && answer.question.order) {
+          responses[answer.question.order] = answer.selectedOption || 0;
+        }
+      });
+    }
   }
 
-  const totalQuestionsCount = assessment.questions?.length || 54;
-  const firoResults = calculateFiroScores(responses, totalQuestionsCount);
+  if (!responses || responses.length === 0 || responses.every(v => !v || v === 0)) {
+    throw new ApiError(400, 'No FIRO responses found. Please complete the assessment first.');
+  }
+
+  const firoResults = calculateFiroScores(responses);
 
   attempt.status = 'completed';
   attempt.completedAt = new Date();
@@ -1619,7 +1655,17 @@ async function handleFiroSubmit(req, res, attempt, assessment) {
     testTakerEmail: attempt.testTakerEmail || null,
     testTakerPhone: attempt.testTakerPhone || null,
     timeSpent: attempt.timeSpent || null,
-    scores: firoResults,
+    scores: {
+      total: firoResults.totals?.overallTotal || 0,
+      maxScore: 54,
+      percentage: firoResults.totals?.overallTotal ? Math.round((firoResults.totals.overallTotal / 54) * 100) : 0
+    },
+    dimensions: {
+      FIRO: {
+        dimensions: firoResults.dimensions,
+        totals: firoResults.totals
+      }
+    },
     analysis: {
       summary: 'FIRO-B Assessment completed'
     }

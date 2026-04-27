@@ -26,7 +26,9 @@ const submitBig5 = asyncHandler(async (req, res) => {
   if (!assessment) {
     throw new ApiError(404, 'Assessment not found');
   }
-  if (assessment.category !== 'big5') {
+  const category = assessment.category?.toLowerCase();
+  const subCategory = assessment.subCategory?.toLowerCase();
+  if (category !== 'big5' && subCategory !== 'big5') {
     throw new ApiError(400, 'This is not a Big5 assessment');
   }
 
@@ -93,7 +95,7 @@ const submitBig5 = asyncHandler(async (req, res) => {
  */
 const getBig5Results = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.attemptId)
-    .populate('assessment', 'title category showResultsImmediately');
+    .populate('assessment', 'title category subCategory showResultsImmediately');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -106,7 +108,10 @@ const getBig5Results = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'big5' && !attempt.big5Results) {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'big5' && subCategory !== 'big5' && !attempt.big5Results) {
     throw new ApiError(400, 'This is not a Big5 assessment attempt');
   }
 
@@ -362,7 +367,7 @@ const downloadBig5Report = asyncHandler(async (req, res) => {
 
   const attempt = await Attempt.findById(attemptId)
     .populate('user', 'firstName lastName email')
-    .populate('assessment', 'title category');
+    .populate('assessment', 'title category subCategory');
 
   if (!attempt) {
     throw new ApiError(404, 'Attempt not found');
@@ -374,7 +379,10 @@ const downloadBig5Report = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  if (attempt.assessment.category !== 'big5' && !attempt.big5Results) {
+  const category = attempt.assessment.category?.toLowerCase();
+  const subCategory = attempt.assessment.subCategory?.toLowerCase();
+
+  if (category !== 'big5' && subCategory !== 'big5' && !attempt.big5Results) {
     throw new ApiError(400, 'This is not a Big5 assessment attempt');
   }
 

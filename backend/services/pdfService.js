@@ -574,18 +574,25 @@ const generateFiroReportPdf = async (report, testTaker, options = {}) => {
     // Normalise: Mongoose documents must be plain objects for property access
     const reportPlain = report?.toObject ? report.toObject() : report;
     let firoData;
-    if (reportPlain.dimensions?.FIRO?.dimensions || reportPlain.dimensions?.FIRO?.totals) {
+
+    // Priority 1: Attempt with firoResults directly
+    const firoResults = reportPlain.firoResults;
+    if (firoResults?.dimensions) {
+      firoData = { dimensions: firoResults.dimensions, totals: firoResults.totals };
+    // Priority 2: Report document with dimensions.FIRO.dimensions
+    } else if (reportPlain.dimensions?.FIRO?.dimensions) {
       firoData = {
         dimensions: reportPlain.dimensions.FIRO.dimensions,
         totals: reportPlain.dimensions.FIRO.totals,
       };
+    // Priority 3: attempt populated on report document
+    } else if (reportPlain.attempt?.firoResults?.dimensions) {
+      firoData = {
+        dimensions: reportPlain.attempt.firoResults.dimensions,
+        totals: reportPlain.attempt.firoResults.totals,
+      };
     } else if (reportPlain.FIRO?.dimensions || reportPlain.FIRO?.totals) {
       firoData = { dimensions: reportPlain.FIRO.dimensions, totals: reportPlain.FIRO.totals };
-    } else if (
-      (reportPlain.dimensions?.Expressed || reportPlain.dimensions?.Wanted) &&
-      reportPlain.dimensions?.FIRO
-    ) {
-      firoData = reportPlain;
     } else {
       firoData = reportPlain;
     }
@@ -731,8 +738,17 @@ if (sd.dimensions.Wanted) {
      }
 
   } else if (isMbti) {
-    const mbti = report.dimensions?.MBTI || {};
-    const mbtiType = mbti.type || report.analysis?.personalityProfile || 'INTJ';
+    // Normalize MBTI from any shape: attempt.mbtiResults, report.dimensions.MBTI, or wrapped attempt
+    const rawReport = report?.toObject ? report.toObject() : report;
+    const mbtiResults = rawReport.mbtiResults
+      || rawReport.dimensions?.MBTI
+      || rawReport.attempt?.mbtiResults
+      || {};
+    // If it has .percentages (from scoreMBTI output), unwrap them
+    const mbti = mbtiResults.percentages
+      ? { ...mbtiResults.percentages, type: mbtiResults.type }
+      : mbtiResults;
+    const mbtiType = mbti.type || rawReport.analysis?.personalityProfile || 'INTJ';
     const { TYPE_DESCRIPTIONS } = require('../seeders/mbtiQuestions');
     const typeDesc = TYPE_DESCRIPTIONS[mbtiType] || { name: 'Unknown', description: '' };
 
@@ -985,7 +1001,22 @@ const MBTI_TYPE_DATA = {
 const generateMbtiReportPdf = async (report, testTaker, options = {}) => {
   try {
     const reportObj = report.toObject ? report.toObject() : report;
-    const mbti = reportObj.dimensions?.MBTI || {};
+
+    // Resolve MBTI data from multiple possible shapes:
+    // Shape A: Attempt document with mbtiResults (from downloadMbtiReport)
+    // Shape B: Report document with dimensions.MBTI (from reportController.downloadReport)
+    // Shape C: attempt populated on report
+    const mbtiResults = reportObj.mbtiResults
+      || reportObj.dimensions?.MBTI
+      || reportObj.attempt?.mbtiResults
+      || {};
+
+    // The dimensions.MBTI sub-document stores EI/SN/TF/JP percentages directly.
+    // mbtiResults (from scoring) stores { percentages:{EI,SN,TF,JP}, type, dimensions, ... }
+    const mbti = mbtiResults.percentages
+      ? { ...mbtiResults.percentages, type: mbtiResults.type, typeName: mbtiResults.name }
+      : mbtiResults;  // dimensions.MBTI already has EI, SN, TF, JP at top level
+
     const type = mbti.type || reportObj.analysis?.personalityProfile || '';
     const fallbackType = type || 'INTJ';
     const { TYPE_DESCRIPTIONS, MBTI_CONFIG } = require('../seeders/mbtiQuestions');
@@ -1160,11 +1191,12 @@ const getLevelLabel = (percentile) => {
 const generateHoganReportPdf = async (report, testTaker, options = {}) => {
   try {
     const reportObj = report?.toObject ? report.toObject() : report;
-    let hoganData = reportObj.dimensions?.Hogan || {};
+    let hoganData = {};
     
-    // Priority: Extract directly from attempt to bypass schema issues
-    const hr = reportObj.attempt?.hoganResults || reportObj.hoganResults;
+    // Priority 1: hoganResults directly on the object (attempt or wrapped attempt)
+    const hr = reportObj.hoganResults || reportObj.attempt?.hoganResults;
     if (hr?.percentiles) {
+      // Build normalized scale objects from raw hoganResults
       hoganData = {
         Adjustment: { score: hr.rawScores?.Adjustment || 0, percentage: hr.percentiles?.Adjustment || 0, level: hr.levels?.Adjustment || 'Moderate' },
         Ambition: { score: hr.rawScores?.Ambition || 0, percentage: hr.percentiles?.Ambition || 0, level: hr.levels?.Ambition || 'Moderate' },
@@ -1174,6 +1206,12 @@ const generateHoganReportPdf = async (report, testTaker, options = {}) => {
         Inquisitiveness: { score: hr.rawScores?.Inquisitiveness || hr.rawScores?.Inquisitive || 0, percentage: hr.percentiles?.Inquisitiveness || hr.percentiles?.Inquisitive || 0, level: hr.levels?.Inquisitiveness || hr.levels?.Inquisitive || 'Moderate' },
         Learning_Approach: { score: hr.rawScores?.Learning_Approach || hr.rawScores?.LearningApproach || 0, percentage: hr.percentiles?.Learning_Approach || hr.percentiles?.LearningApproach || 0, level: hr.levels?.Learning_Approach || hr.levels?.LearningApproach || 'Moderate' }
       };
+    // Priority 2: scales object from hoganResults (buildScaleDetails output)
+    } else if (hr?.scales) {
+      hoganData = hr.scales;
+    // Priority 3: dimensions.Hogan from Report document or manually built reportData
+    } else {
+      hoganData = reportObj.dimensions?.Hogan || {};
     }
 
     // Ensure we iterate over the canonical 7 scales

@@ -83,6 +83,15 @@ const questionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // MBTI: stores the left/right bipolar trait descriptions for each question
+  leftTrait: {
+    type: String,
+    default: ''
+  },
+  rightTrait: {
+    type: String,
+    default: ''
+  },
   trait: {
     type: String,
     default: ''

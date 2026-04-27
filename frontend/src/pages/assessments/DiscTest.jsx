@@ -657,9 +657,6 @@ const DiscTest = () => {
                           isLeastSelected ? 'bg-red-50 border border-red-300' : 
                           'bg-gray-50'
                         }`}>
-                          <span className={`flex-shrink-0 w-6 h-6 rounded text-xs font-bold text-white flex items-center justify-center ${getTraitColor(statement.trait)}`}>
-                            {statement.trait}
-                          </span>
                           <p className="flex-1 text-gray-700 text-sm">{statement.text}</p>
 
                           {/* MOST / LEAST Selection Buttons */}
