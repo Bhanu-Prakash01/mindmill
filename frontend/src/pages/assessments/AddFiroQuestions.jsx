@@ -253,7 +253,7 @@ const AddFiroQuestions = () => {
       });
 
       // Use bulk create
-      await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+      await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
       
       setSuccess(`Successfully added ${questionsToCreate.length} FIRO-B questions!`);
       

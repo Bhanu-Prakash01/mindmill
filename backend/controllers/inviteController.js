@@ -181,6 +181,7 @@ const getInvites = asyncHandler(async (req, res) => {
 
   const isSuperAdmin = req.user.role === 'superadmin';
   const userOrgId = req.user.organization?._id;
+  const userEmail = req.user.email?.toLowerCase();
 
   if (isSuperAdmin && !userOrgId) {
     const mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
@@ -190,7 +191,11 @@ const getInvites = asyncHandler(async (req, res) => {
   } else if (req.user.role === 'admin' || req.user.role === 'superadmin') {
     query.organization = userOrgId;
   } else {
-    query.invitedBy = req.user._id;
+    // Members can see: invites they sent OR invites sent to them
+    query.$or = [
+      { invitedBy: req.user._id },
+      { testTakerEmail: userEmail }
+    ];
   }
 
   if (status) {

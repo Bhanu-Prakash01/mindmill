@@ -91,8 +91,8 @@ export const assessmentService = {
   return response.data;
  },
 
- bulkCreateQuestions: async (assessmentId, questions) => {
-  const response = await api.post(`/assessments/${assessmentId}/questions/bulk`, { questions });
+ bulkCreateQuestions: async (assessmentId, questions, replaceExisting = false) => {
+  const response = await api.post(`/assessments/${assessmentId}/questions/bulk`, { questions, replaceExisting });
   return response.data;
  },
 

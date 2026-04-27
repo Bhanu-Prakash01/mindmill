@@ -287,15 +287,17 @@ const bulkCreateQuestions = asyncHandler(async (req, res) => {
     }
   }
 
-  if (replaceExisting || (questions[0] && questions[0].type === 'disc-ranking')) {
-    const existingDiscQ = await Question.find({ assessment: assessmentId, type: 'disc-ranking' });
-    if (existingDiscQ.length > 0) {
-      const deletedIds = existingDiscQ.map(q => q._id);
+  if (replaceExisting) {
+    // Delete all existing questions for this assessment
+    const existingQ = await Question.find({ assessment: assessmentId });
+    if (existingQ.length > 0) {
+      const deletedIds = existingQ.map(q => q._id);
       await Question.deleteMany({ _id: { $in: deletedIds } });
-      assessment.questions = assessment.questions.filter(qId => !deletedIds.some(dId => dId.toString() === qId.toString()));
+      assessment.questions = [];
       await assessment.save();
     }
   }
+
 
   const createdQuestions = await Promise.all(
     questions.map(async (q, index) => {

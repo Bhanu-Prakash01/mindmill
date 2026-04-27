@@ -193,7 +193,7 @@ const AddDiscQuestions = () => {
         });
       });
 
-      await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+      await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
 
       setSuccess(`Successfully added ${questionsToCreate.length} DISC ranking questions!`);
 

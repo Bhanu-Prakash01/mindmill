@@ -295,14 +295,14 @@ const AppRoutes = () => {
     </ProtectedRoute>
     }
     />
-    <Route
+<Route
     path="test-takers"
     element={
-    <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
-    <TestTakers />
-    </ProtectedRoute>
+      <ProtectedRoute allowedRoles={['admin', 'superadmin', 'member', 'user']}>
+        <TestTakers />
+      </ProtectedRoute>
     }
-    />
+  />
 
    {/* Assessments */}
    <Route

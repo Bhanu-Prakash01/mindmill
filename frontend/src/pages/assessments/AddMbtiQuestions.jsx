@@ -240,7 +240,7 @@ const AddMbtiQuestions = () => {
       });
 
       // Use bulk create
-      await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+      await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
       
       setSuccess(`Successfully added ${questionsToCreate.length} MBTI questions!`);
       

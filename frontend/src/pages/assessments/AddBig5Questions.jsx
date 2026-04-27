@@ -282,7 +282,7 @@ const AddBig5Questions = () => {
         });
       });
 
-      await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+      await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
 
       setSuccess(`Successfully added ${questionsToCreate.length} Big Five questions!`);
 
