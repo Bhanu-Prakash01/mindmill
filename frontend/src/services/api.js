@@ -47,6 +47,7 @@ const PUBLIC_API_PREFIXES = [
   '/assessments/invite/',
   '/attempts/public/',
   '/attempts/invite/',
+  '/reports/shared/',
 ];
 
 const isPublicRoute = (url = '') =>

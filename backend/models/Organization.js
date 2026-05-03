@@ -118,6 +118,11 @@ const organizationSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  admin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, {
   timestamps: true

@@ -36,7 +36,7 @@ const getUsers = asyncHandler(async (req, res) => {
   }
 
   const users = await User.find(query)
-    .populate('organization', 'name slug')
+    .populate('organization', 'name slug description credits')
     .select('-password')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
@@ -65,7 +65,7 @@ const getUsers = asyncHandler(async (req, res) => {
  */
 const getUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id)
-    .populate('organization', 'name slug')
+    .populate('organization', 'name slug description credits')
     .populate('assignedAssessments', 'title category')
     .select('-password');
 
@@ -212,10 +212,10 @@ const updateUser = asyncHandler(async (req, res) => {
 
     if (req.user.role === 'superadmin' && user.organization) {
       const orgUpdate = {};
-      if (organizationName) orgUpdate.name = organizationName;
-      if (organizationSlug) orgUpdate.slug = organizationSlug;
-      if (organizationDescription !== undefined) orgUpdate.description = organizationDescription;
-      if (organizationCredits !== undefined) {
+      if (organizationName && organizationName.trim()) orgUpdate.name = organizationName;
+      if (organizationSlug && organizationSlug.trim()) orgUpdate.slug = organizationSlug;
+      if (organizationDescription !== undefined && organizationDescription.trim()) orgUpdate.description = organizationDescription;
+      if (organizationCredits !== undefined && organizationCredits > 0) {
         orgUpdate['credits.total'] = organizationCredits;
       }
       

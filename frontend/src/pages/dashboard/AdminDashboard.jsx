@@ -3,18 +3,19 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import {
- Users,
- FileText,
- CheckCircle,
- Clock,
- TrendingUp,
- CreditCard,
- AlertCircle,
- Brain,
- Timer,
- Link2,
- BarChart2,
- XCircle
+  Users,
+  FileText,
+  CheckCircle,
+  Clock,
+  TrendingUp,
+  CreditCard,
+  AlertCircle,
+  Brain,
+  Timer,
+  Link2,
+  BarChart2,
+  XCircle,
+  Target
 } from 'lucide-react';
 import {
  Radar,
@@ -24,15 +25,15 @@ import {
  PolarRadiusAxis,
 } from 'recharts';
 import {
- LineChart,
- Line,
  XAxis,
  YAxis,
  CartesianGrid,
  Tooltip,
  ResponsiveContainer,
  BarChart,
- Bar
+ Bar,
+ AreaChart,
+ Area
 } from 'recharts';
 
 const StatCard = ({ title, value, subtitle, icon: Icon, color }) => (
@@ -163,32 +164,39 @@ const AdminDashboard = () => {
  )}
 
  {/* Stats Grid */}
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
- <StatCard
- title="Total Users"
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  <StatCard
+  title="Utilization"
+  value={`${stats?.stats?.utilization?.rate || 0}%`}
+  subtitle={`${stats?.stats?.utilization?.attemptsCompleted || 0} of ${stats?.stats?.utilization?.linksShared || 0} shared`}
+  icon={Target}
+  color="bg-teal-500"
+   />
+   <StatCard
+     title="Test Attempt Time"
+     value={`${stats?.stats?.avgAttemptTime || 0} min`}
+     subtitle="Avg time per test"
+     icon={Clock}
+     color="bg-cyan-500"
+   />
+   <StatCard
+     title="Total Users"
  value={stats?.stats?.totalUsers || 0}
  subtitle={`+${stats?.stats?.newUsersThisMonth || 0} this month`}
  icon={Users}
  color="bg-blue-500"
- />
- <StatCard
- title="Types of Assessments"
- value={stats?.stats?.publishedAssessments || 0}
- subtitle={`${stats?.stats?.totalAssessments || 0} Total Assessments Available`}
- icon={FileText}
- color="bg-purple-500"
- />
- <StatCard
- title="Completed Tests"
+  />
+  <StatCard
+  title="Completed Tests"
  value={stats?.stats?.completedAttempts || 0}
  subtitle={`${stats?.stats?.completionRate || 0}% of Shared Links`}
  icon={CheckCircle}
  color="bg-green-500"
  />
  <StatCard
- title="Credits Remaining"
- value={creditsRemaining}
- subtitle={`of ${stats?.stats?.credits?.total || 0} total`}
+ title="The Pool"
+ value={`${stats?.stats?.credits?.total || 0} / ${stats?.stats?.credits?.used || 0}`}
+ subtitle="(allotted / used)"
  icon={CreditCard}
  color={creditsLow ? 'bg-red-500' : 'bg-orange-500'}
  />
@@ -196,11 +204,54 @@ const AdminDashboard = () => {
 
  {/* Charts */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
- {/* Monthly Trend */}
+ {/* Time of Tests Wave Chart */}
+ <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+ <h3 className="text-lg font-semibold text-gray-900 mb-1">
+ Time of Tests
+ </h3>
+ <p className="text-sm text-gray-500 mb-4">When tests are completed (IST, 24h)</p>
+ <div className="h-64">
+ <ResponsiveContainer width="100%" height="100%">
+ <AreaChart data={stats?.hourlyAttempts || []}>
+ <defs>
+ <linearGradient id="timeWaveAdmin" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+ </linearGradient>
+ </defs>
+ <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+ <XAxis
+ dataKey="hour"
+ tick={{ fontSize: 11 }}
+ tickFormatter={(v) => `${v}:00`}
+ />
+ <YAxis tick={{ fontSize: 11 }} />
+ <Tooltip
+ formatter={(value) => [value, 'Tests Completed']}
+ labelFormatter={(v) => `${v}:00 - ${v + 1}:00`}
+ />
+ <Area
+ type="monotone"
+ dataKey="count"
+ stroke="#6366f1"
+ strokeWidth={2}
+ fill="url(#timeWaveAdmin)"
+ />
+ </AreaChart>
+ </ResponsiveContainer>
+ </div>
+ <div className="flex justify-between mt-2 px-2">
+ <span className="text-xs text-gray-400">Morning {'<'}9am</span>
+ <span className="text-xs text-gray-400">Afternoon {'<'}2pm</span>
+ <span className="text-xs text-gray-400">Evening {'<'}8pm</span>
+ <span className="text-xs text-gray-400">Night {'>'}8pm</span>
+ </div>
+ </div>
+ {/* Monthly Distribution vs Utilisation */}
  <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
  <div className="flex items-center justify-between mb-6">
  <h3 className="text-lg font-semibold text-gray-900">
- Assessment Activity
+ Monthly Distribution vs Utilisation
  </h3>
  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
  {[6, 12].map((m) => (
@@ -218,38 +269,68 @@ const AdminDashboard = () => {
  ))}
  </div>
  </div>
+ <p className="text-sm text-gray-500 -mt-4 mb-4">Tests distributed vs completed per month</p>
  <div className="h-64">
  <ResponsiveContainer width="100%" height="100%">
- <LineChart data={stats?.monthlyTrend || []}>
+ <AreaChart data={stats?.monthlyTrend || []}>
+ <defs>
+ <linearGradient id="distGradAdmin" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+ </linearGradient>
+ <linearGradient id="utilGradAdmin" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+ </linearGradient>
+ </defs>
  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
- <XAxis dataKey="month" tick={{ fontSize: 12 }} />
- <YAxis tick={{ fontSize: 12 }} />
- <Tooltip />
- <Line
+ <XAxis
+ dataKey="month"
+ tick={{ fontSize: 11 }}
+ tickFormatter={(v) => {
+   const [year, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+   return `${months[parseInt(month) - 1]} ${year?.slice(2)}`;
+ }}
+ />
+ <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+ <Tooltip
+ formatter={(value, name) => [value, name === 'attempts' ? 'Distribution' : 'Utilisation']}
+ labelFormatter={(v) => {
+   const [year, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+   return `${months[parseInt(month) - 1]} ${year}`;
+ }}
+ />
+ <Area
  type="monotone"
  dataKey="attempts"
  stroke="#6366f1"
  strokeWidth={2}
- dot={{ fill: '#6366f1' }}
+ fill="url(#distGradAdmin)"
+ name="Distribution"
  />
- <Line
+ <Area
  type="monotone"
  dataKey="completed"
  stroke="#10b981"
  strokeWidth={2}
- dot={{ fill: '#10b981' }}
+ fill="url(#utilGradAdmin)"
+ name="Utilisation"
  />
- </LineChart>
+ </AreaChart>
  </ResponsiveContainer>
  </div>
- <div className="flex justify-center gap-6 mt-4">
+ <div className="flex justify-center gap-6 mt-3">
  <div className="flex items-center gap-2">
- <div className="w-3 h-3 rounded-full bg-primary-500"></div>
- <span className="text-sm text-gray-600 ">Started</span>
+ <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+ <span className="text-sm text-gray-600">Distribution</span>
  </div>
  <div className="flex items-center gap-2">
  <div className="w-3 h-3 rounded-full bg-green-500"></div>
- <span className="text-sm text-gray-600 ">Completed</span>
+ <span className="text-sm text-gray-600">Utilisation</span>
  </div>
  </div>
  </div>

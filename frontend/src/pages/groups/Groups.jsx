@@ -85,7 +85,7 @@ const EMOJI_OPTIONS = [
   '🔥','🚀','⭐','🎯','💪','🏆','🎨','📚','🌍','💡',
   '🎵','❤️','🌟','💎','🦋','🌈','⚡','🎪','🎭','🧩',
   '🎸','⚽','🔮','🍀','🌸','🌻','🏔️','🌊','🦊','🐝',
-  '🐉','🐼','🦁','🎮','🛸','🏠','⚙️','🧪','📌','🎯',
+  '🐉','🐼','🦁','🎮','🛸','🏠','⚙️','🧪','📌','🎖️',
   '🏋️','🎓','🛡️','🗺️','🧭','🔨','💻','📊','🗂️','🪄'
 ];
 
@@ -342,20 +342,11 @@ const Groups = () => {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
-        <GroupFormModal
-          group={showEditModal ? selectedGroup : null}
-          onClose={() => {
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setSelectedGroup(null);
-          }}
-          onSuccess={() => {
-            fetchGroups();
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setSelectedGroup(null);
-          }}
-        />
+    <GroupFormModal
+      group={selectedGroup}
+      onClose={() => { setShowCreateModal(false); setShowEditModal(false); setSelectedGroup(null); }}
+      onSuccess={fetchGroups}
+    />
       )}
 
     </div>

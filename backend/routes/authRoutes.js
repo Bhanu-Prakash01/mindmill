@@ -9,11 +9,13 @@ const {
   refreshToken,
   getDemoOrganizations,
   getDemoUsers,
-  demoLogin
+  demoLogin,
+  forgotPassword,
+  resetPassword
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { authValidation } = require('../middleware/validationMiddleware');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 
 // Public demo routes
 router.get('/demo/organizations', getDemoOrganizations);
@@ -22,6 +24,8 @@ router.post('/demo/login', authLimiter, demoLogin);
 
 // Public routes
 router.post('/login', authLimiter, authValidation.login, login);
+router.post('/forgot-password', passwordResetLimiter, forgotPassword);
+router.post('/reset-password', passwordResetLimiter, resetPassword);
 
 // Protected routes
 router.get('/me', authMiddleware, getMe);

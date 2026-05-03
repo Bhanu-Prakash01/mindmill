@@ -7,6 +7,7 @@ const {
   getMyCreditRequests,
   approveCreditRequest,
   rejectCreditRequest,
+  revokeCreditRequest,
   cancelCreditRequest,
   deleteCreditRequest,
   getCreditUsage
@@ -27,6 +28,7 @@ router.post('/request', isAdmin, creditRequestLimiter, creditRequestValidation.c
 
 router.put('/requests/:id/approve', isSuperAdmin, idParamValidation, approveCreditRequest);
 router.put('/requests/:id/reject', isSuperAdmin, idParamValidation, rejectCreditRequest);
+router.put('/requests/:id/revoke', isSuperAdmin, idParamValidation, revokeCreditRequest);
 router.put('/requests/:id/cancel', isAdmin, idParamValidation, cancelCreditRequest);
 router.delete('/requests/:id', isSuperAdmin, idParamValidation, deleteCreditRequest);
 

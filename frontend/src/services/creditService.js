@@ -22,9 +22,14 @@ export const creditService = {
  },
 
    rejectRequest: async (id, data) => {
-  const response = await api.put(`/credits/requests/${id}/reject`, data);
-  return response.data;
- },
+   const response = await api.put(`/credits/requests/${id}/reject`, data);
+   return response.data;
+  },
+
+   revokeRequest: async (id, data) => {
+   const response = await api.put(`/credits/requests/${id}/revoke`, data);
+   return response.data;
+  },
 
    deleteRequest: async (id) => {
   const response = await api.delete(`/credits/requests/${id}`);

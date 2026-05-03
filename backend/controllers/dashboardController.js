@@ -13,6 +13,24 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
   const totalAssessments = await Assessment.countDocuments();
   const totalAttempts = await Attempt.countDocuments({ status: 'completed' });
 
+  const totalInvites = await TestTakerInvite.countDocuments();
+
+  const saAvgTimeResult = await Attempt.aggregate([
+    { $match: { status: 'completed', timeSpent: { $gt: 0 } } },
+    { $group: { _id: null, avgTime: { $avg: '$timeSpent' } } }
+  ]);
+  const saAvgAttemptTime = saAvgTimeResult.length > 0 ? Math.round((saAvgTimeResult[0].avgTime / 60) * 10) / 10 : 0;
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const activeOrgIds = await Attempt.distinct('organization', {
+    status: 'completed',
+    createdAt: { $gte: sevenDaysAgo }
+  });
+  const activeClientsCount = activeOrgIds.length;
+
   // Get recent data
   const recentOrganizations = await Organization.find({ isActive: true })
     .sort({ createdAt: -1 })
@@ -58,9 +76,6 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
   });
 
   // Get monthly stats
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
   const monthlyStats = await Attempt.aggregate([
     {
       $match: {
@@ -81,6 +96,49 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
     { $limit: 30 }
   ]);
 
+  const saMonthlyTrend = await Attempt.aggregate([
+    { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        attempts: { $sum: 1 },
+        completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+  const adminEnrollment = await User.aggregate([
+    { $match: { role: 'admin', createdAt: { $gte: twelveMonthsAgo } } },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+
+  // Get 24-hour time-of-day distribution (IST timezone, offset +5:30)
+  const hourlyAttempts = await Attempt.aggregate([
+    { $match: { status: 'completed' } },
+    {
+      $group: {
+        _id: { $hour: { date: '$createdAt', timezone: '+05:30' } },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id': 1 } }
+  ]);
+
   // Get subscription stats
   const subscriptionStats = await Organization.aggregate([
     {
@@ -91,6 +149,25 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
     }
   ]);
 
+  const totalAdmins = await User.countDocuments({ role: 'admin', isActive: true });
+
+  const expiredTests = await Attempt.countDocuments({ status: 'expired' });
+
+  const totalRevenueResult = await CreditRequest.aggregate([
+    { $match: { status: 'approved' } },
+    { $group: { _id: null, total: { $sum: '$paymentAmount' } } }
+  ]);
+  const totalRevenue = totalRevenueResult.length > 0 ? totalRevenueResult[0].total : 0;
+
+  const approvedOrgCredits = await CreditRequest.aggregate([
+    { $match: { status: 'approved' } },
+    { $group: { _id: '$organization', purchaseCount: { $sum: 1 } } },
+    { $match: { purchaseCount: { $gte: 2 } } }
+  ]);
+  const repeatClientsCount = approvedOrgCredits.length;
+
+  const totalAvailableTests = await Assessment.countDocuments({ isPublished: true, isActive: true });
+
   res.json({
     success: true,
     data: {
@@ -100,7 +177,14 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
         totalAssessments,
         totalAttempts,
         pendingCreditRequests,
-        openTickets
+        openTickets,
+        avgAttemptTime: saAvgAttemptTime,
+        activeClients: activeClientsCount,
+        utilization: {
+          linksShared: totalInvites,
+          attemptsCompleted: totalAttempts,
+          rate: totalInvites > 0 ? ((totalAttempts / totalInvites) * 100).toFixed(1) : 0
+        }
       },
       ticketStats,
       recentOrganizations,
@@ -109,10 +193,37 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
         date: `${s._id.year}-${String(s._id.month).padStart(2, '0')}-${String(s._id.day).padStart(2, '0')}`,
         count: s.count
       })).reverse(),
+      monthlyTrend: saMonthlyTrend.map(m => ({
+        month: `${m._id.year}-${String(m._id.month).padStart(2, '0')}`,
+        attempts: m.attempts,
+        completed: m.completed
+      })),
+      hourlyAttempts: Array.from({ length: 24 }, (_, i) => {
+        const found = hourlyAttempts.find(h => h._id === i);
+        return { hour: i, count: found ? found.count : 0 };
+      }),
+      adminEnrollment: Array.from({ length: 12 }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (11 - i));
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const found = adminEnrollment.find(e => e._id.year === y && e._id.month === m);
+        return {
+          month: `${y}-${String(m).padStart(2, '0')}`,
+          count: found ? found.count : 0
+        };
+      }),
       subscriptionStats: subscriptionStats.reduce((acc, curr) => {
         acc[curr._id] = curr.count;
         return acc;
-      }, {})
+      }, {}),
+      dataTable: {
+        totalAdmins,
+        expiredTests,
+        totalRevenue,
+        repeatClientsCount,
+        totalAvailableTests
+      }
     }
   });
 });
@@ -153,6 +264,14 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
     organization: orgId,
     status: 'completed' 
   });
+
+  const totalInvites = await TestTakerInvite.countDocuments({ organization: orgId });
+
+  const adminAvgTimeResult = await Attempt.aggregate([
+    { $match: { organization: orgId, status: 'completed', timeSpent: { $gt: 0 } } },
+    { $group: { _id: null, avgTime: { $avg: '$timeSpent' } } }
+  ]);
+  const adminAvgAttemptTime = adminAvgTimeResult.length > 0 ? Math.round((adminAvgTimeResult[0].avgTime / 60) * 10) / 10 : 0;
 
   // Get completion rate
   const completionRate = totalAttempts > 0 
@@ -236,6 +355,17 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
     { $sort: { '_id.year': 1, '_id.month': 1 } }
   ]);
 
+  const orgHourlyAttempts = await Attempt.aggregate([
+    { $match: { organization: orgId, status: 'completed' } },
+    {
+      $group: {
+        _id: { $hour: { date: '$createdAt', timezone: '+05:30' } },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id': 1 } }
+  ]);
+
   res.json({
     success: true,
     data: {
@@ -248,7 +378,13 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
         completedAttempts,
         completionRate,
         averageScore,
-        credits
+        credits,
+        avgAttemptTime: adminAvgAttemptTime,
+        utilization: {
+          linksShared: totalInvites,
+          attemptsCompleted: completedAttempts,
+          rate: totalInvites > 0 ? ((completedAttempts / totalInvites) * 100).toFixed(1) : 0
+        }
       },
       recentAttempts,
       assessmentUsage: assessmentUsageWithDetails,
@@ -257,6 +393,10 @@ const getAdminDashboard = asyncHandler(async (req, res) => {
         attempts: m.attempts,
         completed: m.completed
       })),
+      hourlyAttempts: Array.from({ length: 24 }, (_, i) => {
+        const found = orgHourlyAttempts.find(h => h._id === i);
+        return { hour: i, count: found ? found.count : 0 };
+      }),
       summary: {
         expiredTests: 0, // Mocked for now, needs logic based on actual expiry field in attempt/assessment
         totalTestTaker: totalUsers,
@@ -301,6 +441,12 @@ const getUserDashboard = asyncHandler(async (req, res) => {
   });
 
   const totalSent = Object.values(statusCounts).reduce((sum, c) => sum + c, 0);
+
+  const userAvgTimeResult = await Attempt.aggregate([
+    { $match: { organization: orgId, status: 'completed', timeSpent: { $gt: 0 } } },
+    { $group: { _id: null, avgTime: { $avg: '$timeSpent' } } }
+  ]);
+  const userAvgAttemptTime = userAvgTimeResult.length > 0 ? Math.round((userAvgTimeResult[0].avgTime / 60) * 10) / 10 : 0;
 
   // Get recent invites sent by this user
   const recentInvites = await TestTakerInvite.find({ invitedBy: userId })
@@ -398,7 +544,13 @@ const getUserDashboard = asyncHandler(async (req, res) => {
         started: statusCounts.started,
         completed: statusCounts.completed,
         expired: statusCounts.expired,
-        completionRate: totalSent > 0 ? Math.round((statusCounts.completed / totalSent) * 100) : 0
+        completionRate: totalSent > 0 ? Math.round((statusCounts.completed / totalSent) * 100) : 0,
+        avgAttemptTime: userAvgAttemptTime,
+        utilization: {
+          linksShared: totalSent,
+          attemptsCompleted: statusCounts.completed,
+          rate: totalSent > 0 ? Math.round((statusCounts.completed / totalSent) * 100) : 0
+        }
       },
       recentInvites,
       availableAssessments: unlockedAssessments,

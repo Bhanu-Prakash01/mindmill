@@ -48,15 +48,25 @@ logout: async () => {
  return response.data;
  },
 
- changePassword: async (currentPassword, newPassword) => {
- const response = await api.post('/auth/change-password', {
- currentPassword,
- newPassword,
- });
- return response.data;
- },
+  changePassword: async (currentPassword, newPassword) => {
+  const response = await api.post('/auth/change-password', {
+  currentPassword,
+  newPassword,
+  });
+  return response.data;
+  },
 
- getToken: () => localStorage.getItem('token'),
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token, newPassword) => {
+    const response = await api.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+
+  getToken: () => localStorage.getItem('token'),
 
  getUser: () => {
  const user = localStorage.getItem('user');

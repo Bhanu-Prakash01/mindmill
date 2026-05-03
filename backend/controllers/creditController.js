@@ -1,5 +1,6 @@
 const { CreditRequest, Organization, User } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendCreditRequestNotification } = require('../services/emailService');
 
 /**
  * @desc    Delete credit request
@@ -129,6 +130,19 @@ const requestCredits = asyncHandler(async (req, res) => {
 
   await creditRequest.populate('requestedBy', 'firstName lastName');
 
+  // Notify admin via email
+  try {
+    await sendCreditRequestNotification({
+      adminEmail: 'rahulguha@mindmil.com',
+      requesterName: `${req.user.firstName} ${req.user.lastName}`,
+      organizationName: organization.name,
+      creditsRequested,
+      reason
+    });
+  } catch (emailError) {
+    console.error('Failed to send credit request notification:', emailError);
+  }
+
   res.status(201).json({
     success: true,
     message: 'Credit request submitted successfully',
@@ -188,7 +202,7 @@ const getCreditRequests = asyncHandler(async (req, res) => {
  * @access  Private (SuperAdmin)
  */
 const approveCreditRequest = asyncHandler(async (req, res) => {
-  const { creditsGranted, expiryInDays, notes } = req.body;
+  const { creditsGranted, expiryInDays, expiryDate, notes } = req.body;
 
   const creditRequest = await CreditRequest.findById(req.params.id)
     .populate('organization');
@@ -202,14 +216,24 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
   }
 
   const granted = creditsGranted || creditRequest.creditsRequested;
-  const expiryDate = expiryInDays ? new Date(Date.now() + expiryInDays * 24 * 60 * 60 * 1000) : null;
+  
+  // Support both custom expiryDate (ISO string) and preset expiryInDays
+  let finalExpiryDate = null;
+  if (expiryDate) {
+    // Custom date: parse ISO date string, set to end of day UTC
+    finalExpiryDate = new Date(expiryDate);
+    finalExpiryDate.setUTCHours(23, 59, 59, 999);
+  } else if (expiryInDays) {
+    // Preset: calculate from now
+    finalExpiryDate = new Date(Date.now() + expiryInDays * 24 * 60 * 60 * 1000);
+  }
 
   // Update credit request
   creditRequest.status = 'approved';
   creditRequest.approvedBy = req.user._id;
   creditRequest.approvedAt = new Date();
   creditRequest.creditsGranted = granted;
-  creditRequest.expiryDate = expiryDate;
+  creditRequest.expiryDate = finalExpiryDate;
   creditRequest.adminNotes = notes;
   await creditRequest.save();
 
@@ -218,11 +242,11 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
   organization.credits.total += granted;
   
   // Add to credit batches for expiry tracking
-  if (expiryDate) {
+  if (finalExpiryDate) {
     organization.credits.batches.push({
       amount: granted,
       purchasedAt: new Date(),
-      expiresAt: expiryDate,
+      expiresAt: finalExpiryDate,
       used: 0
     });
   }
@@ -234,6 +258,59 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Credit request approved successfully',
+    data: { creditRequest }
+  });
+});
+
+/**
+ * @desc    Revoke approved credit request
+ * @route   PUT /api/credits/requests/:id/revoke
+ * @access  Private (SuperAdmin)
+ */
+const revokeCreditRequest = asyncHandler(async (req, res) => {
+  const { notes } = req.body;
+
+  const creditRequest = await CreditRequest.findById(req.params.id)
+    .populate('organization');
+
+  if (!creditRequest) {
+    throw new ApiError(404, 'Credit request not found');
+  }
+
+  if (creditRequest.status !== 'approved') {
+    throw new ApiError(400, 'Can only revoke approved requests');
+  }
+
+  if (!creditRequest.creditsGranted) {
+    throw new ApiError(400, 'No credits were granted for this request');
+  }
+
+  const organization = await Organization.findById(creditRequest.organization._id);
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  organization.credits.total = Math.max(0, organization.credits.total - creditRequest.creditsGranted);
+
+  if (creditRequest.expiryDate) {
+    const batchIndex = organization.credits.batches.findIndex(
+      b => b.amount === creditRequest.creditsGranted &&
+           new Date(b.expiresAt).getTime() === new Date(creditRequest.expiryDate).getTime()
+    );
+    if (batchIndex !== -1) {
+      organization.credits.batches.splice(batchIndex, 1);
+    }
+  }
+
+  await organization.save();
+
+  creditRequest.status = 'revoked';
+  creditRequest.adminNotes = notes || creditRequest.adminNotes;
+  await creditRequest.save();
+
+  res.json({
+    success: true,
+    message: `Revoked ${creditRequest.creditsGranted} credits from ${organization.name}`,
     data: { creditRequest }
   });
 });
@@ -395,6 +472,7 @@ module.exports = {
   getMyCreditRequests,
   approveCreditRequest,
   rejectCreditRequest,
+  revokeCreditRequest,
   cancelCreditRequest,
   deleteCreditRequest,
   getCreditUsage

@@ -14,11 +14,13 @@ import {
  AlertCircle,
  Eye,
  EyeOff,
-  Camera,
-  Upload,
-  Globe
+   Camera,
+   Upload,
+   Globe,
+   Mail
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
+import RichTextArea from '../../components/RichTextArea';
 
 // Preset color avatars
 const PRESET_COLORS = [
@@ -688,9 +690,34 @@ const getAvatarDisplay = () => {
  <Lock className="w-4 h-4 mr-2" />
  {saving ? 'Changing...' : 'Change Password'}
  </button>
- </form>
- </div>
- )}
+  </form>
+
+    <div className="border-t border-gray-200 pt-4 mt-6">
+      <h3 className="text-sm font-medium text-gray-900 mb-2">Forgot your password?</h3>
+      <p className="text-xs text-gray-500 mb-3">If you can't remember your password, you can request a password reset link via email.</p>
+      <button
+        type="button"
+        onClick={async () => {
+          if (!user?.email) return;
+          setSaving(true);
+          try {
+            await authService.forgotPassword(user.email);
+            showMessage(`Password reset link sent to ${user.email}`);
+          } catch (error) {
+            showMessage(error.response?.data?.message || 'Failed to send reset link', 'error');
+          } finally {
+            setSaving(false);
+          }
+        }}
+        disabled={saving}
+        className="inline-flex items-center px-4 py-2 border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50 text-sm font-medium"
+      >
+        <Mail className="w-4 h-4 mr-2" />
+        Send Reset Link to {user?.email}
+      </button>
+    </div>
+  </div>
+  )}
 
   {/* Organization Settings */}
   {activeTab === 'organization' && isAdmin && (
@@ -863,17 +890,17 @@ const getAvatarDisplay = () => {
  />
  </div>
 
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Description
- </label>
- <textarea
- value={orgForm.description}
- onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
- rows={3}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- />
- </div>
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Description
+  </label>
+  <RichTextArea
+  value={orgForm.description}
+  onChange={(val) => setOrgForm({ ...orgForm, description: val })}
+  rows={3}
+  placeholder="Brief description of your organization"
+  />
+  </div>
 
  {/* ── Public Profile Section ── */}
  <div className="pt-2">
@@ -916,12 +943,12 @@ const getAvatarDisplay = () => {
   {orgForm.about.trim().split(/\s+/).filter(Boolean).length} / 500 words
   </span>
   </div>
-  <textarea
+  <RichTextArea
   value={orgForm.about}
-  onChange={(e) => setOrgForm({ ...orgForm, about: e.target.value })}
+  onChange={(val) => setOrgForm({ ...orgForm, about: val })}
   rows={6}
   placeholder="Describe your organization… (max 500 words)"
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  wordLimit={500}
   />
   </div>
 
@@ -936,12 +963,12 @@ const getAvatarDisplay = () => {
   {orgForm.bestHRPractices.trim().split(/\s+/).filter(Boolean).length} / 300 words
   </span>
   </div>
-  <textarea
+  <RichTextArea
   value={orgForm.bestHRPractices}
-  onChange={(e) => setOrgForm({ ...orgForm, bestHRPractices: e.target.value })}
+  onChange={(val) => setOrgForm({ ...orgForm, bestHRPractices: val })}
   rows={5}
   placeholder="Share your organization's best HR practices… (max 300 words)"
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  wordLimit={300}
   />
   </div>
 
@@ -956,12 +983,12 @@ const getAvatarDisplay = () => {
   {orgForm.awardsAccolades.trim().split(/\s+/).filter(Boolean).length} / 300 words
   </span>
   </div>
-  <textarea
+  <RichTextArea
   value={orgForm.awardsAccolades}
-  onChange={(e) => setOrgForm({ ...orgForm, awardsAccolades: e.target.value })}
+  onChange={(val) => setOrgForm({ ...orgForm, awardsAccolades: val })}
   rows={5}
   placeholder="List your awards, certifications, and achievements… (max 300 words)"
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+  wordLimit={300}
   />
   </div>
   </div>

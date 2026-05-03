@@ -75,7 +75,12 @@ export const organizationService = {
   },
 
   updateBanner: async (id, banner) => {
-  const response = await api.put(`/organizations/${id}/banner`, { banner });
-  return response.data;
+   const response = await api.put(`/organizations/${id}/banner`, { banner });
+   return response.data;
+   },
+
+  reassignAdmin: async (id, adminId) => {
+    const response = await api.patch(`/organizations/${id}/admin`, { adminId });
+    return response.data;
   },
 };

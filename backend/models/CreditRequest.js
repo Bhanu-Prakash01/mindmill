@@ -26,7 +26,7 @@ const creditRequestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'cancelled'],
+    enum: ['pending', 'approved', 'rejected', 'cancelled', 'revoked'],
     default: 'pending'
   },
   approvedBy: {

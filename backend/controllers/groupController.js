@@ -16,12 +16,8 @@ const getGroups = asyncHandler(async (req, res) => {
     if (organization) {
       query.organization = organization;
     }
-  } else if (req.user.role === 'admin') {
-    // Admin sees all org groups
-    query.organization = req.user.organization._id;
   } else {
-    // User sees only their own groups
-    query.organization = req.user.organization._id;
+    // All non-superadmin users see ONLY their own groups
     query.createdBy = req.user._id;
   }
 
@@ -78,17 +74,8 @@ const getGroup = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // Superadmin can access all
-  } else if (req.user.role === 'admin') {
-    if (group.organization._id?.toString() !== req.user.organization._id?.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    // User can only access own groups
-    if (group.createdBy._id?.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy._id?.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   res.json({
@@ -105,9 +92,15 @@ const getGroup = asyncHandler(async (req, res) => {
 const createGroup = asyncHandler(async (req, res) => {
   const { name, description, icon, moderator, memberIds = [], contacts = [], groupType } = req.body;
 
-  const organizationId = req.user.role === 'superadmin' && req.body.organizationId
-    ? req.body.organizationId
-    : req.user.organization._id;
+  let organizationId;
+  if (req.user.role === 'superadmin') {
+    organizationId = req.body.organizationId || null;
+  } else {
+    if (!req.user.organization) {
+      throw new ApiError(400, 'User is not associated with any organization');
+    }
+    organizationId = req.user.organization._id;
+  }
 
   // Determine group type: default to 'contacts' for regular users, 'team' for admins
   const resolvedGroupType = groupType || (req.user.role === 'user' ? 'contacts' : 'team');
@@ -148,16 +141,8 @@ const updateGroup = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // Superadmin can edit all
-  } else if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   const { name, description, icon, moderator } = req.body;
@@ -192,16 +177,8 @@ const deleteGroup = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // Superadmin can delete all
-  } else if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   await group.deleteOne();
@@ -234,15 +211,9 @@ const addMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Group not found');
   }
 
-  // Only admins can add org members
-  if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
-    throw new ApiError(403, 'Only admins can manage team members');
-  }
-
-  if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  // Only creator or superadmin can manage members
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   const users = await User.find({
@@ -285,14 +256,8 @@ const removeMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Group not found');
   }
 
-  if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
-    throw new ApiError(403, 'Only admins can manage team members');
-  }
-
-  if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   group.members = group.members.filter(
@@ -332,16 +297,8 @@ const addContacts = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // pass
-  } else if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   // Validate contacts
@@ -382,16 +339,8 @@ const removeContact = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // pass
-  } else if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   group.contacts = group.contacts.filter(c => c._id.toString() !== req.params.contactId);
@@ -419,16 +368,8 @@ const updateContact = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role === 'superadmin') {
-    // pass
-  } else if (req.user.role === 'admin') {
-    if (group.organization.toString() !== req.user.organization._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
-  } else {
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Access denied');
-    }
+  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Access denied');
   }
 
   const contact = group.contacts.id(req.params.contactId);

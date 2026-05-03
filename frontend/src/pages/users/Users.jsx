@@ -57,6 +57,11 @@ const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterOrg, setFilterOrg] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [orgSearchQuery, setOrgSearchQuery] = useState('');
+  const [filterOrgAdmin, setFilterOrgAdmin] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -67,6 +72,11 @@ const UserManagement = () => {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [editingOrg, setEditingOrg] = useState(null);
+  const [showEditOrgModal, setShowEditOrgModal] = useState(false);
+  const [orgFormData, setOrgFormData] = useState({ name: '', slug: '', credits: 0, adminId: '' });
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
 
@@ -163,10 +173,51 @@ useEffect(() => {
      } catch (error) {
        console.error('Error resetting password:', error);
        alert(error.response?.data?.message || 'Failed to reset password');
-     } finally {
-       setResettingPassword(false);
-     }
-   };
+    } finally {
+        setResettingPassword(false);
+      }
+    };
+
+  const openEditOrg = async (org) => {
+    setEditingOrg(org);
+    setOrgFormData({
+      name: org.name,
+      slug: org.slug,
+      credits: org.credits?.total || 0,
+      adminId: org.admin?._id || '',
+    });
+    try {
+      setLoadingAdmins(true);
+      const res = await userService.getUsers({ role: 'admin' });
+      setAdminUsers(res.data?.users || []);
+    } catch (error) {
+      console.error('Error fetching admin users:', error);
+    } finally {
+      setLoadingAdmins(false);
+    }
+    setShowEditOrgModal(true);
+  };
+
+  const handleUpdateOrg = async (e) => {
+    e.preventDefault();
+    try {
+      await organizationService.updateOrganization(editingOrg._id, {
+        name: orgFormData.name,
+        slug: orgFormData.slug,
+        credits: orgFormData.credits,
+      });
+      if (orgFormData.adminId && orgFormData.adminId !== editingOrg.admin?._id) {
+        await organizationService.reassignAdmin(editingOrg._id, orgFormData.adminId);
+      }
+      setShowEditOrgModal(false);
+      setEditingOrg(null);
+      setOrgFormData({ name: '', slug: '', credits: 0, adminId: '' });
+      fetchData();
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      alert(error.response?.data?.message || 'Failed to update organization');
+    }
+  };
 
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -265,14 +316,41 @@ const openEditModal = (user) => {
     setShowAddModal(true);
   };
 
- const filteredUsers = users.filter((user) => {
- const matchesSearch =
- user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
- user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
- user.email.toLowerCase().includes(searchQuery.toLowerCase());
- const matchesRole = filterRole === 'all' || user.role === filterRole;
- return matchesSearch && matchesRole;
- });
+const filteredUsers = users.filter((user) => {
+  const matchesSearch =
+  user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  user.email.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesRole = filterRole === 'all' || user.role === filterRole;
+  const matchesStatus = filterStatus === 'all' ||
+    (filterStatus === 'active' && user.isActive) ||
+    (filterStatus === 'inactive' && !user.isActive);
+  const matchesOrg = filterOrg === 'all' || user.organization?._id === filterOrg;
+  return matchesSearch && matchesRole && matchesStatus && matchesOrg;
+});
+
+const activeFilterCount = [
+  filterRole !== 'all',
+  filterStatus !== 'all',
+  filterOrg !== 'all'
+].filter(Boolean).length;
+
+const clearAllFilters = () => {
+  setFilterRole('all');
+  setFilterStatus('all');
+  setFilterOrg('all');
+  setSearchQuery('');
+  setOrgSearchQuery('');
+  setFilterOrgAdmin('all');
+};
+
+const filteredOrganizations = organizations.filter((org) => {
+  const matchesSearch =
+    org.name.toLowerCase().includes(orgSearchQuery.toLowerCase()) ||
+    org.slug.toLowerCase().includes(orgSearchQuery.toLowerCase());
+  const matchesAdmin = filterOrgAdmin === 'all' || org.admin?._id === filterOrgAdmin;
+  return matchesSearch && matchesAdmin;
+});
 
  const getRoleBadge = (role) => {
  const styles = {
@@ -374,32 +452,100 @@ return (
   </div>
 
 {(activeTab === 'users' || !isSuperAdmin) && (
-    <div className="flex flex-col sm:flex-row gap-4">
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+    <div className="space-y-3">
+      {/* Primary Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+        <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Roles</option>
+          <option value="superadmin">Super Admin</option>
+          <option value="admin">Admin</option>
+          <option value="user">User</option>
+        </select>
+        <button
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+            showAdvancedFilters || activeFilterCount > 0
+              ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-indigo-600 rounded-full">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
-      <select
-        value={filterRole}
-        onChange={(e) => setFilterRole(e.target.value)}
-        className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="all">All Roles</option>
-        <option value="superadmin">Super Admin</option>
-        <option value="admin">Admin</option>
-        <option value="user">User</option>
-      </select>
+
+      {/* Advanced Filters */}
+      {showAdvancedFilters && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-gray-700">Advanced Filters</p>
+            {activeFilterCount > 0 && (
+              <button onClick={clearAllFilters} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                Clear All
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Status */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            {/* Organization */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Organization</label>
+              <select
+                value={filterOrg}
+                onChange={(e) => setFilterOrg(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Organizations</option>
+                {organizations.map(org => (
+                  <option key={org._id} value={org._id}>{org.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )}
 
 {activeTab === 'users' || !isSuperAdmin ? (
     <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Showing <span className="font-medium text-gray-900">{filteredUsers.length}</span> of <span className="font-medium text-gray-900">{users.length}</span> users
+        </p>
+      </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -407,6 +553,7 @@ return (
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
@@ -438,7 +585,10 @@ return (
 </div>
 </td>
 <td className="px-6 py-4">
-  <div className="text-sm text-gray-900 font-medium">{user.company || user.organization?.name || 'N/A'}</div>
+  <div className="text-sm text-gray-900 font-medium">{user.company || 'N/A'}</div>
+</td>
+<td className="px-6 py-4">
+  <div className="text-sm text-gray-900 font-medium">{user.organization?.name || 'N/A'}</div>
 </td>
 <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
  <td className="px-6 py-4">
@@ -500,22 +650,49 @@ return (
       </div>
     </>
   ) : (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Used</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {organizations.map((org) => (
+    <>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search organizations..."
+            value={orgSearchQuery}
+            onChange={(e) => setOrgSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+        <select
+          value={filterOrgAdmin}
+          onChange={(e) => setFilterOrgAdmin(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Admins</option>
+          {organizations.map(org => org.admin && (
+            <option key={org.admin._id} value={org.admin._id}>{org.admin.firstName} {org.admin.lastName}</option>
+          ))}
+        </select>
+      </div>
+      <p className="text-sm text-gray-500">
+        Showing <span className="font-medium text-gray-900">{filteredOrganizations.length}</span> of <span className="font-medium text-gray-900">{organizations.length}</span> organizations
+      </p>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Used</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredOrganizations.map((org) => (
               <tr key={org._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div className="text-sm font-medium text-gray-900">{org.name}</div>
@@ -524,8 +701,14 @@ return (
                   <div className="text-sm text-gray-500 font-mono">{org.slug}</div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{org.admin?.firstName} {org.admin?.lastName}</div>
-                  <div className="text-xs text-gray-500">{org.admin?.email}</div>
+                  {org.admin ? (
+                    <>
+                      <div className="text-sm text-gray-900">{org.admin.firstName} {org.admin.lastName}</div>
+                      <div className="text-xs text-gray-500">{org.admin.email}</div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-gray-400 italic">No admin assigned</div>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm font-medium text-indigo-600 flex items-center gap-1">
@@ -544,18 +727,28 @@ return (
                     {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : 'N/A'}
                   </div>
                 </td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => openEditOrg(org)}
+                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {organizations.length === 0 && (
+      {filteredOrganizations.length === 0 && (
         <div className="text-center py-12">
           <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No organizations found</p>
         </div>
       )}
     </div>
+    </>
   )}
 
  {/* Add/Edit Modal */}
@@ -743,7 +936,7 @@ return (
         value={formData.phoneCountryCode}
         onChange={(e) => setFormData({ ...formData, phoneCountryCode: e.target.value })}
         className="w-20 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        placeholder="+1"
+        placeholder="+91"
       />
       <input
         type="tel"
@@ -909,12 +1102,97 @@ return (
 
   {/* Bulk Upload Modal */}
   {bulkUploadModal && (
-  <BulkUploadModal
-  onClose={() => { setBulkUploadModal(false); setBulkUploadResult(null); }}
-  onUpload={handleBulkUpload}
-  result={bulkUploadResult}
-  uploading={bulkUploading}
-  />
+   <BulkUploadModal
+   onClose={() => { setBulkUploadModal(false); setBulkUploadResult(null); }}
+   onUpload={handleBulkUpload}
+   result={bulkUploadResult}
+   uploading={bulkUploading}
+   />
+   )}
+
+  {/* Edit Organization Modal */}
+  {showEditOrgModal && editingOrg && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Organization</h2>
+        <form onSubmit={handleUpdateOrg} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Organization Name
+              </label>
+              <input
+                type="text"
+                required
+                value={orgFormData.name}
+                onChange={(e) => setOrgFormData({ ...orgFormData, name: e.target.value, slug: orgFormData.slug === editingOrg.slug ? e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-') : orgFormData.slug })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Acme Corp"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Slug
+              </label>
+              <input
+                type="text"
+                required
+                value={orgFormData.slug}
+                onChange={(e) => setOrgFormData({ ...orgFormData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '') })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="acme-corp"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Credits</label>
+            <input
+              type="number"
+              min={0}
+              required
+              value={orgFormData.credits}
+              onChange={(e) => setOrgFormData({ ...orgFormData, credits: parseInt(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Admin</label>
+            <select
+              value={orgFormData.adminId}
+              onChange={(e) => setOrgFormData({ ...orgFormData, adminId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              disabled={loadingAdmins}
+            >
+              <option value="">Select Admin</option>
+              {adminUsers.map((user) => (
+                <option key={user._id} value={user._id}>
+                  {user.firstName} {user.lastName} ({user.email})
+                </option>
+              ))}
+            </select>
+            {loadingAdmins && <p className="text-xs text-gray-500 mt-1">Loading admins...</p>}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => { setShowEditOrgModal(false); setEditingOrg(null); }}
+              className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Update
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )}
   </div>
   );

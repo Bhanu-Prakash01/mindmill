@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { attemptService } from '../../services';
+import { attemptService, reportService } from '../../services';
 import {
- ArrowLeft,
- Download,
- Share2,
- BarChart3,
- Users,
- Briefcase,
- MessageCircle,
- Award,
- TrendingUp,
- Lightbulb,
- Target,
- Sparkles,
- Loader2,
- Brain,
- FileBarChart
+  ArrowLeft,
+  Download,
+  Share2,
+  BarChart3,
+  Users,
+  Briefcase,
+  Award,
+  TrendingUp,
+  Lightbulb,
+  Target,
+  Loader2,
+  Brain,
+  FileBarChart,
+  Copy,
+  Check
 } from 'lucide-react';
 import {
  BarChart,
@@ -42,37 +42,45 @@ const DiscReport = () => {
  const [completedAt, setCompletedAt] = useState(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
- const [downloading, setDownloading] = useState(false);
- const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareExpiresIn, setShareExpiresIn] = useState(30);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [reportId, setReportId] = useState(null);
 
- useEffect(() => {
- fetchReport();
- }, [attemptId]);
+  useEffect(() => {
+  fetchReport();
+  }, [attemptId]);
 
- const fetchReport = async () => {
- try {
- setLoading(true);
- const response = await attemptService.getAttempt(attemptId);
- const attempt = response.data?.attempt;
+  const fetchReport = async () => {
+  try {
+  setLoading(true);
+  const response = await attemptService.getAttempt(attemptId);
+  const attempt = response.data?.attempt;
 
-  if (attempt && attempt.discResults) {
-  setReport(attempt.discResults);
-  setTestTaker({
-    name: attempt.testTakerName || null,
-    email: attempt.testTakerEmail || null,
-    phone: attempt.testTakerPhone || null
-  });
-  setCompletedAt(attempt.completedAt);
-  } else {
- setError('DISC results not found for this attempt');
- }
- } catch (err) {
- console.error('Error fetching DISC report:', err);
- setError('Failed to load DISC report');
- } finally {
- setLoading(false);
- }
- };
+    if (attempt && attempt.discResults) {
+    setReport(attempt.discResults);
+    setTestTaker({
+      name: attempt.testTakerName || null,
+      email: attempt.testTakerEmail || null,
+      phone: attempt.testTakerPhone || null
+    });
+    setCompletedAt(attempt.completedAt);
+    if (attempt.report) setReportId(attempt.report?._id?.toString() || attempt.report?.toString() || attempt.report);
+    } else {
+  setError('DISC results not found for this attempt');
+  }
+  } catch (err) {
+  console.error('Error fetching DISC report:', err);
+  setError('Failed to load DISC report');
+  } finally {
+  setLoading(false);
+  }
+  };
 
    const handleDownload = async (type) => {
    try {
@@ -118,19 +126,33 @@ const DiscReport = () => {
    }
    };
 
- const handleShare = () => {
- if (navigator.share) {
- navigator.share({
- title: 'My DISC Profile',
- text: `Check out my DISC profile: ${report?.pattern || ''}`,
- url: window.location.href
- });
- } else {
- // Copy to clipboard
- navigator.clipboard.writeText(window.location.href);
- alert('Link copied to clipboard!');
- }
- };
+  const handleShare = async (e) => {
+    e.preventDefault();
+    if (!reportId) {
+      alert('Share is not available for this report yet.');
+      return;
+    }
+    if (!shareEmail.trim()) {
+      alert('Please enter an email address.');
+      return;
+    }
+    try {
+      setSharing(true);
+      const result = await reportService.shareReport(reportId, {
+        email: shareEmail,
+        expiresInDays: parseInt(shareExpiresIn),
+      });
+      const shareUrl = result.data?.shareUrl;
+      setShareLink(shareUrl);
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to generate share link');
+    } finally {
+      setSharing(false);
+    }
+  };
 
  if (loading) {
  return (
@@ -207,14 +229,14 @@ const DiscReport = () => {
  <ArrowLeft className="w-5 h-5 mr-2" />
  Back
  </button>
-  <div className="flex gap-3">
-  <button
-  onClick={handleShare}
-  className="flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 "
-  >
-  <Share2 className="w-4 h-4 mr-2" />
-  Share
-  </button>
+   <div className="flex gap-3">
+   <button
+   onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(testTaker?.email || ''); setCopied(false); }}
+   className="flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 "
+   >
+   <Share2 className="w-4 h-4 mr-2" />
+   Share
+   </button>
   <button
   onClick={() => setDownloadModalOpen(true)}
   disabled={downloading}
@@ -520,9 +542,82 @@ const DiscReport = () => {
        </div>
      </div>
    </div>
- )}
- </div>
- );
+  )}
+
+  {/* Share Modal */}
+  {showShareModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div className="bg-white rounded-xl max-w-md w-full p-6">
+  <h2 className="text-xl font-bold text-gray-900 mb-4">Share Report</h2>
+  <form onSubmit={handleShare} className="space-y-4">
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Recipient Email</label>
+  <input
+  type="email"
+  required
+  value={shareEmail}
+  onChange={(e) => setShareEmail(e.target.value)}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  placeholder="email@example.com"
+  />
+  </div>
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Expires In (days)</label>
+  <select
+  value={shareExpiresIn}
+  onChange={(e) => setShareExpiresIn(e.target.value)}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  >
+  <option value="7">7 Days</option>
+  <option value="14">14 Days</option>
+  <option value="30">30 Days</option>
+  <option value="60">60 Days</option>
+  <option value="90">90 Days</option>
+  </select>
+  </div>
+  {shareLink && (
+  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+  <p className="text-sm text-green-800 mb-2">Share link copied to clipboard!</p>
+  <code className="text-xs text-green-700 break-all block">{shareLink}</code>
+  </div>
+  )}
+  <div className="flex gap-3 pt-4">
+  <button
+  type="button"
+  onClick={() => { setShowShareModal(false); setShareLink(''); setShareEmail(''); setCopied(false); }}
+  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+  >
+  Cancel
+  </button>
+  <button
+  type="submit"
+  disabled={sharing}
+  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+  >
+  {sharing ? (
+  <>
+  <Loader2 className="w-4 h-4 animate-spin" />
+  Generating...
+  </>
+  ) : copied ? (
+  <>
+  <Check className="w-4 h-4" />
+  Copied!
+  </>
+  ) : (
+  <>
+  <Copy className="w-4 h-4" />
+  Generate Link
+  </>
+  )}
+  </button>
+  </div>
+  </form>
+  </div>
+  </div>
+  )}
+  </div>
+  );
 };
 
 export default DiscReport;

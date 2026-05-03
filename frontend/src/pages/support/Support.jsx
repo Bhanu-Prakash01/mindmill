@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supportService } from '../../services';
-import { orgSlug } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   Ticket,
   Plus,
@@ -22,11 +21,13 @@ import {
 
 const Support = () => {
  const { user } = useAuth();
+  const { orgSlug } = useParams();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [filterIssue, setFilterIssue] = useState('all');
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -275,9 +276,10 @@ const Support = () => {
  const matchesSearch =
  ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
  ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase());
- const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
- const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
- return matchesSearch && matchesStatus && matchesPriority;
+  const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+  const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
+  const matchesIssue = filterIssue === 'all' || (ticket.selectedIssues && ticket.selectedIssues.includes(filterIssue));
+  return matchesSearch && matchesStatus && matchesPriority && matchesIssue;
  });
 
  if (loading) {
@@ -353,6 +355,16 @@ const Support = () => {
   <option value="medium">Medium</option>
   <option value="high">High</option>
   <option value="urgent">Urgent</option>
+  </select>
+  <select
+  value={filterIssue}
+  onChange={(e) => setFilterIssue(e.target.value)}
+  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  >
+  <option value="all">All Issues</option>
+  {standardQueries.map((q) => (
+    <option key={q._id} value={q.label}>{q.label}</option>
+  ))}
   </select>
   <select
   value={sortField}
@@ -486,7 +498,7 @@ const Support = () => {
  <td className="px-6 py-4">{getStatusBadge(ticket.status)}</td>
  <td className="px-6 py-4">{getPriorityBadge(ticket.priority)}</td>
  <td className="px-6 py-4 text-sm text-gray-500 ">
- {new Date(ticket.updatedAt).toLocaleDateString()}
+ {new Date(ticket.updatedAt).toLocaleString()}
  </td>
  <td className="px-6 py-4 text-right">
  <Link
@@ -518,15 +530,15 @@ const Support = () => {
  <form onSubmit={handleCreateTicket} className="space-y-4">
  <div>
  <label className="block text-sm font-medium text-gray-700 mb-1">
- Subject
- </label>
- <input
- type="text"
- required
- value={createForm.subject}
- onChange={(e) => setCreateForm({ ...createForm, subject: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- placeholder="Brief description of your issue"
+          Details
+        </label>
+        <input
+          type="text"
+          required
+          value={createForm.subject}
+          onChange={(e) => setCreateForm({ ...createForm, subject: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+          placeholder="Brief description of your issue"
  />
  </div>
 

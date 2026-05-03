@@ -46,7 +46,7 @@ const groupSchema = new mongoose.Schema({
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
-    required: [true, 'Organization is required']
+    default: null
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

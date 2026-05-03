@@ -12,7 +12,8 @@ const {
   updatePublicProfile,
   getPublicProfile,
   addCredits,
-  deleteOrganization
+  deleteOrganization,
+  reassignAdmin
 } = require('../controllers/organizationController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { optionalAuth } = require('../middleware/authMiddleware');
@@ -33,6 +34,7 @@ router.get('/my-organization', getMyOrganization);
 router.get('/', isSuperAdmin, paginationValidation, getOrganizations);
 router.post('/', isSuperAdmin, organizationValidation.create, createOrganization);
 router.post('/:id/credits', isSuperAdmin, idParamValidation, addCredits);
+router.patch('/:id/admin', isSuperAdmin, idParamValidation, reassignAdmin);
 router.delete('/:id', isSuperAdmin, idParamValidation, deleteOrganization);
 
 // Admin and SuperAdmin routes

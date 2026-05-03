@@ -53,6 +53,7 @@ import ComprehensiveBig5Report from './pages/reports/ComprehensiveBig5Report';
 import HoganReport from './pages/reports/HoganReport';
 import FiroReport from './pages/reports/FiroReport';
 import SimpleReport from './pages/reports/SimpleReport';
+import SharedReport from './pages/reports/SharedReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -66,6 +67,8 @@ import TicketDetail from './pages/support/TicketDetail';
 
 // Settings
 import Settings from './pages/settings/Settings';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
 // Organization
 import OrganizationProfile from './pages/organization/OrganizationProfile';
@@ -166,6 +169,8 @@ const AppRoutes = () => {
    {/* Public Routes (no org prefix) */}
    <Route element={<AuthLayout />}>
    <Route path="/login" element={<Login />} />
+   <Route path="/forgot-password" element={<ForgotPassword />} />
+   <Route path="/reset-password/:token" element={<ResetPassword />} />
    </Route>
 
    {/* Public Organization Profile */}
@@ -191,7 +196,9 @@ const AppRoutes = () => {
    <Route path="/take/:token/terms/:attemptId" element={<TestTermsAndConditions />} />
    <Route path="/take/:category/:token/terms/:attemptId" element={<TestTermsAndConditions />} />
    {/* Thank You page (after test submission) */}
-   <Route path="/thank-you" element={<ThankYou />} />
+    <Route path="/thank-you" element={<ThankYou />} />
+
+     <Route path="/reports/shared/:token" element={<SharedReport />} />
 
     {/* SuperAdmin Routes (at root, auth required) */}
     <Route

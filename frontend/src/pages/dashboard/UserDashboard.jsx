@@ -12,7 +12,8 @@ import {
   Plus,
   UserPlus,
   Upload,
-  FileText
+  FileText,
+  Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddTestTakerModal from '../../components/AddTestTakerModal';
@@ -148,7 +149,19 @@ const UserDashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Sent"
+          title="Utilization"
+          value={`${stats?.stats?.utilization?.rate || 0}%`}
+          icon={Target}
+          color="bg-teal-500"
+         />
+         <StatCard
+           title="Test Attempt Time"
+           value={`${stats?.stats?.avgAttemptTime || 0} min`}
+           icon={Clock}
+           color="bg-cyan-500"
+         />
+         <StatCard
+           title="Total Sent"
           value={stats?.stats?.totalSent || 0}
           icon={Send}
           color="bg-blue-500"

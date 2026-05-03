@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { attemptService } from '../../services';
+import { attemptService, reportService } from '../../services';
 import {
   ArrowLeft,
   Download,
@@ -19,7 +19,9 @@ import {
   Eye,
   Activity,
   Compass,
-  Zap
+  Zap,
+  Copy,
+  Check
 } from 'lucide-react';
 
 const ComprehensiveBig5Report = () => {
@@ -30,6 +32,13 @@ const ComprehensiveBig5Report = () => {
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareExpiresIn, setShareExpiresIn] = useState(30);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [reportId, setReportId] = useState(null);
 
   useEffect(() => {
     fetchAttemptAndAnalysis();
@@ -41,10 +50,11 @@ const ComprehensiveBig5Report = () => {
       const response = await attemptService.getAttempt(attemptId);
       const attemptData = response.data?.attempt;
 
-      if (attemptData && attemptData.big5Results) {
-        setAttempt(attemptData);
-        
-        // Try to fetch comprehensive analysis
+    if (attemptData && attemptData.big5Results) {
+      setAttempt(attemptData);
+      if (attemptData.report) setReportId(attemptData.report?._id?.toString() || attemptData.report?.toString() || attemptData.report);
+      
+      // Try to fetch comprehensive analysis
         try {
           const analysisResponse = await fetch(`/api/attempts/${attemptId}/comprehensive-report`, {
             method: 'POST',
@@ -110,16 +120,31 @@ const ComprehensiveBig5Report = () => {
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'My Big Five Profile',
-        text: 'Check out my comprehensive Big Five personality profile',
-        url: window.location.href
+  const handleShare = async (e) => {
+    e.preventDefault();
+    if (!reportId) {
+      alert('Share is not available for this report yet.');
+      return;
+    }
+    if (!shareEmail.trim()) {
+      alert('Please enter an email address.');
+      return;
+    }
+    try {
+      setSharing(true);
+      const result = await reportService.shareReport(reportId, {
+        email: shareEmail,
+        expiresInDays: parseInt(shareExpiresIn),
       });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      const shareUrl = result.data?.shareUrl;
+      setShareLink(shareUrl);
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to generate share link');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -208,7 +233,7 @@ const ComprehensiveBig5Report = () => {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={handleShare}
+                onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(''); setCopied(false); }}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 <Share2 className="w-4 h-4" />
@@ -578,9 +603,82 @@ const ComprehensiveBig5Report = () => {
           <p className="mt-2">The Big Five personality model is based on decades of psychological research.</p>
           <p className="mt-1 italic">Results should be used for self-awareness and development purposes.</p>
         </div>
-      </main>
-    </div>
-  );
+         </main>
+
+        {/* Share Modal */}
+        {showShareModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Share Report</h2>
+          <form onSubmit={handleShare} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Recipient Email</label>
+              <input
+                type="email"
+                required
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                placeholder="email@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expires In (days)</label>
+              <select
+                value={shareExpiresIn}
+                onChange={(e) => setShareExpiresIn(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+                <option value="60">60 Days</option>
+                <option value="90">90 Days</option>
+              </select>
+            </div>
+            {shareLink && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800 mb-2">Share link copied to clipboard!</p>
+                <code className="text-xs text-green-700 break-all block">{shareLink}</code>
+              </div>
+            )}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => { setShowShareModal(false); setShareLink(''); setShareEmail(''); setCopied(false); }}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={sharing}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {sharing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Generate Link
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+     )}
+     </div>
+   );
 };
 
 export default ComprehensiveBig5Report;

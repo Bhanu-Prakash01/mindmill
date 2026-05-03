@@ -23,6 +23,7 @@ const getOrganizations = asyncHandler(async (req, res) => {
   }
 
   const organizations = await Organization.find(query)
+    .populate('admin', 'firstName lastName email')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
     .skip((page - 1) * limit);
@@ -133,7 +134,7 @@ const createOrganization = asyncHandler(async (req, res) => {
  * @access  Private (Admin, SuperAdmin)
  */
 const updateOrganization = asyncHandler(async (req, res) => {
-  const { name, description, settings } = req.body;
+  const { name, description, settings, slug, credits } = req.body;
 
   let organization = await Organization.findById(req.params.id);
 
@@ -149,9 +150,20 @@ const updateOrganization = asyncHandler(async (req, res) => {
 
   const updateData = { name, description };
   
-  // Only SuperAdmin can update settings
-  if (settings && req.user.role === 'superadmin') {
-    updateData.settings = { ...organization.settings, ...settings };
+  if (req.user.role === 'superadmin') {
+    if (slug) {
+      const existingOrg = await Organization.findOne({ slug: slug.toLowerCase().trim(), _id: { $ne: organization._id } });
+      if (existingOrg) {
+        throw new ApiError(400, 'Organization slug already exists');
+      }
+      updateData.slug = slug.toLowerCase().trim();
+    }
+    if (settings) {
+      updateData.settings = { ...organization.settings, ...settings };
+    }
+    if (credits !== undefined) {
+      updateData['credits.total'] = parseInt(credits);
+    }
   }
 
   organization = await Organization.findByIdAndUpdate(
@@ -425,6 +437,41 @@ const deleteOrganization = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Reassign organization admin
+ * @route   PATCH /api/organizations/:id/admin
+ * @access  Private (SuperAdmin)
+ */
+const reassignAdmin = asyncHandler(async (req, res) => {
+  const { adminId } = req.body;
+
+  const organization = await Organization.findById(req.params.id);
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  const newAdmin = await User.findById(adminId);
+  if (!newAdmin) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  if (newAdmin.role !== 'admin') {
+    throw new ApiError(400, 'Selected user must have admin role');
+  }
+
+  organization.admin = newAdmin._id;
+  await organization.save();
+
+  const updatedOrg = await Organization.findById(organization._id)
+    .populate('admin', 'firstName lastName email');
+
+  res.json({
+    success: true,
+    message: 'Organization admin reassigned successfully',
+    data: { organization: updatedOrg }
+  });
+});
+
+/**
  * @desc    Get my organization
  * @route   GET /api/organizations/my-organization
  * @access  Private
@@ -474,5 +521,6 @@ module.exports = {
   updatePublicProfile,
   getPublicProfile,
   addCredits,
-  deleteOrganization
+  deleteOrganization,
+  reassignAdmin
 };

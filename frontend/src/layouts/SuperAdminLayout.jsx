@@ -36,10 +36,10 @@ const SuperAdminLayout = () => {
     { name: 'Dashboard', href: '/dashboard/superadmin', icon: LayoutDashboard },
     { name: 'Users', href: '/users', icon: Users },
     { name: 'Groups', href: '/groups', icon: UsersRound },
-    { name: 'Test Takers', href: '/test-takers', icon: Send },
     { name: 'Assessments', href: '/assessments', icon: FileText },
+    { name: 'Test Takers', href: '/test-takers', icon: Send },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
-    { name: 'Credits', href: '/credits', icon: CreditCard },
+    { name: 'Credit Requests', href: '/credits', icon: CreditCard },
     { name: 'Support', href: '/support', icon: HelpCircle },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];

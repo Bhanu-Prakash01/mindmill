@@ -302,6 +302,8 @@ const Login = () => {
             )}
           </button>
 
+          <Link to="/forgot-password" className="block text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-4">Forgot Password?</Link>
+
           {orgSlug && (
             <button
               type="button"

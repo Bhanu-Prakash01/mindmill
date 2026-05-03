@@ -229,6 +229,293 @@ async function sendTestInvite({ to, testTakerName, assessmentTitle, assessmentCa
   return info;
 }
 
+/**
+ * Send password reset email to a user
+ */
+async function sendPasswordResetEmail({ to, fullName, organizationName, resetLink }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+
+          <!-- Top accent bar -->
+          <tr>
+            <td style="background-color:#4f46e5;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Password Reset
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    Reset Your Password
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Hello ${fullName},
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                You requested a password reset for your <strong>${organizationName}</strong> account on MindMil.
+                Click the button below to set a new password.
+              </p>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:28px 40px 0;" align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="background-color:#4f46e5;border-radius:6px;">
+                    <a href="${resetLink}" target="_blank" style="display:inline-block;padding:14px 40px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:6px;">
+                      Reset Password &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Warning -->
+          <tr>
+            <td style="padding:20px 40px 0;" align="center">
+              <p style="color:#dc2626;font-size:13px;font-weight:600;margin:0;">
+                This link expires in 1 hour
+              </p>
+            </td>
+          </tr>
+
+          <!-- Fallback link -->
+          <tr>
+            <td style="padding:20px 40px 0;">
+              <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin:0;text-align:center;">
+                Trouble with the button? Copy this link:<br>
+                <a href="${resetLink}" style="color:#4f46e5;word-break:break-all;">${resetLink}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Sent by ${organizationName} via MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: `Password Reset — ${organizationName}`,
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}
+
 module.exports = {
-  sendTestInvite
+  sendTestInvite,
+  sendPasswordResetEmail,
+  sendCreditRequestNotification
 };
+
+async function sendCreditRequestNotification({ adminEmail, requesterName, organizationName, creditsRequested, reason }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+
+          <!-- Top accent bar -->
+          <tr>
+            <td style="background-color:#f59e0b;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Credit Request
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    New Credit Request Submitted
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                A new credit request has been submitted by <strong>${requesterName}</strong> from <strong>${organizationName}</strong>.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#fefce8;border:1px solid #fde68a;border-radius:6px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;padding-bottom:12px;">
+                          Request Details
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Credits Requested</td>
+                              <td style="color:#111827;font-size:15px;font-weight:600;">${creditsRequested}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Organization</td>
+                              <td style="color:#111827;font-size:15px;font-weight:600;">${organizationName}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      ${reason ? `
+                      <tr>
+                        <td>
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;vertical-align:top;">Reason</td>
+                              <td style="color:#374151;font-size:14px;">${reason}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:28px 40px 0;" align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="background-color:#6366f1;border-radius:6px;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/credits" target="_blank" style="display:inline-block;padding:14px 40px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:6px;">
+                      Review Request &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Automated notification from MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to: adminEmail,
+    subject: `Credit Request — ${creditsRequested} credits from ${organizationName}`,
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}

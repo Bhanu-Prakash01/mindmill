@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const { User } = require('../models');
 const { generateToken } = require('../config/jwt');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 /**
  * @desc    Login user
@@ -303,6 +305,77 @@ const getDemoUsers = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Request password reset email
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email }).populate('organization');
+
+  if (!user) {
+    return res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
+  await user.save();
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+  const orgName = user.organization ? user.organization.name : 'Mindmill';
+
+  await sendPasswordResetEmail({
+    to: user.email,
+    fullName: user.fullName,
+    organizationName: orgName,
+    resetLink
+  });
+
+  res.json({
+    success: true,
+    message: 'If an account with that email exists, a password reset link has been sent.'
+  });
+});
+
+/**
+ * @desc    Reset password using token
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpire: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    throw new ApiError(400, 'Invalid or expired reset token');
+  }
+
+  user.password = newPassword;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpire = null;
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Password reset successfully'
+  });
+});
+
+/**
  * @desc    Demo login without password
  * @route   POST /api/auth/demo/login
  * @access  Public
@@ -374,5 +447,7 @@ module.exports = {
   refreshToken,
   getDemoOrganizations,
   getDemoUsers,
+  forgotPassword,
+  resetPassword,
   demoLogin
 };

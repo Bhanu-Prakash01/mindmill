@@ -11,40 +11,44 @@ import {
   HelpCircle,
   Clock,
   XCircle,
-  MessageSquare
+  MessageSquare,
+  Target,
+  Repeat,
+  TestTube,
+  DollarSign
 } from 'lucide-react';
 import {
- BarChart,
- Bar,
  XAxis,
  YAxis,
  CartesianGrid,
  Tooltip,
  ResponsiveContainer,
- PieChart,
- Pie,
- Cell
+ AreaChart,
+ Area
 } from 'recharts';
 import { Link } from 'react-router-dom';
 
-const StatCard = ({ title, value, icon: Icon, trend, trendUp, color }) => (
- <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
- <div className="flex items-start justify-between">
- <div>
- <p className="text-sm font-medium text-gray-500 ">{title}</p>
- <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
- {trend && (
- <p className={`text-sm mt-2 flex items-center gap-1 ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
- <TrendingUp className="w-4 h-4" />
- {trend}
- </p>
- )}
- </div>
- <div className={`p-3 rounded-lg ${color}`}>
- <Icon className="w-6 h-6 text-white" />
- </div>
- </div>
- </div>
+const StatCard = ({ title, value, icon: Icon, trend, trendUp, color, subtitle }) => (
+  <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+  <div className="flex items-start justify-between">
+  <div>
+  <p className="text-sm font-medium text-gray-500 ">{title}</p>
+  <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
+  {subtitle && (
+  <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+  )}
+  {trend && (
+  <p className={`text-sm mt-2 flex items-center gap-1 ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+  <TrendingUp className="w-4 h-4" />
+  {trend}
+  </p>
+  )}
+  </div>
+  <div className={`p-3 rounded-lg ${color}`}>
+  <Icon className="w-6 h-6 text-white" />
+  </div>
+  </div>
+  </div>
 );
 
 const SuperAdminDashboard = () => {
@@ -85,11 +89,9 @@ const SuperAdminDashboard = () => {
  <p className="text-red-600 ">{error}</p>
  </div>
  );
- }
+  }
 
- const subscriptionColors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981'];
-
- return (
+  return (
  <div className="space-y-8">
  {/* Header */}
  <div>
@@ -99,14 +101,28 @@ const SuperAdminDashboard = () => {
  </p>
  </div>
 
- {/* Stats Grid */}
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
- <StatCard
- title="Total Organizations"
- value={stats?.stats?.totalOrganizations || 0}
- icon={Building2}
- color="bg-blue-500"
- />
+  {/* Stats Grid */}
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <StatCard
+  title="Utilization"
+  value={`${stats?.stats?.utilization?.rate || 0}%`}
+  subtitle={`${stats?.stats?.utilization?.attemptsCompleted || 0} of ${stats?.stats?.utilization?.linksShared || 0} shared links`}
+  icon={Target}
+  color="bg-teal-500"
+  />
+  <StatCard
+    title="Test Attempt Time"
+    value={`${stats?.stats?.avgAttemptTime || 0} min`}
+    subtitle="Avg time per test"
+    icon={Clock}
+    color="bg-cyan-500"
+  />
+  <StatCard
+    title="Total Organizations"
+  value={stats?.stats?.totalOrganizations || 0}
+  icon={Building2}
+  color="bg-blue-500"
+  />
  <StatCard
  title="Total Users"
  value={stats?.stats?.totalUsers || 0}
@@ -155,7 +171,7 @@ const SuperAdminDashboard = () => {
   </Link>
   )}
  </div>
- )}
+  )}
 
  {/* Ticket Status Breakdown */}
  {ticketStats && (
@@ -200,27 +216,219 @@ const SuperAdminDashboard = () => {
  )}
 
  {/* Charts */}
- <div className="grid grid-cols-1 gap-6">
- {/* Monthly Activity Chart */}
+ <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+ {/* Time of Tests */}
  <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
- <h3 className="text-lg font-semibold text-gray-900 mb-6">
- Daily Activity (Last 30 Days)
+ <h3 className="text-lg font-semibold text-gray-900 mb-1">
+ Time of Tests
  </h3>
+ <p className="text-sm text-gray-500 mb-4">When tests are completed (IST, 24h)</p>
  <div className="h-64">
  <ResponsiveContainer width="100%" height="100%">
- <BarChart data={stats?.monthlyStats || []}>
+ <AreaChart data={stats?.hourlyAttempts || []}>
+ <defs>
+ <linearGradient id="timeWave" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+ </linearGradient>
+ </defs>
  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
  <XAxis
- dataKey="date"
- tick={{ fontSize: 12 }}
- tickFormatter={(value) => value?.slice(5) || ''}
+ dataKey="hour"
+ tick={{ fontSize: 11 }}
+ tickFormatter={(v) => `${v}:00`}
  />
- <YAxis tick={{ fontSize: 12 }} />
- <Tooltip />
- <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
- </BarChart>
+ <YAxis tick={{ fontSize: 11 }} />
+ <Tooltip
+ formatter={(value) => [value, 'Tests Completed']}
+ labelFormatter={(v) => `${v}:00 - ${v + 1}:00`}
+ />
+ <Area
+ type="monotone"
+ dataKey="count"
+ stroke="#6366f1"
+ strokeWidth={2}
+ fill="url(#timeWave)"
+ />
+ </AreaChart>
  </ResponsiveContainer>
  </div>
+ <div className="flex justify-between mt-2 px-2">
+ <span className="text-xs text-gray-400">Morning {'<'}9am</span>
+ <span className="text-xs text-gray-400">Afternoon {'<'}2pm</span>
+ <span className="text-xs text-gray-400">Evening {'<'}8pm</span>
+ <span className="text-xs text-gray-400">Night {'>'}8pm</span>
+ </div>
+ </div>
+ {/* Admin Enrollment */}
+ <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+ <h3 className="text-lg font-semibold text-gray-900 mb-1">
+ Admin Enrollment
+ </h3>
+ <p className="text-sm text-gray-500 mb-4">New admins (last 12 months)</p>
+ <div className="h-64">
+ <ResponsiveContainer width="100%" height="100%">
+ <AreaChart data={stats?.adminEnrollment || []}>
+ <defs>
+ <linearGradient id="adminEnrollGrad" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+ </linearGradient>
+ </defs>
+ <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+ <XAxis
+ dataKey="month"
+ tick={{ fontSize: 11 }}
+ tickFormatter={(v) => {
+   const [, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+   return months[parseInt(month) - 1];
+ }}
+ />
+ <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+ <Tooltip
+ formatter={(value) => [value, 'New Admins']}
+ labelFormatter={(v) => {
+   const [year, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+   return `${months[parseInt(month) - 1]} ${year}`;
+ }}
+ />
+ <Area
+ type="monotone"
+ dataKey="count"
+ stroke="#8b5cf6"
+ strokeWidth={2}
+ fill="url(#adminEnrollGrad)"
+ />
+ </AreaChart>
+ </ResponsiveContainer>
+ </div>
+ </div>
+ {/* Monthly Distribution vs Utilisation */}
+ <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+ <h3 className="text-lg font-semibold text-gray-900 mb-1">
+ Distribution vs Utilisation
+ </h3>
+ <p className="text-sm text-gray-500 mb-4">Tests per month</p>
+ <div className="h-64">
+ <ResponsiveContainer width="100%" height="100%">
+ <AreaChart data={stats?.monthlyTrend || []}>
+ <defs>
+ <linearGradient id="distGrad" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+ </linearGradient>
+ <linearGradient id="utilGrad" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+ <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+ </linearGradient>
+ </defs>
+ <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+ <XAxis
+ dataKey="month"
+ tick={{ fontSize: 11 }}
+ tickFormatter={(v) => {
+   const [year, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+   return `${months[parseInt(month) - 1]} ${year?.slice(2)}`;
+ }}
+ />
+ <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+ <Tooltip
+ formatter={(value, name) => [value, name === 'attempts' ? 'Distribution' : 'Utilisation']}
+ labelFormatter={(v) => {
+   const [year, month] = v?.split('-') || [];
+   if (!month) return '';
+   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+   return `${months[parseInt(month) - 1]} ${year}`;
+ }}
+ />
+ <Area
+ type="monotone"
+ dataKey="attempts"
+ stroke="#6366f1"
+ strokeWidth={2}
+ fill="url(#distGrad)"
+ name="Distribution"
+ />
+ <Area
+ type="monotone"
+ dataKey="completed"
+ stroke="#10b981"
+ strokeWidth={2}
+ fill="url(#utilGrad)"
+ name="Utilisation"
+ />
+ </AreaChart>
+ </ResponsiveContainer>
+ </div>
+ <div className="flex justify-center gap-4 mt-3">
+ <div className="flex items-center gap-1.5">
+ <div className="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+ <span className="text-xs text-gray-500">Distribution</span>
+ </div>
+ <div className="flex items-center gap-1.5">
+ <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+ <span className="text-xs text-gray-500">Utilisation</span>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+ <div className="px-6 py-4 border-b border-gray-100">
+   <h3 className="text-lg font-semibold text-gray-900">Overview</h3>
+ </div>
+ <div className="divide-y divide-gray-100">
+   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className="p-2 rounded-lg bg-blue-100">
+         <Users className="w-5 h-5 text-blue-600" />
+       </div>
+       <span className="text-sm font-medium text-gray-700">Total Admins</span>
+     </div>
+     <span className="text-lg font-bold text-gray-900">{stats?.dataTable?.totalAdmins || 0}</span>
+   </div>
+   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className="p-2 rounded-lg bg-red-100">
+         <XCircle className="w-5 h-5 text-red-600" />
+       </div>
+       <span className="text-sm font-medium text-gray-700">Expired Tests</span>
+     </div>
+     <span className="text-lg font-bold text-gray-900">{stats?.dataTable?.expiredTests || 0}</span>
+   </div>
+   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className="p-2 rounded-lg bg-green-100">
+         <DollarSign className="w-5 h-5 text-green-600" />
+       </div>
+       <span className="text-sm font-medium text-gray-700">Total Revenue</span>
+     </div>
+     <span className="text-lg font-bold text-gray-900">₹{(stats?.dataTable?.totalRevenue || 0).toLocaleString()}</span>
+   </div>
+   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className="p-2 rounded-lg bg-purple-100">
+         <Repeat className="w-5 h-5 text-purple-600" />
+       </div>
+       <span className="text-sm font-medium text-gray-700">Repeat Clients</span>
+     </div>
+     <span className="text-lg font-bold text-gray-900">{stats?.dataTable?.repeatClientsCount || 0}</span>
+   </div>
+   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className="p-2 rounded-lg bg-amber-100">
+         <TestTube className="w-5 h-5 text-amber-600" />
+       </div>
+       <span className="text-sm font-medium text-gray-700">Total Available Tests</span>
+     </div>
+     <span className="text-lg font-bold text-gray-900">{stats?.dataTable?.totalAvailableTests || 0}</span>
+   </div>
  </div>
  </div>
 
