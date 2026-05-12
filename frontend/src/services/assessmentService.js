@@ -145,4 +145,18 @@ export const assessmentService = {
     const response = await api.get(`/assessments/${id}/my-allocation`);
     return response.data;
   },
+
+  uploadBanner: async (id, file) => {
+    const formData = new FormData();
+    formData.append('banner', file);
+    const response = await api.post(`/assessments/${id}/upload-banner`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteBanner: async (id) => {
+    const response = await api.delete(`/assessments/${id}/banner`);
+    return response.data;
+  },
 };

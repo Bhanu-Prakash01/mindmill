@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { attemptService, reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ArrowLeft,
   Download,
@@ -55,6 +56,7 @@ const MbtiReport = () => {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportId, setReportId] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchReport();
@@ -123,7 +125,7 @@ const MbtiReport = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert(error.message || 'Failed to download PDF. Please try again.');
+      toast.error(error.message || 'Failed to download PDF. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -132,11 +134,11 @@ const MbtiReport = () => {
   const handleShare = async (e) => {
     e.preventDefault();
     if (!reportId) {
-      alert('Share is not available for this report yet.');
+      toast.warning('Share is not available for this report yet.');
       return;
     }
     if (!shareEmail.trim()) {
-      alert('Please enter an email address.');
+      toast.warning('Please enter an email address.');
       return;
     }
     try {
@@ -151,7 +153,7 @@ const MbtiReport = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate share link');
+      toast.error(error.response?.data?.message || 'Failed to generate share link');
     } finally {
       setSharing(false);
     }
@@ -234,7 +236,7 @@ const MbtiReport = () => {
         </button>
         <div className="flex gap-3">
           <button
-            onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(''); setCopied(false); }}
+            onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(testTaker?.email || ''); setCopied(false); }}
             className="flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
           >
             <Share2 className="w-4 h-4 mr-2" />

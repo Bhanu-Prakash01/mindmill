@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, Download, CheckCircle, XCircle, AlertCircle, Loader2, Copy, Edit3, Table } from 'lucide-react';
 import { assessmentService, testTakerService } from '../services';
+import { useToast } from '../context/ToastContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 const BulkImportModal = ({ onClose, onSuccess }) => {
   const [step, setStep] = useState(1);
@@ -12,9 +14,12 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [inputMode, setInputMode] = useState('paste'); // 'paste' or 'upload'
+  const [inputMode, setInputMode] = useState('paste');
   const [inlineData, setInlineData] = useState('');
   const fileInputRef = useRef(null);
+  const toast = useToast();
+
+  useEscapeKey(handleClose);
 
   React.useEffect(() => {
     fetchAssessments();
@@ -59,7 +64,7 @@ const BulkImportModal = ({ onClose, onSuccess }) => {
     try {
       await testTakerService.downloadTemplate();
     } catch (err) {
-      alert('Failed to download template');
+      toast.error('Failed to download template');
     }
   };
 

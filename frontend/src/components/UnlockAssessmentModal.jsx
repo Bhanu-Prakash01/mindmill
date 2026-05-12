@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { assessmentService, organizationService } from '../services';
 import { X, Lock, Unlock, AlertTriangle, CheckCircle, Coins } from 'lucide-react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 const UnlockAssessmentModal = ({ assessment, onClose, onSuccess }) => {
   const [testCount, setTestCount] = useState(1);
@@ -16,6 +17,8 @@ const UnlockAssessmentModal = ({ assessment, onClose, onSuccess }) => {
 
   // If already unlocked, show current status
   const isAlreadyUnlocked = assessment.orgUnlockInfo != null;
+
+  useEscapeKey(onClose);
 
   useEffect(() => {
     fetchBalance();

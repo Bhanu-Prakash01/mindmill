@@ -509,6 +509,98 @@ const getMyOrganization = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Upload a document to a public profile section
+ * @route   POST /api/organizations/:id/profile-document
+ * @access  Private (Admin, SuperAdmin)
+ */
+const uploadProfileDocument = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Please upload a file');
+  }
+
+  const { section } = req.body; // 'bestHRPractices' or 'awardsAccolades'
+
+  if (!section || !['bestHRPractices', 'awardsAccolades'].includes(section)) {
+    throw new ApiError(400, 'Invalid section. Must be "bestHRPractices" or "awardsAccolades"');
+  }
+
+  let organization = await Organization.findById(req.params.id);
+
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  if (req.user.role !== 'superadmin' &&
+      req.user.organization._id.toString() !== organization._id.toString()) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
+  const doc = {
+    name: req.file.originalname,
+    url: `/uploads/documents/${req.file.filename}`,
+    type: req.file.mimetype,
+    size: req.file.size,
+    uploadedAt: new Date()
+  };
+
+  organization = await Organization.findByIdAndUpdate(
+    req.params.id,
+    { $push: { [`publicProfile.${docField}`]: doc } },
+    { new: true }
+  );
+
+  res.json({
+    success: true,
+    message: 'Document uploaded successfully',
+    data: { document: doc, organization }
+  });
+});
+
+/**
+ * @desc    Delete a document from a public profile section
+ * @route   DELETE /api/organizations/:id/profile-document
+ * @access  Private (Admin, SuperAdmin)
+ */
+const deleteProfileDocument = asyncHandler(async (req, res) => {
+  const { section, documentId } = req.body;
+
+  if (!section || !['bestHRPractices', 'awardsAccolades'].includes(section)) {
+    throw new ApiError(400, 'Invalid section. Must be "bestHRPractices" or "awardsAccolades"');
+  }
+
+  if (!documentId) {
+    throw new ApiError(400, 'Document ID is required');
+  }
+
+  let organization = await Organization.findById(req.params.id);
+
+  if (!organization) {
+    throw new ApiError(404, 'Organization not found');
+  }
+
+  if (req.user.role !== 'superadmin' &&
+      req.user.organization._id.toString() !== organization._id.toString()) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
+  const pullKey = `publicProfile.${docField}`;
+
+  organization = await Organization.findByIdAndUpdate(
+    req.params.id,
+    { $pull: { [pullKey]: { _id: documentId } } },
+    { new: true }
+  );
+
+  res.json({
+    success: true,
+    message: 'Document deleted successfully',
+    data: { organization }
+  });
+});
+
 module.exports = {
   getOrganizations,
   getOrganization,
@@ -522,5 +614,7 @@ module.exports = {
   getPublicProfile,
   addCredits,
   deleteOrganization,
-  reassignAdmin
+  reassignAdmin,
+  uploadProfileDocument,
+  deleteProfileDocument
 };

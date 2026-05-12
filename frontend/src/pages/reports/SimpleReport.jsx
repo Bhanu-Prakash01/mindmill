@@ -12,6 +12,7 @@ import {
   Loader2,
   FileText
 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 const SimpleReport = () => {
   const { attemptId, orgSlug } = useParams();
@@ -20,6 +21,7 @@ const SimpleReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     fetchResults();
@@ -68,7 +70,7 @@ const SimpleReport = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading PDF:', err);
-      alert(err.response?.data?.message || 'Failed to download PDF');
+      toast.error(err.response?.data?.message || 'Failed to download PDF');
     } finally {
       setDownloading(false);
     }

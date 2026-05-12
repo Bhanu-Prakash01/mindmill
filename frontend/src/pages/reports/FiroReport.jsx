@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { attemptService, reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   Download,
   Share2,
@@ -52,6 +53,7 @@ const FiroReport = () => {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportId, setReportId] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchResults();
@@ -76,7 +78,7 @@ const FiroReport = () => {
         throw new Error(data.message);
       }
     } catch (err) {
-      setError(err.message || 'Failed to load FIRO-B results');
+      setError(err.message || 'Failed to load PIRO results');
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,7 @@ const FiroReport = () => {
 
   const handleDownload = async (type) => {
     if (!reportId) {
-      alert('Report not ready yet. Please wait a moment and try again.');
+      toast.warning('Report not ready yet. Please wait a moment and try again.');
       return;
     }
     setDownloadModalOpen(false);
@@ -108,7 +110,7 @@ const FiroReport = () => {
       link.href = url;
 
       const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `FIRO-B_Report_${Date.now()}.pdf`;
+      let filename = `PIRO_Report_${Date.now()}.pdf`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
         if (filenameMatch) filename = filenameMatch[1];
@@ -124,7 +126,7 @@ const FiroReport = () => {
       }, 3000);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert(error.message || 'Failed to download PDF. Please try again.');
+      toast.error(error.message || 'Failed to download PDF. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -133,11 +135,11 @@ const FiroReport = () => {
   const handleShare = async (e) => {
     e.preventDefault();
     if (!reportId) {
-      alert('Share is not available for this report yet.');
+      toast.warning('Share is not available for this report yet.');
       return;
     }
     if (!shareEmail.trim()) {
-      alert('Please enter an email address.');
+      toast.warning('Please enter an email address.');
       return;
     }
     try {
@@ -152,7 +154,7 @@ const FiroReport = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate share link');
+      toast.error(error.response?.data?.message || 'Failed to generate share link');
     } finally {
       setSharing(false);
     }
@@ -244,7 +246,7 @@ const FiroReport = () => {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(''); setCopied(false); }}
+                onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(testTaker?.email || ''); setCopied(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-all"
               >
                 <Share2 className="w-4 h-4" />
@@ -275,13 +277,13 @@ const FiroReport = () => {
                 <Sparkles className="w-4 h-4 text-fuchsia-500" /> Premium Psychometric Assessment
               </div>
               <h1 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">
-                FIRO-B Profile <br/>
+                PIRO Profile <br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-600 to-indigo-600">
                   Interpersonal Dynamics
                 </span>
               </h1>
               <p className="text-lg text-gray-500 leading-relaxed font-normal">
-                Discover your Fundamental Interpersonal Relations Orientation. This precise mapping examines the deep interplay between your expressed behaviors and your core wanted needs.
+                Discover your Professional Interpersonal Relations Orientation. This precise mapping examines the deep interplay between your expressed behaviors and your core wanted needs.
               </p>
             </div>
 

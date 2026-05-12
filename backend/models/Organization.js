@@ -62,7 +62,21 @@ const organizationSchema = new mongoose.Schema({
     linkedin: { type: String, default: '' },
     location: { type: String, default: '' },
     industry: { type: String, default: '' },
-    companySize: { type: String, default: '' }
+    companySize: { type: String, default: '' },
+    bestHRPracticesDocs: [{
+      name: { type: String, required: true },
+      url: { type: String, required: true },
+      type: { type: String, required: true },
+      size: { type: Number, required: true },
+      uploadedAt: { type: Date, default: Date.now }
+    }],
+    awardsAccoladesDocs: [{
+      name: { type: String, required: true },
+      url: { type: String, required: true },
+      type: { type: String, required: true },
+      size: { type: Number, required: true },
+      uploadedAt: { type: Date, default: Date.now }
+    }]
   },
   credits: {
     total: { type: Number, default: 0 },

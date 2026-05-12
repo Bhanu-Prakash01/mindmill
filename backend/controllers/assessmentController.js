@@ -1279,6 +1279,7 @@ const getAssessmentByInviteToken = asyncHandler(async (req, res) => {
         _id: assessment._id,
         title: assessment.title,
         description: assessment.description,
+        bannerImage: assessment.bannerImage,
         category: assessment.category,
         organization: assessment.organization,
         requirePasscode: assessment.requirePasscode,

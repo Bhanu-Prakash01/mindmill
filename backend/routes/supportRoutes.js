@@ -18,6 +18,7 @@ const { supportTicketLimiter } = require('../middleware/rateLimiter');
 router.use(authMiddleware);
 
 router.get('/tickets', paginationValidation, getTickets);
+router.get('/my-tickets', paginationValidation, getTickets);
 router.get('/tickets/:id', idParamValidation, getTicket);
 router.get('/stats', isAdmin, getStats);
 router.get('/coordinators', isAdmin, getCoordinators);

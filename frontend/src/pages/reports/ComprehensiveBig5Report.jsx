@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { attemptService, reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ArrowLeft,
   Download,
@@ -39,6 +40,7 @@ const ComprehensiveBig5Report = () => {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportId, setReportId] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchAttemptAndAnalysis();
@@ -116,18 +118,18 @@ const ComprehensiveBig5Report = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download error:', err);
-      alert('Failed to download PDF');
+      toast.error('Failed to download PDF');
     }
   };
 
   const handleShare = async (e) => {
     e.preventDefault();
     if (!reportId) {
-      alert('Share is not available for this report yet.');
+      toast.warning('Share is not available for this report yet.');
       return;
     }
     if (!shareEmail.trim()) {
-      alert('Please enter an email address.');
+      toast.warning('Please enter an email address.');
       return;
     }
     try {
@@ -142,7 +144,7 @@ const ComprehensiveBig5Report = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate share link');
+      toast.error(error.response?.data?.message || 'Failed to generate share link');
     } finally {
       setSharing(false);
     }
@@ -233,7 +235,7 @@ const ComprehensiveBig5Report = () => {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(''); setCopied(false); }}
+                onClick={() => { setShowShareModal(true); setShareLink(''); setShareEmail(attempt?.testTakerEmail || ''); setCopied(false); }}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 <Share2 className="w-4 h-4" />

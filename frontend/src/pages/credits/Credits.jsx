@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { creditService, organizationService } from '../../services';
 import {
   Coins,
@@ -18,6 +19,7 @@ import {
 
 const Credits = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [creditRequests, setCreditRequests] = useState([]);
   const [organization, setOrganization] = useState(null);
   const [allOrganizations, setAllOrganizations] = useState([]);
@@ -81,10 +83,10 @@ const Credits = () => {
  setShowRequestModal(false);
  setRequestForm({ creditsRequested: 100, reason: '' });
  fetchData();
- } catch (error) {
- console.error('Error requesting credits:', error);
- alert(error.response?.data?.message || 'Failed to request credits');
- } finally {
+} catch (error) {
+  console.error('Error requesting credits:', error);
+  toast.error(error.response?.data?.message || 'Failed to request credits');
+  } finally {
  setSubmitting(false);
  }
  };
@@ -98,7 +100,7 @@ const Credits = () => {
   const handleConfirmApprove = async (e) => {
     e.preventDefault();
     if (!approveForm.creditsGranted || approveForm.creditsGranted < 1) {
-      alert('Please enter a valid number of credits');
+      toast.warning('Please enter a valid number of credits');
       return;
     }
     try {
@@ -111,9 +113,9 @@ const Credits = () => {
       setShowApproveModal(false);
       setApprovingRequest(null);
       fetchData();
-    } catch (error) {
-      console.error('Error approving request:', error);
-      alert(error.response?.data?.message || 'Failed to approve request');
+} catch (error) {
+    console.error('Error approving request:', error);
+    toast.error(error.response?.data?.message || 'Failed to approve request');
     } finally {
       setApproving(false);
     }
@@ -124,9 +126,9 @@ const handleRejectRequest = async (id) => {
   try {
   await creditService.rejectRequest(id, { adminNotes: notes });
   fetchData();
-  } catch (error) {
-  console.error('Error rejecting request:', error);
-  alert('Failed to reject request');
+} catch (error) {
+    console.error('Error rejecting request:', error);
+    toast.error('Failed to reject request');
   }
   };
 
@@ -136,9 +138,9 @@ const handleRejectRequest = async (id) => {
   try {
   await creditService.revokeRequest(id, { adminNotes: notes });
   fetchData();
-  } catch (error) {
-  console.error('Error revoking request:', error);
-  alert(error.response?.data?.message || 'Failed to revoke credits');
+} catch (error) {
+   console.error('Error revoking request:', error);
+   toast.error(error.response?.data?.message || 'Failed to revoke credits');
   }
   };
 
@@ -147,10 +149,10 @@ const handleRejectRequest = async (id) => {
   try {
     await creditService.deleteRequest(id);
     fetchData();
-  } catch (error) {
-    console.error('Error deleting request:', error);
-    alert('Failed to delete request');
-  }
+} catch (error) {
+      console.error('Error deleting request:', error);
+      toast.error('Failed to delete request');
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -480,7 +482,7 @@ const handleRejectRequest = async (id) => {
  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
  <div className="px-6 py-4 border-b border-gray-200 ">
   <h2 className="text-lg font-semibold text-gray-900 ">
-  {isSuperAdmin ? 'All Requests' : 'My Requests'}
+  {isSuperAdmin ? 'Credit History' : 'My Requests'}
   </h2>
  </div>
  <div className="overflow-x-auto">

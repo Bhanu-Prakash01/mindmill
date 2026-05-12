@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { testTakerService } from '../../services';
 import AddTestTakerModal from '../../components/AddTestTakerModal';
 import BulkImportModal from '../../components/BulkImportModal';
@@ -35,6 +36,7 @@ const statusConfig = {
 
 const TestTakers = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [testTakers, setTestTakers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,18 +111,18 @@ const TestTakers = () => {
       fetchTestTakers();
       if (isAdmin) fetchStats();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove some test takers');
+      toast.error(err.response?.data?.message || 'Failed to remove some test takers');
     }
   };
 
   const handleBulkResend = async () => {
     try {
       await Promise.all(selectedTestTakers.map(id => testTakerService.resendInvite(id)));
-      alert(`${selectedTestTakers.length} invitation(s) resent successfully`);
+      toast.success(`${selectedTestTakers.length} invitation(s) resent successfully`);
       setSelectedTestTakers([]);
       fetchTestTakers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resend some emails');
+      toast.error(err.response?.data?.message || 'Failed to resend some emails');
     }
   };
 
@@ -134,17 +136,17 @@ const TestTakers = () => {
       await testTakerService.cancelInvite(id);
       fetchTestTakers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove test taker');
+      toast.error(err.response?.data?.message || 'Failed to remove test taker');
     }
   };
 
   const handleResend = async (id) => {
     try {
       await testTakerService.resendInvite(id);
-      alert('Email resent successfully');
+      toast.success('Email resent successfully');
       fetchTestTakers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resend email');
+      toast.error(err.response?.data?.message || 'Failed to resend email');
     }
   };
 

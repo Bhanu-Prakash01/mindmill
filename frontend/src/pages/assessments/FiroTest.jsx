@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   Loader2,
   AlertCircle,
@@ -16,6 +17,7 @@ import {
 const FiroTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const isPublicAccess = !!token;
 
@@ -67,7 +69,7 @@ const FiroTest = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        alert("WARNING: Navigating away from the assessment tab is not allowed!");
+        toast.warning("WARNING: Navigating away from the assessment tab is not allowed!");
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -200,7 +202,7 @@ const FiroTest = () => {
       if (responses[i] === null || responses[i] === undefined) unanswered.push(i);
     }
     if (unanswered.length > 0) {
-      alert(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
+      toast.warning(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
       const firstUnanswered = unanswered[0];
       const page = Math.floor((firstUnanswered - 1) / QUESTIONS_PER_PAGE);
       setCurrentPage(page);
@@ -232,7 +234,7 @@ const FiroTest = () => {
         document.exitFullscreen?.();
         if (isPublicAccess) {
           const params = new URLSearchParams({
-            assessment: assessment?.title || 'FIRO-B Assessment',
+            assessment: assessment?.title || 'PIRO Assessment',
             type: 'firo',
             attempted: 100,
             answered: TOTAL_QUESTIONS,
@@ -247,7 +249,7 @@ const FiroTest = () => {
         throw new Error(data?.message || 'Submit failed');
       }
     } catch (err) {
-      alert(err.message || 'Failed to submit FIRO-B');
+      toast.error(err.message || 'Failed to submit PIRO');
     } finally {
       setSubmitting(false);
     }
@@ -258,10 +260,10 @@ const FiroTest = () => {
     setSubmitting(true);
     try {
       await attemptService.abandonAttempt(currentAttemptIdRef.current);
-      alert('Test abandoned');
+      toast.success('Test abandoned');
       navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/dashboard/user');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to quit test');
+      toast.error(err.response?.data?.message || 'Failed to quit test');
     } finally {
       setSubmitting(false);
     }
@@ -287,7 +289,7 @@ const FiroTest = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading FIRO-B questions...</p>
+          <p className="text-gray-600">Loading PIRO questions...</p>
         </div>
       </div>
     );
@@ -310,7 +312,7 @@ const FiroTest = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">{assessment?.title || 'FIRO-B Test'}</h1>
+              <h1 className="text-lg font-semibold text-gray-900">{assessment?.title || 'PIRO Test'}</h1>
               <p className="text-sm text-gray-500">Question {firstQuestionIndex}-{Math.min(firstQuestionIndex + QUESTIONS_PER_PAGE - 1, TOTAL_QUESTIONS)} of {TOTAL_QUESTIONS}</p>
             </div>
             <div className="flex items-center gap-4">
@@ -343,7 +345,7 @@ const FiroTest = () => {
       {devMode && (
         <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
           <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-            <span className="text-sm font-medium">DEV MODE ACTIVE - All FIRO-B answers auto-filled</span>
+            <span className="text-sm font-medium">DEV MODE ACTIVE - All PIRO answers auto-filled</span>
             <button onClick={() => setDevMode(false)} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full">Turn OFF</button>
           </div>
         </div>
@@ -365,7 +367,7 @@ const FiroTest = () => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentPage === 0 && (
           <div className="mb-6 p-4 bg-teal-50 rounded-lg border border-teal-200">
-            <h2 className="text-lg font-semibold text-teal-900 mb-2">FIRO-B Instructions</h2>
+            <h2 className="text-lg font-semibold text-teal-900 mb-2">PIRO Instructions</h2>
             <p className="text-teal-700 text-sm">For each statement, select the option that best describes you on the given 6-point scale.</p>
           </div>
         )}

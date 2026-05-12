@@ -16,13 +16,15 @@ import {
   Edit2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/UserAvatar';
 
 const GroupMembers = () => {
   const { id: groupId, orgSlug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  const toast = useToast();
+  
   const [group, setGroup] = useState(null);
   const [users, setUsers] = useState([]);
   const [members, setMembers] = useState([]);
@@ -95,7 +97,7 @@ const GroupMembers = () => {
       setContacts(res.data?.contacts || []);
     } catch (error) {
       console.error('Error adding contacts:', error);
-      alert(error.response?.data?.message || 'Failed to add contacts');
+      toast.error(error.response?.data?.message || 'Failed to add contacts');
     } finally {
       setActionLoading(false);
     }
@@ -401,6 +403,7 @@ const AddMembersModal = ({ onClose, allUsers, currentMembers, onAdd, loading }) 
 // Add Contacts Modal (test takers — contact groups)
 // ============================================================
 const AddContactsModal = ({ onClose, onAdd, loading }) => {
+  const toast = useToast();
   const [rows, setRows] = useState([{ name: '', email: '', phone: '' }]);
 
   const addRow = () => setRows(prev => [...prev, { name: '', email: '', phone: '' }]);
@@ -412,7 +415,7 @@ const AddContactsModal = ({ onClose, onAdd, loading }) => {
   const handleSubmit = () => {
     const valid = rows.filter(r => r.name.trim() && r.email.trim());
     if (valid.length === 0) {
-      alert('Please add at least one contact with name and email');
+      toast.warning('Please add at least one contact with name and email');
       return;
     }
     onAdd(valid.map(r => ({

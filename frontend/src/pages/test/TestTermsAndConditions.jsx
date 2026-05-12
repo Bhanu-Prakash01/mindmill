@@ -152,6 +152,9 @@ const TestTermsAndConditions = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        {assessment?.bannerImage && (
+          <img src={`/${assessment.bannerImage}`} alt="" className="w-full h-36 object-cover" />
+        )}
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-center">
           <Shield className="w-12 h-12 text-white/80 mx-auto mb-3" />

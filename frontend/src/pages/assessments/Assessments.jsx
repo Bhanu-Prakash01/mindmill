@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { assessmentService } from '../../services';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { attemptService } from '../../services';
@@ -55,10 +56,10 @@ const CATEGORY_META = {
   },
   firo: {
     image: '/assessment_firo.png',
-    inspiredBy: 'FIRO-B Assessment',
+    inspiredBy: 'PIRO Assessment',
     description:
-      'The FIRO-B assessment measures interpersonal needs across three dimensions: Inclusion, Control, and Affection. It helps understand how you relate to others and what you need in relationships.',
-    acknowledgement: 'Based on Schutz FIRO-B theory',
+      'The PIRO (Professional Interpersonal Relations Orientation) assessment measures interpersonal needs across three dimensions: Inclusion, Control, and Affection. It helps understand how you relate to others and what you need in relationships.',
+    acknowledgement: 'Based on Schutz PIRO theory',
   },
   cognitive: {
     image: '/assessment_cognitive.png',
@@ -115,10 +116,10 @@ const CATEGORY_META = {
     description: 'DISC behavioral assessment categorizes personalities into Dominance, Influence, Steadiness, and Conscientiousness types.',
     acknowledgement: null,
   },
-  FIRO: {
+  PIRO: {
     image: '/assessment_firo.png',
-    inspiredBy: 'FIRO-B Assessment',
-    description: 'Fundamental Interpersonal Relations Orientation measures inclusion, control, and affection needs in relationships.',
+    inspiredBy: 'PIRO Assessment',
+    description: 'Professional Interpersonal Relations Orientation (PIRO) measures inclusion, control, and affection needs in relationships.',
     acknowledgement: null,
   },
   Big5: {
@@ -129,8 +130,8 @@ const CATEGORY_META = {
   },
   Hogan: {
     image: '/assessment_hogan.png',
-    inspiredBy: 'Hogan Assessment',
-    description: 'Hogan personality assessments measure workplace-relevant traits and derailment risks.',
+    inspiredBy: 'TraitMap Index',
+    description: 'TraitMap Index assessments measure workplace-relevant traits and derailment risks.',
     acknowledgement: null,
   }
 };
@@ -150,6 +151,7 @@ const getDifficultyBadge = (difficulty) => {
 
 const Assessments = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const { orgSlug } = useParams();
   const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
@@ -165,6 +167,16 @@ const Assessments = () => {
   const [unlockModal, setUnlockModal] = useState({ show: false, assessment: null });
   const [testTakerModal, setTestTakerModal] = useState({ show: false, assessment: null });
   const [purchasesModal, setPurchasesModal] = useState({ show: false, assessment: null });
+  const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
+
+  const toggleDescription = (id) => {
+    setExpandedDescriptions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchAssessments();
@@ -191,7 +203,7 @@ const Assessments = () => {
       await assessmentService.deleteAssessment(id);
       fetchAssessments();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to delete assessment');
+      toast.error(error.response?.data?.message || 'Failed to delete assessment');
     }
   };
 
@@ -249,7 +261,7 @@ const Assessments = () => {
       setPasscodeModal({ show: false, assessmentId: null, assessmentCategory: null, passcode: '' });
       navigate(getTestRoute(passcodeModal.assessmentId, category));
     } catch (error) {
-      alert(error.response?.data?.message || 'Invalid passcode');
+      toast.error(error.response?.data?.message || 'Invalid passcode');
     } finally {
       setVerifying(false);
     }
@@ -261,23 +273,23 @@ const Assessments = () => {
       fetchAssessments();
     } catch (error) {
       console.error('Error toggling mute status:', error);
-      alert(error.response?.data?.message || 'Failed to toggle mute status');
+      toast.error(error.response?.data?.message || 'Failed to toggle mute status');
     }
   };
 
   const handleRefundUnattempted = async (assessment) => {
     const testsLocked = Math.max(0, (assessment.assignedUsers?.length || 0) - (assessment.orgUnlockInfo?.testsUsed || 0));
     if (testsLocked <= 0) {
-      alert('No locked test slots to refund.');
+      toast.warning('No locked test slots to refund.');
       return;
     }
     if (!confirm(`Refund credits for all assigned users who haven't attempted this test? This will free up ${testsLocked} locked test slot(s).`)) return;
     try {
       const response = await assessmentService.refundUnattempted(assessment._id);
-      alert(response.message);
+      toast.success(response.message);
       fetchAssessments();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to refund unattempted tests');
+      toast.error(error.response?.data?.message || 'Failed to refund unattempted tests');
     }
   };
 
@@ -338,7 +350,7 @@ const Assessments = () => {
           <option value="professional">Professional</option>
           <option value="big5">Big Five Personality</option>
           <option value="disc">DISC Personality</option>
-          <option value="firo">FIRO-B Assessment</option>
+          <option value="firo">PIRO Assessment</option>
         </select>
         <select
           value={filterStatus}
@@ -373,7 +385,7 @@ const Assessments = () => {
                     {meta.inspiredBy || assessment.title}
                   </p>
                   <p className="text-xs text-gray-500 mb-1 text-center line-clamp-2">
-                    {meta.description || assessment.description || 'No description'}
+                    {assessment.description || meta.description || 'No description'}
                   </p>
                   <div className="flex items-center gap-1 text-sm text-amber-600 font-medium mb-3">
                     <Coins className="w-4 h-4" />
@@ -416,7 +428,13 @@ Unlock Assessment
               
               {/* Hero Image */}
               <div className="relative w-full h-36 overflow-hidden bg-gray-100">
-                {heroImage ? (
+                {assessment.bannerImage ? (
+                  <img
+                    src={`/${assessment.bannerImage}`}
+                    alt={assessment.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : heroImage ? (
                   <img
                     src={heroImage}
                     alt={meta.inspiredBy || assessment.title}
@@ -482,18 +500,18 @@ Unlock Assessment
 
                 {/* Description with Expandable See More */}
                 <div className="mb-3 flex-1 flex flex-col">
-                  <label className="cursor-pointer group">
-                    <input type="checkbox" className="peer hidden" />
-                    <p className="text-xs text-gray-600 text-justify leading-relaxed flex-1 line-clamp-2 peer-checked:line-clamp-none transition-all duration-300">
-                      {meta.description || assessment.description || 'No description provided.'}
+                  <div className="cursor-pointer group">
+                    <p className={`text-xs text-gray-600 text-justify leading-relaxed flex-1 transition-all duration-300 ${expandedDescriptions.has(assessment._id) ? '' : 'line-clamp-2'}`}>
+                      {assessment.description || meta.description || 'No description provided.'}
                     </p>
-                    <span className="text-xs font-semibold text-indigo-600 mt-1 inline-block peer-checked:hidden group-hover:underline">
-                      See more
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-600 mt-1 hidden peer-checked:inline-block group-hover:underline">
-                      See less
-                    </span>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={() => toggleDescription(assessment._id)}
+                      className="text-xs font-semibold text-indigo-600 mt-1 hover:underline"
+                    >
+                      {expandedDescriptions.has(assessment._id) ? 'See less' : 'See more'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Acknowledgement */}

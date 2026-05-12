@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle, CheckCircle, Loader2, Trash2, Calendar } from 'lucide-react';
 import { testTakerService } from '../services';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 const EditTestTakerModal = ({ testTakers, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  useEscapeKey(onClose);
 
   // Initialize form data for all test takers
   useEffect(() => {

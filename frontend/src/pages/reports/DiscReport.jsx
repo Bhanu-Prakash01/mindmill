@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { attemptService, reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ArrowLeft,
   Download,
@@ -51,6 +52,7 @@ const DiscReport = () => {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportId, setReportId] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
   fetchReport();
@@ -118,10 +120,10 @@ const DiscReport = () => {
      link.click();
      link.parentNode.removeChild(link);
      window.URL.revokeObjectURL(url);
-   } catch (error) {
-     console.error('Error downloading PDF:', error);
-     alert(error.message || 'Failed to download PDF. Please try again.');
-   } finally {
+} catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error(error.message || 'Failed to download PDF. Please try again.');
+    } finally {
      setDownloading(false);
    }
    };
@@ -129,11 +131,11 @@ const DiscReport = () => {
   const handleShare = async (e) => {
     e.preventDefault();
     if (!reportId) {
-      alert('Share is not available for this report yet.');
+      toast.warning('Share is not available for this report yet.');
       return;
     }
     if (!shareEmail.trim()) {
-      alert('Please enter an email address.');
+      toast.warning('Please enter an email address.');
       return;
     }
     try {
@@ -148,7 +150,7 @@ const DiscReport = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate share link');
+      toast.error(error.response?.data?.message || 'Failed to generate share link');
     } finally {
       setSharing(false);
     }

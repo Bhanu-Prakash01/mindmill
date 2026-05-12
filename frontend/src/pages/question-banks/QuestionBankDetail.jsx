@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { questionBankService, assessmentService } from '../../services';
 import { ArrowLeft, Plus, Download, Upload, Trash2, Edit2, FileText, AlertTriangle } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 const QuestionBankDetail = () => {
   const { assessmentId, dimension, orgSlug } = useParams();
@@ -11,6 +12,7 @@ const QuestionBankDetail = () => {
   const [loading, setLoading] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importData, setImportData] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     fetchAssessment();
@@ -33,7 +35,7 @@ const QuestionBankDetail = () => {
       setQuestions(response.data?.questions || []);
     } catch (error) {
       console.error('Error fetching questions:', error);
-      alert('Failed to load questions');
+      toast.error('Failed to load questions');
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ const QuestionBankDetail = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting:', error);
-      alert('Failed to export question set');
+      toast.error('Failed to export question set');
     }
   };
 
@@ -66,10 +68,10 @@ const QuestionBankDetail = () => {
       await fetchQuestions();
       setShowImportModal(false);
       setImportData('');
-      alert('Questions imported successfully!');
+      toast.success('Questions imported successfully!');
     } catch (error) {
       console.error('Error importing:', error);
-      alert('Invalid JSON format. Please check the file.');
+      toast.error('Invalid JSON format. Please check the file.');
     }
   };
 
@@ -83,7 +85,7 @@ const QuestionBankDetail = () => {
       navigate(orgSlug ? `/o/${orgSlug}/question-banks` : '/question-banks');
     } catch (error) {
       console.error('Error deleting set:', error);
-      alert('Failed to delete question set');
+      toast.error('Failed to delete question set');
     }
   };
 

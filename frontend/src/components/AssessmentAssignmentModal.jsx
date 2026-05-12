@@ -5,6 +5,7 @@ import {
   X, Users, UserCheck, Search, Check, AlertTriangle,
   CheckCircle, Plus, Minus, Loader2, UserPlus, UserMinus
 } from 'lucide-react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const { user: currentUser } = useAuth();
@@ -21,6 +22,8 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
   const [memberSlots, setMemberSlots] = useState({});
   const [existingAllocs, setExistingAllocs] = useState({});
   const [serverSearchQuery, setServerSearchQuery] = useState('');
+
+  useEscapeKey(onClose);
 
   useEffect(() => {
     fetchData('');

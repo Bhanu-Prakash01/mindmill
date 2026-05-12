@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { supportService } from '../../services';
 import {
  ArrowLeft,
@@ -16,10 +17,11 @@ import {
 import UserAvatar from '../../components/UserAvatar';
 
 const TicketDetail = () => {
- const { id, orgSlug } = useParams();
- const navigate = useNavigate();
- const { user } = useAuth();
- const messagesEndRef = useRef(null);
+  const { id, orgSlug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
+  const messagesEndRef = useRef(null);
 
  const [ticket, setTicket] = useState(null);
  const [loading, setLoading] = useState(true);
@@ -47,10 +49,10 @@ const TicketDetail = () => {
  setLoading(true);
  const response = await supportService.getTicket(id);
  setTicket(response.data?.ticket);
- } catch (error) {
- console.error('Error fetching ticket:', error);
- alert('Failed to load ticket');
- } finally {
+} catch (error) {
+  console.error('Error fetching ticket:', error);
+  toast.error('Failed to load ticket');
+  } finally {
  setLoading(false);
  }
  };
@@ -77,10 +79,10 @@ const TicketDetail = () => {
  await supportService.addResponse(id, newMessage, false);
  setNewMessage('');
  fetchTicket();
- } catch (error) {
- console.error('Error sending message:', error);
- alert('Failed to send message');
- } finally {
+} catch (error) {
+  console.error('Error sending message:', error);
+  toast.error('Failed to send message');
+  } finally {
  setSending(false);
  }
  };
@@ -90,10 +92,10 @@ const TicketDetail = () => {
  try {
  await supportService.updateStatus(id, status);
  fetchTicket();
- } catch (error) {
- console.error('Error updating status:', error);
- alert('Failed to update status');
- } finally {
+} catch (error) {
+  console.error('Error updating status:', error);
+  toast.error('Failed to update status');
+  } finally {
  setUpdatingStatus(false);
  }
  };
@@ -104,10 +106,10 @@ const TicketDetail = () => {
  try {
  await supportService.assignTicket(id, userId);
  fetchTicket();
- } catch (error) {
- console.error('Error assigning coordinator:', error);
- alert('Failed to assign coordinator');
- } finally {
+} catch (error) {
+  console.error('Error assigning coordinator:', error);
+  toast.error('Failed to assign coordinator');
+  } finally {
  setAssigningCoordinator(false);
  }
  };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   Lock,
   Clock,
@@ -15,6 +16,7 @@ import {
 const PublicTest = () => {
   const { token, category: urlCategory } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [assessment, setAssessment] = useState(null);
   const [invite, setInvite] = useState(null);
@@ -97,12 +99,12 @@ const PublicTest = () => {
 
   const handleStartTest = async () => {
     if (!testTakerName.trim()) {
-      alert('Please enter your name');
+      toast.warning('Please enter your name');
       return;
     }
 
     if (isInviteLink && !testTakerEmail.trim()) {
-      alert('Please enter your email');
+      toast.warning('Please enter your email');
       return;
     }
 
@@ -139,10 +141,10 @@ const PublicTest = () => {
           navigate(`/take/${token}/terms/${attemptData._id}`);
         }
       } else {
-        alert('Unexpected response from server. Please try again.');
+        toast.error('Unexpected response from server. Please try again.');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to start assessment');
+      toast.error(err.response?.data?.message || 'Failed to start assessment');
     } finally {
       setVerifying(false);
     }
@@ -174,6 +176,13 @@ const PublicTest = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        {assessment?.bannerImage && (
+          <img
+            src={`/${assessment.bannerImage}`}
+            alt={assessment.title}
+            className="w-full h-36 object-cover"
+          />
+        )}
         <div className="bg-indigo-600 p-6 text-center">
           {assessment?.organization?.logo && (
             <img

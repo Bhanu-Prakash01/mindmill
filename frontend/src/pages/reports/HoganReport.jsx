@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { attemptService, reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ArrowLeft,
   Download,
@@ -52,6 +53,7 @@ const HoganReport = () => {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportId, setReportId] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchReport();
@@ -73,11 +75,11 @@ const HoganReport = () => {
       setCompletedAt(attempt.completedAt);
       if (attempt.report) setReportId(attempt.report?._id?.toString() || attempt.report?.toString() || attempt.report);
     } else {
-        setError('Hogan results not found for this attempt');
+        setError('TraitMap Index results not found for this attempt');
       }
     } catch (err) {
-      console.error('Error fetching Hogan report:', err);
-      setError('Failed to load Hogan report');
+      console.error('Error fetching TraitMap Index report:', err);
+      setError('Failed to load TraitMap Index report');
     } finally {
       setLoading(false);
     }
@@ -100,7 +102,7 @@ const HoganReport = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Hogan_Report_${attemptId}.pdf`;
+      link.download = `TraitMap_Index_Report_${attemptId}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -115,11 +117,11 @@ const HoganReport = () => {
   const handleShare = async (e) => {
     e.preventDefault();
     if (!reportId) {
-      alert('Share is not available for this report yet.');
+      toast.warning('Share is not available for this report yet.');
       return;
     }
     if (!shareEmail.trim()) {
-      alert('Please enter an email address.');
+      toast.warning('Please enter an email address.');
       return;
     }
     try {
@@ -134,7 +136,7 @@ const HoganReport = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate share link');
+      toast.error(error.response?.data?.message || 'Failed to generate share link');
     } finally {
       setSharing(false);
     }
@@ -199,7 +201,7 @@ const HoganReport = () => {
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Hogan Personality Inventory</h1>
+              <h1 className="text-xl font-bold text-gray-900">TraitMap Index</h1>
               <p className="text-sm text-gray-500">
                 {testTaker?.name || 'Assessment Report'} • {completedAt && new Date(completedAt).toLocaleDateString()}
               </p>

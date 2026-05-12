@@ -15,6 +15,10 @@ const assessmentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  bannerImage: {
+    type: String,
+    default: null
+  },
 category: {
     type: String,
     enum: ['psychometric', 'personality', 'cognitive', 'aptitude', 'situational', 'professional'],

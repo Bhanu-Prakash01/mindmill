@@ -18,6 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 import AddTestTakerModal from '../../components/AddTestTakerModal';
 import BulkImportModal from '../../components/BulkImportModal';
+import { useToast } from '../../context/ToastContext';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
   <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
@@ -62,6 +63,7 @@ const UserDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchDashboardData();
@@ -87,7 +89,7 @@ const UserDashboard = () => {
       await testTakerService.resendInvite(testTakerId);
       fetchDashboardData();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resend email');
+      toast.error(err.response?.data?.message || 'Failed to resend email');
     } finally {
       setActionLoading(null);
     }
@@ -100,7 +102,7 @@ const UserDashboard = () => {
       await testTakerService.cancelInvite(testTakerId);
       fetchDashboardData();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove test taker');
+      toast.error(err.response?.data?.message || 'Failed to remove test taker');
     } finally {
       setActionLoading(null);
     }

@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { SmilePlus, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 const COOL_ICONS = [
   { icon: Rocket, color: 'bg-rose-100 text-rose-600', border: 'border-rose-200' },
@@ -94,6 +95,7 @@ const Groups = () => {
   const { orgSlug } = useParams();
   const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
   const { user } = useAuth();
+  const toast = useToast();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -389,7 +391,7 @@ const GroupFormModal = ({ group, onClose, onSuccess }) => {
       onSuccess();
     } catch (error) {
       console.error('Error saving group:', error);
-      alert(error.response?.data?.message || 'Failed to save group');
+      toast.error(error.response?.data?.message || 'Failed to save group');
     } finally {
       setLoading(false);
     }

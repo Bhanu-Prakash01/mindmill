@@ -3,24 +3,30 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService, organizationService } from '../../services';
 import {
- Settings as SettingsIcon,
- User,
- Lock,
- Bell,
- Building2,
- Palette,
- Save,
- CheckCircle,
- AlertCircle,
- Eye,
- EyeOff,
-   Camera,
-   Upload,
-   Globe,
-   Mail
+  Settings as SettingsIcon,
+  User,
+  Lock,
+  Bell,
+  Building2,
+  Palette,
+  Save,
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Camera,
+  Upload,
+  Globe,
+  Mail,
+  FileText,
+  Trash2,
+  Download,
+  FileImage,
+  File
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 import RichTextArea from '../../components/RichTextArea';
+import FilePreviewModal from '../../components/FilePreviewModal';
 
 // Preset color avatars
 const PRESET_COLORS = [
@@ -86,31 +92,36 @@ const Settings = () => {
  newPassword: '',
  confirmPassword: '',
  });
- const [showPasswords, setShowPasswords] = useState({
+  const [uploadingSection, setUploadingSection] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+
+  const [showPasswords, setShowPasswords] = useState({
  current: false,
  new: false,
  confirm: false,
  });
 
- // Organization form
- const [orgForm, setOrgForm] = useState({
- name: '',
- description: '',
- primaryColor: '#6366f1',
- secondaryColor: '#8b5cf6',
- brandingEnabled: false,
- publicProfileEnabled: false,
- moderatorName: '',
- headline: '',
- about: '',
- bestHRPractices: '',
- awardsAccolades: '',
- website: '',
- linkedin: '',
- location: '',
- industry: '',
- companySize: '',
- });
+  // Organization form
+  const [orgForm, setOrgForm] = useState({
+  name: '',
+  description: '',
+  primaryColor: '#6366f1',
+  secondaryColor: '#8b5cf6',
+  brandingEnabled: false,
+  publicProfileEnabled: false,
+  moderatorName: '',
+  headline: '',
+  about: '',
+  bestHRPractices: '',
+  awardsAccolades: '',
+  bestHRPracticesDocs: [],
+  awardsAccoladesDocs: [],
+  website: '',
+  linkedin: '',
+  location: '',
+  industry: '',
+  companySize: '',
+  });
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -145,16 +156,18 @@ const Settings = () => {
  secondaryColor: org.secondaryColor || '#8b5cf6',
 brandingEnabled: org.brandingEnabled || false,
   publicProfileEnabled: org.publicProfileEnabled !== undefined ? org.publicProfileEnabled : true,
- moderatorName: org.moderatorName || '',
- headline: org.publicProfile?.headline || '',
- about: org.publicProfile?.about || '',
- bestHRPractices: org.publicProfile?.bestHRPractices || '',
- awardsAccolades: org.publicProfile?.awardsAccolades || '',
- website: org.publicProfile?.website || '',
- linkedin: org.publicProfile?.linkedin || '',
- location: org.publicProfile?.location || '',
- industry: org.publicProfile?.industry || '',
- companySize: org.publicProfile?.companySize || '',
+  moderatorName: org.moderatorName || '',
+  headline: org.publicProfile?.headline || '',
+  about: org.publicProfile?.about || '',
+  bestHRPractices: org.publicProfile?.bestHRPractices || '',
+  awardsAccolades: org.publicProfile?.awardsAccolades || '',
+  bestHRPracticesDocs: org.publicProfile?.bestHRPracticesDocs || [],
+  awardsAccoladesDocs: org.publicProfile?.awardsAccoladesDocs || [],
+  website: org.publicProfile?.website || '',
+  linkedin: org.publicProfile?.linkedin || '',
+  location: org.publicProfile?.location || '',
+  industry: org.publicProfile?.industry || '',
+  companySize: org.publicProfile?.companySize || '',
  });
  }
  } catch (error) {
@@ -233,7 +246,50 @@ const handleProfileUpdate = async (e) => {
  }
  };
 
- const handleOrgUpdate = async (e) => {
+  const handleUploadDoc = async (section, file) => {
+    if (!file || !organization) return;
+    setUploadingSection(section);
+    try {
+      const response = await organizationService.uploadProfileDocument(organization._id, section, file);
+      const doc = response.data?.document;
+      if (doc) {
+        const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
+        setOrgForm(prev => ({
+          ...prev,
+          [docField]: [...(prev[docField] || []), doc]
+        }));
+      }
+      showMessage('Document uploaded successfully');
+    } catch (error) {
+      showMessage(error.response?.data?.message || 'Failed to upload document', 'error');
+    } finally {
+      setUploadingSection(null);
+    }
+  };
+
+  const handleDeleteDoc = async (section, documentId) => {
+    if (!organization) return;
+    try {
+      await organizationService.deleteProfileDocument(organization._id, section, documentId);
+      const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
+      setOrgForm(prev => ({
+        ...prev,
+        [docField]: prev[docField].filter(d => d._id !== documentId)
+      }));
+      showMessage('Document deleted successfully');
+    } catch (error) {
+      showMessage(error.response?.data?.message || 'Failed to delete document', 'error');
+    }
+  };
+
+  const getFileIcon = (type) => {
+    if (!type) return File;
+    if (type.startsWith('image/')) return FileImage;
+    if (type.includes('pdf')) return FileText;
+    return File;
+  };
+
+  const handleOrgUpdate = async (e) => {
  e.preventDefault();
  setSaving(true);
  try {
@@ -317,8 +373,9 @@ const getAvatarDisplay = () => {
  ...(isAdmin ? [{ id: 'organization', label: 'Organization', icon: Building2 }] : []),
  ];
 
- return (
- <div className="space-y-6">
+  return (
+  <>
+  <div className="space-y-6">
  {/* Header */}
  <div>
  <h1 className="text-2xl font-bold text-gray-900 ">Settings</h1>
@@ -601,17 +658,7 @@ const getAvatarDisplay = () => {
  <p className="text-sm text-gray-500 ">Your account password</p>
  </div>
 
- {/* Display masked password indicator */}
- <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
- <label className="block text-sm font-medium text-gray-700 mb-2">
- Current Password
- </label>
- <div className="flex items-center gap-2">
- <Lock className="w-4 h-4 text-gray-400" />
- <span className="text-gray-600 tracking-widest">••••••••</span>
- </div>
- <p className="text-xs text-gray-500 mt-2">Password is set and active</p>
- </div>
+
 
  {/* Change Password Form */}
  <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -970,6 +1017,75 @@ const getAvatarDisplay = () => {
   placeholder="Share your organization's best HR practices… (max 300 words)"
   wordLimit={300}
   />
+  {/* Uploaded documents */}
+  <div className="mt-3 space-y-2">
+    {(orgForm.bestHRPracticesDocs || []).map(doc => {
+      const isImage = doc.type?.startsWith('image/');
+      const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+      const fileUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`;
+      const FileIcon = getFileIcon(doc.type);
+      return (
+        <div key={doc._id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isImage ? (
+              <img
+                src={fileUrl}
+                alt={doc.name}
+                className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0"
+              />
+            ) : (
+              <FileIcon className="w-5 h-5 text-indigo-500 shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPreviewFile(doc)}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Preview"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+            <a
+              href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${doc.url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Download"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </a>
+            <button
+              type="button"
+              onClick={() => handleDeleteDoc('bestHRPractices', doc._id)}
+              className="p-1.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+  {/* Upload button */}
+  <div className="mt-2">
+    <label className={`inline-flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors ${uploadingSection === 'bestHRPractices' ? 'opacity-50 pointer-events-none' : ''}`}>
+      <Upload className="w-3.5 h-3.5" />
+      {uploadingSection === 'bestHRPractices' ? 'Uploading...' : 'Upload PDF or Image'}
+      <input
+        type="file"
+        accept="image/*,.pdf,.doc,.docx"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) handleUploadDoc('bestHRPractices', file);
+          e.target.value = '';
+        }}
+        className="hidden"
+        disabled={uploadingSection === 'bestHRPractices'}
+      />
+    </label>
+  </div>
   </div>
 
   {/* Awards & Accolades — 300 words */}
@@ -990,6 +1106,73 @@ const getAvatarDisplay = () => {
   placeholder="List your awards, certifications, and achievements… (max 300 words)"
   wordLimit={300}
   />
+  <div className="mt-3 space-y-2">
+    {(orgForm.awardsAccoladesDocs || []).map(doc => {
+      const isImage = doc.type?.startsWith('image/');
+      const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+      const fileUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`;
+      const FileIcon = getFileIcon(doc.type);
+      return (
+        <div key={doc._id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isImage ? (
+              <img
+                src={fileUrl}
+                alt={doc.name}
+                className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0"
+              />
+            ) : (
+              <FileIcon className="w-5 h-5 text-indigo-500 shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPreviewFile(doc)}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Preview"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+            <a
+              href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${doc.url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Download"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </a>
+            <button
+              type="button"
+              onClick={() => handleDeleteDoc('awardsAccolades', doc._id)}
+              className="p-1.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+  <div className="mt-2">
+    <label className={`inline-flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors ${uploadingSection === 'awardsAccolades' ? 'opacity-50 pointer-events-none' : ''}`}>
+      <Upload className="w-3.5 h-3.5" />
+      {uploadingSection === 'awardsAccolades' ? 'Uploading...' : 'Upload PDF or Image'}
+      <input
+        type="file"
+        accept="image/*,.pdf,.doc,.docx"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) handleUploadDoc('awardsAccolades', file);
+          e.target.value = '';
+        }}
+        className="hidden"
+        disabled={uploadingSection === 'awardsAccolades'}
+      />
+    </label>
+  </div>
   </div>
   </div>
  </div>
@@ -1072,10 +1255,15 @@ const getAvatarDisplay = () => {
  </form>
  )}
  </div>
- </div>
- </div>
- </div>
- );
+  </div>
+  </div>
+  </div>
+
+  {previewFile && (
+    <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+  )}
+  </>
+  );
 };
 
 export default Settings;

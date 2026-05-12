@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,6 +18,7 @@ import {
 const HoganTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const isPublicAccess = !!token;
 
@@ -97,7 +99,7 @@ const HoganTest = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
+        toast.warning("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
         tabSwitchCountRef.current += 1;
         setTabSwitchCount(tabSwitchCountRef.current);
         logProctoringEvent('tab_switch', { count: tabSwitchCountRef.current });
@@ -106,7 +108,7 @@ const HoganTest = () => {
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
+        toast.warning("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
         fullscreenExitsRef.current += 1;
         setFullscreenExits(fullscreenExitsRef.current);
         logProctoringEvent('fullscreen_exit', { count: fullscreenExitsRef.current });
@@ -224,7 +226,7 @@ const HoganTest = () => {
     }
 
     if (unanswered.length > 0) {
-      alert(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
+      toast.warning(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
       const firstUnanswered = unanswered[0];
       setCurrentPage(Math.floor((firstUnanswered - 1) / QUESTIONS_PER_PAGE));
       return;
@@ -268,7 +270,7 @@ const HoganTest = () => {
           }
           
           const params = new URLSearchParams({
-            assessment: assessment?.title || 'Hogan Personality',
+            assessment: assessment?.title || 'TraitMap Index',
             type: 'hogan',
             attempted: percentAttempted.toString(),
             answered: answeredCount.toString(),
@@ -285,7 +287,7 @@ const HoganTest = () => {
         throw new Error(data.message);
       }
     } catch (err) {
-      alert(err.message || 'Failed to submit assessment');
+      toast.error(err.message || 'Failed to submit assessment');
       setSubmitting(false);
     }
   };
@@ -295,11 +297,11 @@ const HoganTest = () => {
     setSubmitting(true);
     try {
       await attemptService.abandonAttempt(currentAttemptIdRef.current);
-      alert('Test abandoned');
+      toast.success('Test abandoned');
       const prefix = orgSlug ? `/o/${orgSlug}` : '';
       navigate(`${prefix}/dashboard/user`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to quit test');
+      toast.error(err.response?.data?.message || 'Failed to quit test');
     } finally {
       setSubmitting(false);
     }
@@ -322,7 +324,7 @@ const HoganTest = () => {
       newResponses[i] = Math.floor(Math.random() * 5) + 1;
     }
     setResponses(prev => ({ ...prev, ...newResponses }));
-    console.log('Dev Mode: Hogan answers filled!');
+    console.log('Dev Mode: TraitMap Index answers filled!');
   };
 
   const toggleDevMode = () => {
@@ -373,7 +375,7 @@ const HoganTest = () => {
           <div className="flex items-center justify-between h-16">
             <div>
               <h1 className="text-lg font-semibold text-gray-900">
-                {assessment?.title || 'Hogan Personality Inventory'}
+                {assessment?.title || 'TraitMap Index'}
               </h1>
               <p className="text-sm text-gray-500">
                 Question {startQuestion}-{endQuestion} of {TOTAL_QUESTIONS}
@@ -428,7 +430,7 @@ const HoganTest = () => {
       {devMode && (
         <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
           <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-            <span className="text-sm font-medium">DEV MODE ACTIVE - All Hogan answers auto-filled</span>
+            <span className="text-sm font-medium">DEV MODE ACTIVE - All TraitMap Index answers auto-filled</span>
             <button onClick={() => setDevMode(false)} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full">Turn OFF</button>
           </div>
         </div>
@@ -461,7 +463,7 @@ const HoganTest = () => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentPage === 0 && (
           <div className="mb-8 p-6 bg-blue-50 rounded-xl border border-blue-200">
-            <h2 className="text-lg font-semibold text-blue-900 mb-2">Hogan Instructions</h2>
+            <h2 className="text-lg font-semibold text-blue-900 mb-2">TraitMap Index Instructions</h2>
             <p className="text-blue-700 text-sm leading-relaxed">
               Please rate how much you agree or disagree with each statement.
               Be honest — there are no right or wrong answers.

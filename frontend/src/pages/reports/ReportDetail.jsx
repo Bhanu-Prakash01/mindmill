@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { reportService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ArrowLeft,
   Download,
@@ -31,6 +32,7 @@ const ReportDetail = () => {
   const [sharing, setSharing] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const toast = useToast();
 
   const fetchReport = async () => {
     try {
@@ -40,7 +42,7 @@ const ReportDetail = () => {
       setAdminNotes(response.data?.report?.adminNotes || '');
     } catch (error) {
       console.error('Error fetching report:', error);
-      alert('Failed to load report');
+      toast.error('Failed to load report');
     } finally {
       setLoading(false);
     }
@@ -58,10 +60,10 @@ const ReportDetail = () => {
       });
       setShowShareModal(false);
       setShareEmail('');
-      alert('Report shared successfully!');
+      toast.success('Report shared successfully!');
     } catch (error) {
       console.error('Error sharing report:', error);
-      alert('Failed to share report');
+      toast.error('Failed to share report');
     } finally {
       setSharing(false);
     }
@@ -71,10 +73,10 @@ const ReportDetail = () => {
     setSavingNotes(true);
     try {
       await reportService.addAdminNotes(id, adminNotes);
-      alert('Notes saved successfully!');
+      toast.success('Notes saved successfully!');
     } catch (error) {
       console.error('Error saving notes:', error);
-      alert('Failed to save notes');
+      toast.error('Failed to save notes');
     } finally {
       setSavingNotes(false);
     }
@@ -219,7 +221,7 @@ const ReportDetail = () => {
             </button>
           )}
           <button
-            onClick={() => setShowShareModal(true)}
+            onClick={() => { setShowShareModal(true); setShareEmail(report?.testTakerEmail || report?.user?.email || ''); }}
             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             <Share2 className="w-4 h-4 mr-2" />

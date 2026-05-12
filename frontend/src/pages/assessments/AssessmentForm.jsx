@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, organizationService } from '../../services';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import {
  ArrowLeft,
  Save,
@@ -15,7 +16,10 @@ import {
  AlertCircle,
  Lock,
  Info,
- Sparkles
+ Sparkles,
+ Image,
+ Upload,
+ X
 } from 'lucide-react';
 
 // Category → Subcategory mapping
@@ -24,6 +28,12 @@ const SUBCATEGORY_MAP = {
   personality: ['Big5'],
   cognitive: ['Reasoning'],
   aptitude: ['General Aptitude'],
+};
+
+// Display labels for subcategories (value → display label mapping)
+const SUBCATEGORY_LABELS = {
+  'FIRO-B': 'Professional Interpersonal Relations Orientation (PIRO)',
+  'Hogan': 'TraitMap Index',
 };
 
 // Big5 trait configuration for question positions
@@ -130,10 +140,11 @@ const getBig5Direction = (questionNum, trait) => {
 };
 
 const AssessmentForm = () => {
- const { id, orgSlug } = useParams();
- const navigate = useNavigate();
- const { user } = useAuth();
- const isEditing = !!id;
+  const { id, orgSlug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
+  const isEditing = !!id;
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
@@ -141,6 +152,9 @@ const AssessmentForm = () => {
   const [questions, setQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [organizations, setOrganizations] = useState([]);
+  const [bannerPreview, setBannerPreview] = useState('');
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
 
   const [formData, setFormData] = useState({
   title: '',
@@ -221,8 +235,9 @@ useEffect(() => {
  try {
  const response = await assessmentService.getAssessment(id);
  const assessment = response.data?.assessment;
- if (assessment) {
-  setFormData({
+  if (assessment) {
+   setBannerPreview(assessment.bannerImage ? `/${assessment.bannerImage}` : '');
+   setFormData({
   title: assessment.title || '',
   description: assessment.description || '',
   category: assessment.category || 'psychometric',
@@ -254,10 +269,10 @@ useEffect(() => {
   });
  fetchQuestions();
  }
- } catch (error) {
- console.error('Error fetching assessment:', error);
- alert('Failed to load assessment');
- } finally {
+} catch (error) {
+  console.error('Error fetching assessment:', error);
+  toast.error('Failed to load assessment');
+  } finally {
  setLoading(false);
  }
  };
@@ -297,16 +312,58 @@ const fetchQuestions = async () => {
     navigate(`${prefix}/assessments`);
   } catch (error) {
   console.error('Error saving assessment:', error);
-  alert(error.response?.data?.message || 'Failed to save assessment');
+  toast.error(error.response?.data?.message || 'Failed to save assessment');
   } finally {
-  setSaving(false);
-  }
+   setSaving(false);
+   }
+   };
+
+  const handleBannerChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.warning('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning('Image must be less than 5MB');
+      return;
+    }
+    setBannerFile(file);
+    setBannerPreview(URL.createObjectURL(file));
   };
 
- const handleAddQuestion = async () => {
+  const handleBannerUpload = async () => {
+    if (!bannerFile || !id) return;
+    try {
+      setBannerUploading(true);
+      const res = await assessmentService.uploadBanner(id, bannerFile);
+      setBannerPreview(res.data?.bannerUrl || bannerPreview);
+      setBannerFile(null);
+      fetchAssessment();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to upload banner');
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
+  const handleBannerRemove = async () => {
+    if (!id || !confirm('Remove this banner image?')) return;
+    try {
+      await assessmentService.deleteBanner(id);
+      setBannerPreview('');
+      setBannerFile(null);
+      fetchAssessment();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove banner');
+    }
+  };
+
+const handleAddQuestion = async () => {
  if (!newQuestion.questionText.trim()) {
- alert('Please enter a question');
- return;
+  toast.warning('Please enter a question');
+  return;
  }
  try {
  await assessmentService.createQuestion(id, newQuestion);
@@ -325,41 +382,42 @@ const fetchQuestions = async () => {
  explanation: '',
  });
  fetchQuestions();
- } catch (error) {
- console.error('Error adding question:', error);
- alert('Failed to add question');
- }
+} catch (error) {
+  console.error('Error adding question:', error);
+  toast.error('Failed to add question');
+  }
  };
 
- const handleDeleteQuestion = async (questionId) => {
+const handleDeleteQuestion = async (questionId) => {
  if (!confirm('Are you sure you want to delete this question?')) return;
  try {
- await assessmentService.deleteQuestion(id, questionId);
- fetchQuestions();
+  await assessmentService.deleteQuestion(id, questionId);
+  fetchQuestions();
  } catch (error) {
- console.error('Error deleting question:', error);
+  console.error('Error deleting question:', error);
+  toast.error('Failed to delete question');
  }
  };
 
- const handleAddBig5Question = async () => {
+const handleAddBig5Question = async () => {
  if (!newQuestion.questionText.trim()) {
- alert('Please enter a question');
- return;
+  toast.warning('Please enter a question');
+  return;
  }
  if (!newQuestion.trait) {
- alert('Please select a trait');
- return;
+  toast.warning('Please select a trait');
+  return;
  }
  if (questions.length >= 50) {
- alert('Maximum 50 questions allowed for Big5');
- return;
+  toast.warning('Maximum 50 questions allowed for Big5');
+  return;
  }
 
  // Validate trait question count
  const traitQuestions = questions.filter(q => q.trait === newQuestion.trait);
  if (traitQuestions.length >= 10) {
- alert(`${BIG5_CONFIG[newQuestion.trait].name} already has 10 questions`);
- return;
+  toast.warning(`${BIG5_CONFIG[newQuestion.trait].name} already has 10 questions`);
+  return;
  }
 
  const questionNum = questions.length + 1;
@@ -390,22 +448,22 @@ const fetchQuestions = async () => {
   fetchQuestions();
   } catch (error) {
  console.error('Error adding Big5 question:', error);
- alert(error.response?.data?.message || 'Failed to add question');
+ toast.error(error.response?.data?.message || 'Failed to add question');
  }
  };
 
  // Self-populate question based on current position and selected trait
- const handleSelfPopulate = () => {
+const handleSelfPopulate = () => {
  const questionNum = questions.length + 1;
  if (questionNum > 50) {
- alert('All 50 questions have been added');
- return;
+  toast.warning('All 50 questions have been added');
+  return;
  }
 
  const predefined = PREDEFINED_BIG5_QUESTIONS[questionNum];
  if (!predefined) {
- alert('No predefined question available for this position');
- return;
+  toast.warning('No predefined question available for this position');
+  return;
  }
 
  // Auto-select the trait and populate the question
@@ -423,7 +481,7 @@ const fetchQuestions = async () => {
   const handlePopulateAll = async () => {
     const startNum = questions.length + 1;
     if (startNum > 50) {
-      alert('All questions already added');
+      toast.warning('All questions already added');
       return;
     }
 
@@ -462,12 +520,12 @@ const fetchQuestions = async () => {
 
       if (questionsToCreate.length > 0) {
         await assessmentService.bulkCreateQuestions(id, questionsToCreate);
-        alert(`Successfully added ${questionsToCreate.length} questions.`);
+        toast.success(`Successfully added ${questionsToCreate.length} questions.`);
         fetchQuestions();
       }
     } catch (error) {
       console.error('Error in bulk create Big5:', error);
-      alert(error.response?.data?.message || 'Failed to add questions');
+      toast.error(error.response?.data?.message || 'Failed to add questions');
     } finally {
       setSaving(false);
     }
@@ -477,17 +535,17 @@ const fetchQuestions = async () => {
  // ========== DISC Question Handlers ==========
 
  // Self-populate DISC question based on current position
- const handleDiscSelfPopulate = () => {
+const handleDiscSelfPopulate = () => {
  const questionNum = questions.length + 1;
  if (questionNum > 24) {
- alert('All 24 DISC questions have been added');
- return;
+  toast.warning('All 24 DISC questions have been added');
+  return;
  }
 
  const predefined = PREDEFINED_DISC_QUESTIONS[questionNum];
  if (!predefined) {
- alert('No predefined question available for this position');
- return;
+  toast.warning('No predefined question available for this position');
+  return;
  }
 
  // Auto-populate the question with predefined data
@@ -504,7 +562,7 @@ const fetchQuestions = async () => {
   const handleDiscPopulateAll = async () => {
     const startNum = questions.length + 1;
     if (startNum > 24) {
-      alert('All questions already added');
+      toast.warning('All questions already added');
       return;
     }
 
@@ -546,30 +604,30 @@ const fetchQuestions = async () => {
 
       if (questionsToCreate.length > 0) {
         await assessmentService.bulkCreateQuestions(id, questionsToCreate);
-        alert(`Successfully added ${questionsToCreate.length} questions.`);
+        toast.success(`Successfully added ${questionsToCreate.length} questions.`);
         fetchQuestions();
       }
     } catch (error) {
       console.error('Error in bulk create DISC:', error);
-      alert(error.response?.data?.message || 'Failed to add questions');
+      toast.error(error.response?.data?.message || 'Failed to add questions');
     } finally {
       setSaving(false);
     }
   };
 
  // Add DISC question
- const handleAddDiscQuestion = async () => {
+const handleAddDiscQuestion = async () => {
  if (!newQuestion.questionText.trim()) {
- alert('Please enter a question');
- return;
+  toast.warning('Please enter a question');
+  return;
  }
  if (!newQuestion.statements || newQuestion.statements.length !== 4) {
- alert('DISC questions require exactly 4 statements');
- return;
+  toast.warning('DISC questions require exactly 4 statements');
+  return;
  }
  if (questions.length >= 24) {
- alert('Maximum 24 questions allowed for DISC');
- return;
+  toast.warning('Maximum 24 questions allowed for DISC');
+  return;
  }
 
  const questionNum = questions.length + 1;
@@ -601,10 +659,10 @@ const fetchQuestions = async () => {
  await assessmentService.createQuestion(id, discQuestion);
 
   fetchQuestions();
-  } catch (error) {
- console.error('Error adding DISC question:', error);
- alert(error.response?.data?.message || 'Failed to add question');
- }
+} catch (error) {
+  console.error('Error adding DISC question:', error);
+  toast.error(error.response?.data?.message || 'Failed to add question');
+  }
  };
 
 
@@ -621,11 +679,11 @@ const fetchQuestions = async () => {
  });
  };
 
- const removeOption = (index) => {
- if (newQuestion.options.length <= 2) {
- alert('Minimum 2 options required');
- return;
- }
+const removeOption = (index) => {
+  if (newQuestion.options.length <= 2) {
+  toast.warning('Minimum 2 options required');
+  return;
+  }
  const updatedOptions = newQuestion.options.filter((_, i) => i !== index);
  setNewQuestion({ ...newQuestion, options: updatedOptions });
  };
@@ -802,11 +860,66 @@ const fetchQuestions = async () => {
  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
  rows={3}
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- placeholder="Describe the assessment purpose"
- />
- </div>
+  placeholder="Describe the assessment purpose"
+  />
+  </div>
 
- <div className="grid grid-cols-2 gap-4">
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+   Banner Image <span className="text-gray-400 font-normal">(optional)</span>
+  </label>
+  {bannerPreview ? (
+   <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+    <img src={bannerPreview} alt="Banner preview" className="w-full h-40 object-cover" />
+    <div className="absolute top-2 right-2 flex gap-2">
+     <button
+      type="button"
+      onClick={() => document.getElementById('banner-upload').click()}
+      className="p-2 bg-white rounded-lg shadow hover:bg-gray-100 transition-colors"
+      title="Change banner"
+     >
+      <Upload className="w-4 h-4 text-gray-600" />
+     </button>
+     <button
+      type="button"
+      onClick={handleBannerRemove}
+      className="p-2 bg-white rounded-lg shadow hover:bg-red-50 transition-colors"
+      title="Remove banner"
+     >
+      <X className="w-4 h-4 text-red-600" />
+     </button>
+    </div>
+    {bannerFile && (
+     <div className="px-4 py-2 bg-indigo-50 border-t border-indigo-100 flex items-center justify-between">
+      <span className="text-sm text-indigo-700">New image selected: {bannerFile.name}</span>
+      <button
+       type="button"
+       onClick={handleBannerUpload}
+       disabled={bannerUploading}
+       className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50"
+      >
+       {bannerUploading ? 'Uploading...' : 'Upload'}
+      </button>
+     </div>
+    )}
+   </div>
+  ) : (
+   <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+    <Image className="w-8 h-8 text-gray-400 mb-2" />
+    <span className="text-sm text-gray-500">Click to upload banner image</span>
+    <span className="text-xs text-gray-400 mt-1">PNG, JPG, WebP up to 5MB</span>
+    <input
+     id="banner-upload"
+     type="file"
+     accept="image/*"
+     onChange={handleBannerChange}
+     className="hidden"
+    />
+   </label>
+  )}
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
  <div>
  <label className="block text-sm font-medium text-gray-700 mb-1">
  Category <span className="text-red-500">*</span>
@@ -886,9 +999,9 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  >
  <option value="">Select Sub Category</option>
- {SUBCATEGORY_MAP[formData.category].map((sub) => (
- <option key={sub} value={sub}>{sub}</option>
- ))}
+  {SUBCATEGORY_MAP[formData.category].map((sub) => (
+              <option key={sub} value={sub}>{SUBCATEGORY_LABELS[sub] || sub}</option>
+              ))}
  </select>
  ) : (
  <input

@@ -83,4 +83,21 @@ export const organizationService = {
     const response = await api.patch(`/organizations/${id}/admin`, { adminId });
     return response.data;
   },
+
+  uploadProfileDocument: async (id, section, file) => {
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('section', section);
+    const response = await api.post(`/organizations/${id}/profile-document`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteProfileDocument: async (id, section, documentId) => {
+    const response = await api.delete(`/organizations/${id}/profile-document`, {
+      data: { section, documentId },
+    });
+    return response.data;
+  },
 };

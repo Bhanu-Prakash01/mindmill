@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { questionBankService, assessmentService } from '../../services';
 import { FileText, Search, Plus, Eye, Download, Upload, Trash2, Filter } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 const QuestionBankList = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const QuestionBankList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dimensionFilter, setDimensionFilter] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     fetchQuestionBanks();
@@ -28,7 +30,7 @@ const QuestionBankList = () => {
       setQuestionBanks(response.data?.questionBanks || []);
     } catch (error) {
       console.error('Error fetching question banks:', error);
-      alert('Failed to load question banks');
+      toast.error('Failed to load question banks');
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ const QuestionBankList = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting question set:', error);
-      alert('Failed to export question set');
+      toast.error('Failed to export question set');
     }
   };
 

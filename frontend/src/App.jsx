@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 
 // Layouts
@@ -570,13 +571,15 @@ const AppRoutes = () => {
 };
 
 function App() {
- return (
- <AuthProvider>
- <Router>
- <AppRoutes />
- </Router>
- </AuthProvider>
- );
+  return (
+  <ToastProvider>
+    <AuthProvider>
+    <Router>
+    <AppRoutes />
+    </Router>
+    </AuthProvider>
+  </ToastProvider>
+  );
 }
 
 export default App;

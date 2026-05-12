@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Send, AlertCircle, CheckCircle, Loader2, Lock, Unlock } from 'lucide-react';
 import { assessmentService, testTakerService, organizationService } from '../services';
 import { useAuth } from '../context/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess }) => {
   const { user } = useAuth();
@@ -19,6 +20,8 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [myAllocation, setMyAllocation] = useState(null);
+
+  useEscapeKey(onClose);
 
   // Calculate available slots
   const getSlotsRemaining = () => {

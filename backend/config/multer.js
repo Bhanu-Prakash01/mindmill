@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directories exist
-const uploadDirs = ['uploads/logos', 'uploads/avatars', 'uploads/attachments', 'uploads/questions', 'uploads/banners'];
+const uploadDirs = ['uploads/logos', 'uploads/avatars', 'uploads/attachments', 'uploads/questions', 'uploads/banners', 'uploads/documents'];
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -25,6 +25,8 @@ const storage = multer.diskStorage({
       uploadPath += 'attachments/';
     } else if (file.fieldname === 'questionImage') {
       uploadPath += 'questions/';
+    } else if (file.fieldname === 'document') {
+      uploadPath += 'documents/';
     } else {
       uploadPath += 'misc/';
     }
@@ -98,10 +100,25 @@ const uploadBanner = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
+const uploadDoc = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|xls|xlsx|csv/;
+    if (allowed.test(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images, PDFs, documents, and spreadsheets are allowed'), false);
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
 module.exports = {
   uploadLogo,
   uploadAvatar,
   uploadAttachment,
   uploadQuestionImage,
-  uploadBanner
+  uploadBanner,
+  uploadDoc
 };

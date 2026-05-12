@@ -99,7 +99,7 @@ const getPublicAttempt = asyncHandler(async (req, res) => {
   const attempt = await Attempt.findById(req.params.id)
     .populate({
       path: 'assessment',
-      select: 'title category subCategory description timeBound instructions questions totalQuestions',
+      select: 'title category subCategory description bannerImage timeBound instructions questions totalQuestions',
       populate: {
         path: 'questions',
         model: 'Question',
@@ -938,6 +938,7 @@ const startPublicAttempt = asyncHandler(async (req, res) => {
         _id: assessment._id,
         title: assessment.title,
         category: assessment.category,
+        bannerImage: assessment.bannerImage,
         timeBound: assessment.timeBound,
         instructions: assessment.instructions
       },
@@ -1187,6 +1188,7 @@ const startInviteAttempt = asyncHandler(async (req, res) => {
         _id: assessment._id,
         title: assessment.title,
         category: assessment.category,
+        bannerImage: assessment.bannerImage,
         timeBound: assessment.timeBound,
         instructions: assessment.instructions
       },

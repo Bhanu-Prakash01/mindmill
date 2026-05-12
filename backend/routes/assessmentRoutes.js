@@ -25,6 +25,7 @@ const {
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
 const { assessmentValidation, idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
+const { uploadBanner } = require('../config/multer');
 
 // Public route - invite-based access (no auth required)
 router.get('/invite/:token', getAssessmentByInviteToken);
@@ -43,6 +44,35 @@ router.post('/', isSuperAdmin, assessmentValidation.create, createAssessment);
 router.post('/:id/duplicate', isSuperAdmin, idParamValidation, duplicateAssessment);
 router.put('/:id', isSuperAdmin, idParamValidation, assessmentValidation.update, updateAssessment);
 router.delete('/:id', isSuperAdmin, idParamValidation, deleteAssessment);
+
+router.post('/:id/upload-banner', isSuperAdmin, idParamValidation, uploadBanner.single('banner'), async (req, res) => {
+  const { Assessment } = require('../models');
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    return res.status(404).json({ success: false, message: 'Assessment not found' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  assessment.bannerImage = req.file.path;
+  await assessment.save();
+  res.json({ success: true, data: { bannerUrl: '/' + assessment.bannerImage } });
+});
+
+router.delete('/:id/banner', isSuperAdmin, idParamValidation, async (req, res) => {
+  const fs = require('fs');
+  const { Assessment } = require('../models');
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    return res.status(404).json({ success: false, message: 'Assessment not found' });
+  }
+  if (assessment.bannerImage) {
+    fs.unlink(assessment.bannerImage, () => {});
+    assessment.bannerImage = null;
+    await assessment.save();
+  }
+  res.json({ success: true, message: 'Banner removed' });
+});
 
 // Admin can manage (publish, assign, mute)
 router.patch('/:id/toggle-publish', isAdmin, idParamValidation, togglePublish);

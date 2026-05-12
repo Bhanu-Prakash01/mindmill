@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
  Clock,
  AlertCircle,
@@ -16,8 +17,9 @@ import {
 } from 'lucide-react';
 
 const TakeTest = () => {
- const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
- const navigate = useNavigate();
+  const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
+  const navigate = useNavigate();
+  const toast = useToast();
 
  const isPublicAccess = !!token;
  const assessmentId = isPublicAccess ? undefined : id;
@@ -54,8 +56,8 @@ const [submitting, setSubmitting] = useState(false);
 
   // Proctoring event listeners
   const handleVisibilityChange = () => {
-  if (document.hidden) {
-  alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
+if (document.hidden) {
+      toast.warning("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
   tabSwitchCountRef.current += 1;
   setTabSwitchCount(tabSwitchCountRef.current);
   logProctoringEvent('tab_switch', { count: tabSwitchCountRef.current });
@@ -63,8 +65,8 @@ const [submitting, setSubmitting] = useState(false);
   };
 
   const handleFullscreenChange = () => {
-  if (!document.fullscreenElement) {
-  alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
+if (!document.fullscreenElement) {
+      toast.warning("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
   fullscreenExitsRef.current += 1;
   setFullscreenExits(fullscreenExitsRef.current);
   logProctoringEvent('fullscreen_exit', { count: fullscreenExitsRef.current });
@@ -136,11 +138,11 @@ const [submitting, setSubmitting] = useState(false);
  requestFullscreen();
 
  setLoading(false);
- } catch (error) {
- console.error('Error starting test:', error);
- alert(error.response?.data?.message || 'Failed to start test');
- navigate(orgSlug ? `/o/${orgSlug}/assessments` : '/');
- }
+} catch (error) {
+  console.error('Error starting test:', error);
+  toast.error(error.response?.data?.message || 'Failed to start test');
+  navigate(orgSlug ? `/o/${orgSlug}/assessments` : '/');
+  }
  };
 
   const fetchPublicAssessment = async () => {
@@ -349,22 +351,22 @@ const [submitting, setSubmitting] = useState(false);
         totalTime: totalTime !== null ? totalTime.toString() : ''
       });
       navigate(`/thank-you?${params.toString()}`);
-    } catch (error) {
+} catch (error) {
       console.error('Error submitting test:', error);
-      alert(error.response?.data?.message || 'Failed to submit test');
+      toast.error(error.response?.data?.message || 'Failed to submit test');
       setSubmitting(false);
     }
   };
 
  const handleQuit = async () => {
- setSubmitting(true);
- try {
- const response = await attemptService.abandonAttempt(attempt._id);
- alert(response.message || 'Test abandoned');
- navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/');
- } catch (error) {
- console.error('Error quitting test:', error);
- alert(error.response?.data?.message || 'Failed to quit test');
+  setSubmitting(true);
+  try {
+  const response = await attemptService.abandonAttempt(attempt._id);
+  toast.success(response.message || 'Test abandoned');
+  navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/');
+  } catch (error) {
+  console.error('Error quitting test:', error);
+  toast.error(error.response?.data?.message || 'Failed to quit test');
  setSubmitting(false);
  }
  };
@@ -411,7 +413,12 @@ const [submitting, setSubmitting] = useState(false);
  <div className="min-h-screen bg-gray-50 ">
  {/* Header */}
  <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
- <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  {assessment?.bannerImage && (
+   <div className="w-full h-16 overflow-hidden">
+    <img src={`/${assessment.bannerImage}`} alt="" className="w-full h-16 object-cover" />
+   </div>
+  )}
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
  <div className="flex items-center justify-between h-16">
  <div>
  <h1 className="text-lg font-semibold text-gray-900 ">

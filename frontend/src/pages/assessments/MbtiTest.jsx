@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
+import { useToast } from '../../context/ToastContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,6 +18,7 @@ import {
 const MbtiTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const isPublicAccess = !!token;
   const assessmentId = isPublicAccess ? undefined : id;
@@ -97,7 +99,7 @@ const MbtiTest = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        alert("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
+        toast.warning("WARNING: Navigating away from the assessment tab is not allowed! This action has been recorded.");
         tabSwitchCountRef.current += 1;
         setTabSwitchCount(tabSwitchCountRef.current);
         logProctoringEvent('tab_switch', { count: tabSwitchCountRef.current });
@@ -106,7 +108,7 @@ const MbtiTest = () => {
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        alert("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
+        toast.warning("WARNING: Exiting full screen during the assessment is not allowed! Please return to full screen.");
         fullscreenExitsRef.current += 1;
         setFullscreenExits(fullscreenExitsRef.current);
         logProctoringEvent('fullscreen_exit', { count: fullscreenExitsRef.current });
@@ -224,7 +226,7 @@ const MbtiTest = () => {
     }
 
     if (unanswered.length > 0) {
-      alert(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
+      toast.warning(`Please answer all questions. Missing: ${unanswered.join(', ')}`);
       const firstUnanswered = unanswered[0];
       setCurrentPage(Math.floor((firstUnanswered - 1) / QUESTIONS_PER_PAGE));
       return;
@@ -286,7 +288,7 @@ const MbtiTest = () => {
         throw new Error(data.message);
       }
     } catch (err) {
-      alert(err.message || 'Failed to submit assessment');
+      toast.error(err.message || 'Failed to submit assessment');
       setSubmitting(false);
     }
   };
@@ -296,11 +298,11 @@ const MbtiTest = () => {
     setSubmitting(true);
     try {
       const response = await attemptService.abandonAttempt(currentAttemptId);
-      alert(response.message || 'Test abandoned');
+      toast.success(response.message || 'Test abandoned');
       const prefix = orgSlug ? `/o/${orgSlug}` : '';
       navigate(`${prefix}/dashboard/user`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to quit test');
+      toast.error(err.response?.data?.message || 'Failed to quit test');
       setSubmitting(false);
     }
   };

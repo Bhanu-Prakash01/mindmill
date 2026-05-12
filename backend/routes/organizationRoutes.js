@@ -13,13 +13,15 @@ const {
   getPublicProfile,
   addCredits,
   deleteOrganization,
-  reassignAdmin
+  reassignAdmin,
+  uploadProfileDocument,
+  deleteProfileDocument
 } = require('../controllers/organizationController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { optionalAuth } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
 const { organizationValidation, idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
-const { uploadLogo, uploadBanner } = require('../config/multer');
+const { uploadLogo, uploadBanner, uploadDoc } = require('../config/multer');
 
 // Public route for viewing organization profile
 router.get('/public/:slug', getPublicProfile);
@@ -44,5 +46,7 @@ router.put('/:id/branding', isAdmin, idParamValidation, updateBranding);
 router.put('/:id/logo', isAdmin, idParamValidation, uploadLogo.single('logo'), updateLogo);
 router.put('/:id/banner', isAdmin, idParamValidation, uploadBanner.single('banner'), updateBanner);
 router.put('/:id/public-profile', isAdmin, idParamValidation, updatePublicProfile);
+router.post('/:id/profile-document', isAdmin, idParamValidation, uploadDoc.single('document'), uploadProfileDocument);
+router.delete('/:id/profile-document', isAdmin, idParamValidation, deleteProfileDocument);
 
 module.exports = router;

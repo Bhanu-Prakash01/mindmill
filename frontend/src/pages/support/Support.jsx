@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { supportService } from '../../services';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -20,7 +21,8 @@ import {
 } from 'lucide-react';
 
 const Support = () => {
- const { user } = useAuth();
+  const { user } = useAuth();
+  const toast = useToast();
   const { orgSlug } = useParams();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -217,10 +219,10 @@ const Support = () => {
  });
  setShowDescribeField(false);
  fetchTickets();
- } catch (error) {
- console.error('Error creating ticket:', error);
- alert(error.response?.data?.message || 'Failed to create ticket');
- } finally {
+} catch (error) {
+  console.error('Error creating ticket:', error);
+  toast.error(error.response?.data?.message || 'Failed to create ticket');
+  } finally {
  setSubmitting(false);
  }
  };

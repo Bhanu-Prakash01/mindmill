@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { reportService } from '../../services';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -24,6 +25,7 @@ import UserAvatar from '../../components/UserAvatar';
 const Reports = () => {
   const { user } = useAuth();
   const { orgSlug } = useParams();
+  const toast = useToast();
   const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,7 @@ const Reports = () => {
       setDownloadModalData(null);
     } catch (error) {
       console.error('Error downloading report:', error);
-      alert('Failed to download report.');
+      toast.error('Failed to download report.');
     }
   };
 
@@ -92,7 +94,7 @@ const Reports = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF');
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -124,8 +126,8 @@ const Reports = () => {
       big5: { label: 'Big Five', color: 'bg-violet-100 text-violet-700', icon: Brain },
       disc: { label: 'DISC', color: 'bg-teal-100 text-teal-700', icon: Layers },
       mbti: { label: 'MBTI', color: 'bg-purple-100 text-purple-700', icon: Brain },
-      firo: { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
-      'firo-b': { label: 'FIRO-B', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
+      firo: { label: 'PIRO', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
+      'firo-b': { label: 'PIRO', color: 'bg-rose-100 text-rose-700', icon: FileBarChart },
       psychometric: { label: 'Psychometric', color: 'bg-purple-100 text-purple-700', icon: Brain },
       cognitive: { label: 'Cognitive', color: 'bg-blue-100 text-blue-700', icon: FileBarChart },
       situational: { label: 'Situational', color: 'bg-orange-100 text-orange-700', icon: FileBarChart },
@@ -192,7 +194,7 @@ const Reports = () => {
             <option value="all">All Types</option>
             <option value="big5">Big Five</option>
             <option value="disc">DISC</option>
-            <option value="firo">FIRO-B</option>
+            <option value="firo">PIRO</option>
             <option value="psychometric">Psychometric</option>
             <option value="key_factors">Key Factors</option>
             <option value="detailed">Detailed</option>

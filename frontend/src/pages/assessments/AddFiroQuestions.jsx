@@ -255,7 +255,7 @@ const AddFiroQuestions = () => {
       // Use bulk create
       await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
       
-      setSuccess(`Successfully added ${questionsToCreate.length} FIRO-B questions!`);
+      setSuccess(`Successfully added ${questionsToCreate.length} PIRO questions!`);
       
       // Navigate back after short delay
       setTimeout(() => {
@@ -305,10 +305,10 @@ const AddFiroQuestions = () => {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Add FIRO-B Questions
+              Add PIRO Questions
             </h1>
             <p className="text-gray-500">
-              {hasExisting ? 'Update existing questions' : 'Add 54 questions for FIRO-B assessment'}
+              {hasExisting ? 'Update existing questions' : 'Add 54 questions for PIRO assessment'}
             </p>
           </div>
         </div>

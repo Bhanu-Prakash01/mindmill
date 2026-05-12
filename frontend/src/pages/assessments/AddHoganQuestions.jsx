@@ -260,7 +260,7 @@ const AddHoganQuestions = () => {
 
       await assessmentService.bulkCreateQuestions(id, questionsToCreate, true);
 
-      setSuccess(`Successfully added ${questionsToCreate.length} Hogan questions!`);
+      setSuccess(`Successfully added ${questionsToCreate.length} TraitMap Index questions!`);
 
       setTimeout(() => {
         const prefix = orgSlug ? `/o/${orgSlug}` : '';
@@ -315,12 +315,12 @@ const AddHoganQuestions = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Add Hogan Questions
-            </h1>
-            <p className="text-gray-500">
-              {hasExisting ? 'Update existing questions' : 'Add 70 questions for Hogan assessment'}
-            </p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Add TraitMap Index Questions
+              </h1>
+              <p className="text-gray-500">
+                {hasExisting ? 'Update existing questions' : 'Add 70 questions for TraitMap Index assessment'}
+              </p>
           </div>
         </div>
         <div className="flex items-center gap-3">

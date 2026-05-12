@@ -17,8 +17,13 @@ import {
   FileText,
   Award,
   ClipboardList,
-  User
+  User,
+  Download,
+  FileImage,
+  File,
+  Eye
 } from 'lucide-react';
+import FilePreviewModal from '../../components/FilePreviewModal';
 
 // LinkedIn standard banner dimensions: 1584 × 396 px (4:1 ratio)
 const LINKEDIN_BANNER_RATIO = '4 / 1'; // CSS aspect-ratio
@@ -41,8 +46,16 @@ const WordCountBadge = ({ text, limit }) => {
 };
 
 /** Section card wrapper for Overview */
-const SectionCard = ({ icon: Icon, title, content, wordLimit, primaryColor }) => {
+const getDocIcon = (type) => {
+  if (!type) return File;
+  if (type.startsWith('image/')) return FileImage;
+  if (type.includes('pdf')) return FileText;
+  return File;
+};
+
+const SectionCard = ({ icon: Icon, title, content, wordLimit, primaryColor, documents, onPreviewDoc }) => {
   const isEmpty = !content || !content.trim();
+  const hasDocs = documents && documents.length > 0;
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
@@ -53,15 +66,69 @@ const SectionCard = ({ icon: Icon, title, content, wordLimit, primaryColor }) =>
         {!isEmpty && <WordCountBadge text={content} limit={wordLimit} />}
       </div>
       <div className="px-8 py-6">
-        {isEmpty ? (
+        {isEmpty && !hasDocs ? (
           <div className="flex flex-col items-center justify-center py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
             <FileText className="w-8 h-8 text-slate-300 mb-2" />
             <p className="text-slate-500 font-medium text-sm">No content provided yet.</p>
           </div>
         ) : (
-          <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base max-w-none">
-            <p className="whitespace-pre-wrap text-slate-600 leading-relaxed">{content}</p>
-          </div>
+          <>
+            {!isEmpty && (
+              <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base max-w-none">
+                <p className="whitespace-pre-wrap text-slate-600 leading-relaxed">{content}</p>
+              </div>
+            )}
+            {hasDocs && (
+              <div className={`${!isEmpty ? 'mt-5 pt-5 border-t border-slate-100' : ''}`}>
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Attached Documents</h4>
+                <div className="space-y-2">
+                  {documents.map(doc => {
+                    const DocIcon = getDocIcon(doc.type);
+                    const isImage = doc.type?.startsWith('image/');
+                    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+                    const fileUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`;
+                    return (
+                      <div
+                        key={doc._id}
+                        className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-colors group"
+                      >
+                        {isImage ? (
+                          <img
+                            src={fileUrl}
+                            alt={doc.name}
+                            className="w-12 h-12 rounded object-cover border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <DocIcon className="w-5 h-5 text-slate-400 shrink-0" />
+                        )}
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          {onPreviewDoc && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); onPreviewDoc(doc); }}
+                              className="p-1.5 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                              title="Preview"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <a
+                            href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${doc.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Download"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -73,6 +140,7 @@ const OrganizationProfile = () => {
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
 
   useEffect(() => {
     fetchOrg();
@@ -123,6 +191,7 @@ const OrganizationProfile = () => {
   const profile = org.publicProfile || {};
 
   return (
+    <>
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-slate-200">
 
       {/* Top Navbar */}
@@ -325,6 +394,8 @@ const OrganizationProfile = () => {
               content={profile.bestHRPractices}
               wordLimit={300}
               primaryColor={primaryColor}
+              documents={profile.bestHRPracticesDocs}
+              onPreviewDoc={setPreviewFile}
             />
 
             {/* ── Section 3: Awards & Accolades (300 words) ── */}
@@ -334,12 +405,19 @@ const OrganizationProfile = () => {
               content={profile.awardsAccolades}
               wordLimit={300}
               primaryColor={primaryColor}
+              documents={profile.awardsAccoladesDocs}
+              onPreviewDoc={setPreviewFile}
             />
 
           </div>
         </div>
       </div>
     </div>
+
+      {previewFile && (
+        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+      )}
+    </>
   );
 };
 
