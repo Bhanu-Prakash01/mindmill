@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { reportService } from '../../services';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   FileBarChart,
   Search,
@@ -18,13 +18,16 @@ import {
   ChevronDown,
   Clock,
   Key,
-  FileText
+  FileText,
+  Share2,
+  Send
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 
 const Reports = () => {
   const { user } = useAuth();
   const { orgSlug } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const orgPrefix = orgSlug ? `/o/${orgSlug}` : '';
   const [reports, setReports] = useState([]);
@@ -33,6 +36,10 @@ const Reports = () => {
   const [filterType, setFilterType] = useState('all');
   
   const [downloadModalData, setDownloadModalData] = useState(null);
+  const [shareModalReport, setShareModalReport] = useState(null);
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareExpiresIn, setShareExpiresIn] = useState(30);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -95,6 +102,27 @@ const Reports = () => {
     } catch (error) {
       console.error('Error downloading PDF:', error);
       toast.error('Failed to download PDF');
+    }
+  };
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    if (!shareEmail.trim() || !shareModalReport) return;
+
+    setSharing(true);
+    try {
+      await reportService.shareReport(shareModalReport._id, {
+        email: shareEmail,
+        expiresInDays: parseInt(shareExpiresIn),
+      });
+      setShareModalReport(null);
+      setShareEmail('');
+      toast.success('Report shared successfully!');
+    } catch (error) {
+      console.error('Error sharing report:', error);
+      toast.error('Failed to share report');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -230,7 +258,7 @@ const Reports = () => {
                 const candidatePhone = report.testTakerPhone || report.user?.phone || '';
 
                 return (
-                  <tr key={report._id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={report._id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => navigate(getReportLink(report))}>
                     {/* Candidate */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -331,7 +359,7 @@ const Reports = () => {
                     {isAdmin && (
                       <td className="px-5 py-4 text-center">
                         <button
-                          onClick={() => handleToggleVisibility(report._id, report.visibleToUser)}
+                          onClick={(e) => { e.stopPropagation(); handleToggleVisibility(report._id, report.visibleToUser); }}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                             report.visibleToUser
                               ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -350,21 +378,22 @@ const Reports = () => {
                       <div className="flex items-center justify-end gap-1">
                         <Link
                           to={getReportLink(report)}
+                          onClick={(e) => e.stopPropagation()}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="View full report"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          to={getReportLink(report)}
-                          className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Open in new tab"
+                          title="Open report"
                           target="_blank"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Link>
                         <button
-                          onClick={() => isSimpleReportType(report) ? handleSimpleReportDownload(report) : setDownloadModalData(report)}
+                          onClick={(e) => { e.stopPropagation(); setShareModalReport(report); setShareEmail(report.testTakerEmail || report.user?.email || ''); }}
+                          className="p-2 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
+                          title="Share report"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); isSimpleReportType(report) ? handleSimpleReportDownload(report) : setDownloadModalData(report); }}
                           className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Download as PDF"
                         >
@@ -389,6 +418,69 @@ const Reports = () => {
           </div>
         )}
       </div>
+
+      {shareModalReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setShareModalReport(null)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Share Report</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Share this report with a recipient via email. They will receive a secure link to view the report.
+              </p>
+
+              <form onSubmit={handleShare} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+                      placeholder="recipient@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expires In (Days)</label>
+                  <select
+                    value={shareExpiresIn}
+                    onChange={(e) => setShareExpiresIn(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 text-sm"
+                  >
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                    <option value={90}>90 days</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShareModalReport(null)}
+                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sharing}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                    {sharing ? 'Sharing...' : 'Share'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Download Modal */}
       {downloadModalData && (

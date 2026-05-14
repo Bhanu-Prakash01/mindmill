@@ -8,6 +8,7 @@ const CreditRequest = require('./CreditRequest');
 const SupportTicket = require('./SupportTicket');
 const Group = require('./Group');
 const StandardQuery = require('./StandardQuery');
+const ComplaintType = require('./ComplaintType');
 const TestTakerInvite = require('./TestTakerInvite');
 
 module.exports = {
@@ -21,5 +22,6 @@ module.exports = {
   SupportTicket,
   Group,
   StandardQuery,
+  ComplaintType,
   TestTakerInvite
 };

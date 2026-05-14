@@ -8,12 +8,22 @@ import { ToastProvider } from './context/ToastContext';
 import MainLayout from './layouts/MainLayout';
 import SuperAdminLayout from './layouts/SuperAdminLayout';
 import AuthLayout from './layouts/AuthLayout';
+import IndividualLayout from './layouts/IndividualLayout';
 
 // Pages
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 import SuperAdminDashboard from './pages/dashboard/SuperAdminDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import UserDashboard from './pages/dashboard/UserDashboard';
+import IndividualDashboard from './pages/dashboard/IndividualDashboard';
+
+// Individual pages
+import IndividualAssessments from './pages/individual/IndividualAssessments';
+import IndividualReports from './pages/individual/IndividualReports';
+import IndividualCredits from './pages/individual/IndividualCredits';
+import IndividualSupport from './pages/individual/IndividualSupport';
+import IndividualProfile from './pages/individual/IndividualProfile';
 
 // Users
 import Users from './pages/users/Users';
@@ -114,6 +124,11 @@ const SuperAdminRedirect = () => {
  return <Navigate to="/login" replace />;
  }
 
+ // Individual user (no org) goes to /dashboard
+ if (user?.accountType === 'individual' || (!user?.organization && user?.role !== 'superadmin')) {
+  return <Navigate to="/dashboard" replace />;
+ }
+
  if (user?.role === 'superadmin') {
  return <Navigate to="/dashboard/superadmin" replace />;
  }
@@ -174,6 +189,8 @@ const AppRoutes = () => {
    <Route path="/reset-password/:token" element={<ResetPassword />} />
    </Route>
 
+   {/* Free Trial Registration */}
+   <Route path="/register" element={<Register />} />
    {/* Public Organization Profile */}
    <Route path="/org/:slug" element={<OrganizationProfile />} />
 
@@ -201,6 +218,22 @@ const AppRoutes = () => {
 
      <Route path="/reports/shared/:token" element={<SharedReport />} />
 
+    {/* Report View Routes — accessible to any authenticated user (no role restriction) */}
+    <Route element={<ProtectedRoute />}>
+      <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
+      <Route path="/reports/disc/:attemptId" element={<DiscReport />} />
+      <Route path="/reports/mbti/:attemptId" element={<MbtiReport />} />
+      <Route path="/reports/hogan/:attemptId" element={<HoganReport />} />
+      <Route path="/reports/firo/:attemptId" element={<FiroReport />} />
+      <Route path="/reports/situational/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/sjt/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
+      <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
+      <Route path="/reports/:id" element={<ReportDetail />} />
+    </Route>
+
     {/* SuperAdmin Routes (at root, auth required) */}
     <Route
     element={
@@ -224,17 +257,6 @@ const AppRoutes = () => {
      <Route path="/assessments/:id/questions/disc" element={<AddDiscQuestions />} />
      <Route path="/assessments/:id/questions/generic" element={<AddGenericQuestions />} />
      <Route path="/reports" element={<Reports />} />
-     <Route path="/reports/big5/:attemptId" element={<Big5Report />} />
-<Route path="/reports/disc/:attemptId" element={<DiscReport />} />
-      <Route path="/reports/mbti/:attemptId" element={<MbtiReport />} />
-      <Route path="/reports/hogan/:attemptId" element={<HoganReport />} />
-<Route path="/reports/firo/:attemptId" element={<FiroReport />} />
-      <Route path="/reports/situational/:attemptId" element={<SimpleReport />} />
-      <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
-      <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
-      <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
-     <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
-     <Route path="/reports/:id" element={<ReportDetail />} />
     <Route path="/credits" element={<Credits />} />
     <Route path="/support" element={<Support />} />
     <Route path="/support/:id" element={<TicketDetail />} />
@@ -243,6 +265,32 @@ const AppRoutes = () => {
 
    {/* Root redirect */}
    <Route path="/" element={<SuperAdminRedirect />} />
+
+   {/* Individual Account Routes — wrapped in IndividualLayout */}
+   <Route
+     element={
+       <ProtectedRoute>
+         <IndividualLayout />
+       </ProtectedRoute>
+     }
+   >
+     <Route path="/dashboard" element={<IndividualDashboard />} />
+     <Route path="/individual/assessments" element={<IndividualAssessments />} />
+     <Route path="/individual/reports" element={<IndividualReports />} />
+     <Route path="/individual/credits" element={<IndividualCredits />} />
+     <Route path="/individual/support" element={<IndividualSupport />} />
+     <Route path="/individual/profile" element={<IndividualProfile />} />
+   </Route>
+
+   {/* Individual Test-Taking Routes (no sidebar — full-screen pages) */}
+   <Route path="/assessments/:id/terms" element={<ProtectedRoute><TestTermsAndConditions /></ProtectedRoute>} />
+   <Route path="/assessments/:id/:category/terms" element={<ProtectedRoute><TestTermsAndConditions /></ProtectedRoute>} />
+   <Route path="/assessments/:id/take" element={<ProtectedRoute><TakeTest /></ProtectedRoute>} />
+   <Route path="/assessments/:id/big5" element={<ProtectedRoute><Big5Test /></ProtectedRoute>} />
+   <Route path="/assessments/:id/disc" element={<ProtectedRoute><DiscTest /></ProtectedRoute>} />
+   <Route path="/assessments/:id/mbti" element={<ProtectedRoute><MbtiTest /></ProtectedRoute>} />
+   <Route path="/assessments/:id/hogan" element={<ProtectedRoute><HoganTest /></ProtectedRoute>} />
+   <Route path="/assessments/:id/firo" element={<ProtectedRoute><FiroTest /></ProtectedRoute>} />
 
    {/* Org-Scoped Routes under /o/:orgSlug */}
    <Route path="/o/:orgSlug">
@@ -504,6 +552,14 @@ const AppRoutes = () => {
      element={
      <ProtectedRoute>
      <FiroReport />
+     </ProtectedRoute>
+     }
+     />
+     <Route
+     path="reports/sjt/:attemptId"
+     element={
+     <ProtectedRoute>
+     <SimpleReport />
      </ProtectedRoute>
      }
      />
