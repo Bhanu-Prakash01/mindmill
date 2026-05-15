@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -21,6 +22,7 @@ const DiscTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refreshUser } = useAuth();
   
   const isPublicAccess = !!token;
   const assessmentId = isPublicAccess ? undefined : id;
@@ -387,8 +389,12 @@ const DiscTest = () => {
           });
           navigate(`/thank-you?${params.toString()}`);
         } else {
-          const prefix = orgSlug ? `/o/${orgSlug}` : '';
-          navigate(`${prefix}/reports/disc/${data.data.attempt._id}`);
+          await refreshUser();
+          if (orgSlug) {
+            navigate(`/o/${orgSlug}/reports/disc/${data.data.attempt._id}`);
+          } else {
+            navigate('/individual/reports');
+          }
         }
       } else {
         throw new Error(data.message);
@@ -405,8 +411,11 @@ const DiscTest = () => {
     try {
       const response = await attemptService.abandonAttempt(attemptId);
       toast.success(response.message || 'Test abandoned');
-      const prefix = orgSlug ? `/o/${orgSlug}` : '';
-      navigate(`${prefix}/dashboard/user`);
+      if (orgSlug) {
+        navigate(`/o/${orgSlug}/dashboard/user`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to quit test');
       setSubmitting(false);

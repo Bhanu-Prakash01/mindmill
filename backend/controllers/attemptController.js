@@ -22,7 +22,7 @@ const getAttempts = asyncHandler(async (req, res) => {
   }
 
   const attempts = await Attempt.find(query)
-    .populate('assessment', 'title category difficulty timeBound')
+    .populate('assessment', 'title category subCategory difficulty timeBound')
     .populate('report', 'generatedAt')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
@@ -72,14 +72,16 @@ const getAttempt = asyncHandler(async (req, res) => {
 
   // For authenticated attempts, check permissions
   if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
-    if (attempt.user && attempt.user._id.toString() !== req.user._id.toString()) {
+    if (attempt.user && attempt.user._id && attempt.user._id.toString() !== req.user._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
   }
 
   // Admin can only view attempts from their organization
   if (req.user.role === 'admin') {
-    if (attempt.organization.toString() !== req.user.organization._id.toString()) {
+    const attemptOrgId = attempt.organization?.toString?.() || attempt.organization;
+    const userOrgId = req.user.organization?._id?.toString?.() || req.user.organization?.toString?.();
+    if (attemptOrgId && userOrgId && attemptOrgId !== userOrgId) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -143,8 +145,11 @@ const startAttempt = asyncHandler(async (req, res) => {
   }
 
   // Check if user has access to this assessment
+  // Individual users (no org) can access any active/published assessment — credit check is done below
+  const isIndividual = req.user.accountType === 'individual' && !req.user.organization;
   const hasAccess = req.user.role === 'superadmin' ||
     req.user.role === 'admin' ||
+    isIndividual ||
     req.user.assignedAssessments.includes(assessmentId) ||
     assessment.assignedUsers.includes(req.user._id);
 
@@ -192,7 +197,8 @@ const startAttempt = asyncHandler(async (req, res) => {
 
   // Check if assessment is unlocked for this organization (test slot available)
   const isSuperAdmin = req.user.role === 'superadmin';
-  if (!isSuperAdmin) {
+
+  if (!isSuperAdmin && !isIndividual) {
     const orgId = req.user.organization?._id?.toString();
     if (!orgId) {
       throw new ApiError(403, 'You must belong to an organization to take assessments');
@@ -212,6 +218,17 @@ const startAttempt = asyncHandler(async (req, res) => {
     }
   }
 
+  if (isIndividual) {
+    // Free trial: ANY published assessment can be taken once for free
+    // After free trial is used, user must have personalCredits balance
+    const creditBalance = (req.user.personalCredits?.total || 0) - (req.user.personalCredits?.used || 0);
+    const freeTrialAvailable = !req.user.freeTrialUsed;
+
+    if (!freeTrialAvailable && creditBalance <= 0) {
+      throw new ApiError(403, 'Insufficient credits. Please purchase credits to take this assessment.');
+    }
+  }
+
   // Calculate expiry time
   let expiresAt = null;
   if (assessment.timeBound.enabled) {
@@ -219,7 +236,7 @@ const startAttempt = asyncHandler(async (req, res) => {
   }
 
   // Create attempt
-  let orgId = req.user.organization?._id;
+  let orgId = req.user.organization?._id || null;
   if (!orgId && isSuperAdmin) {
     const { Organization } = require('../models');
     let mindmilOrg = await Organization.findOne({ slug: 'mindmil' });
@@ -232,11 +249,12 @@ const startAttempt = asyncHandler(async (req, res) => {
     }
     orgId = mindmilOrg._id;
   }
+  // Individual users: orgId remains null — Attempt.organization is now optional
 
   const attempt = await Attempt.create({
     user: req.user._id,
     assessment: assessmentId,
-    organization: orgId,
+    organization: orgId,  // null for individual users
     status: 'in-progress',
     expiresAt,
     timeLimit: assessment.timeBound.enabled ? assessment.timeBound.durationMinutes * 60 : 0,
@@ -334,13 +352,25 @@ const saveAnswer = asyncHandler(async (req, res) => {
           attempt.creditDeducted = true;
           const assessment = await Assessment.findById(attempt.assessment);
           if (assessment) {
-            const orgId = attempt.organization.toString();
-            const unlockEntry = assessment.unlockedBy?.find(
-              u => u.organization.toString() === orgId
-            );
-            if (unlockEntry) {
-              unlockEntry.testsUsed += 1;
-              await assessment.save();
+            const isIndividualUser = user?.accountType === 'individual' && !user?.organization;
+            if (isIndividualUser) {
+              if (!user.freeTrialUsed) {
+                user.freeTrialUsed = true;
+                user.freeTrialAssessmentId = attempt.assessment;
+                user.freeTrialAttemptId = attempt._id;
+              } else {
+                user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+              }
+              await user.save();
+            } else {
+              const orgId = attempt.organization.toString();
+              const unlockEntry = assessment.unlockedBy?.find(
+                u => u.organization.toString() === orgId
+              );
+              if (unlockEntry) {
+                unlockEntry.testsUsed += 1;
+                await assessment.save();
+              }
             }
           }
         }
@@ -432,6 +462,14 @@ const assessment = await Assessment.findById(attempt.assessment);
     return await handleFiroSubmit(req, res, attempt, assessment);
   }
 
+  if (assessSubCategory === 'sjt' || assessSubCategory === 'situational judgement' || assessCategory === 'sjt') {
+    return await handleSjtSubmit(req, res, attempt, assessment);
+  }
+
+  if (assessSubCategory === 'pcla' || assessSubCategory === 'coachability' || assessCategory === 'pcla') {
+    return await handlePclaSubmit(req, res, attempt, assessment);
+  }
+
   // Calculate scores
   let totalScore = 0;
   let maxScore = 0;
@@ -482,25 +520,35 @@ const assessment = await Assessment.findById(attempt.assessment);
   attempt.passed = percentage >= assessment.passingPercentage;
   attempt.dimensionScores = dimensionScores;
 
-  // Deduct test slot from assessment's unlock pool (completed = always counts)
-  // For invite-based attempts (isPublicAttempt=true but has invite), we also deduct
+  // Deduct test slot / credits on completion
   if (!attempt.creditDeducted) {
     const shouldDeduct = !attempt.isPublicAttempt || attempt.invite;
     if (shouldDeduct) {
       attempt.creditDeducted = true;
-      const orgId = attempt.organization.toString();
-      
+
       const { User } = require('../models');
       const user = await User.findById(attempt.user);
       const isSuperAdminUser = user?.role === 'superadmin';
-      
-      const unlockEntry = assessment.unlockedBy?.find(
-        u => u.organization.toString() === orgId
-      );
-      if (unlockEntry) {
-        unlockEntry.testsUsed += 1;
-        
-        if (!isSuperAdminUser) {
+      const isIndividualUser = user?.accountType === 'individual' && !user?.organization;
+
+      if (isIndividualUser) {
+        // Individual: use free trial (any assessment) or deduct personalCredits
+        if (!user.freeTrialUsed) {
+          user.freeTrialUsed = true;
+          user.freeTrialAssessmentId = attempt.assessment;
+          user.freeTrialAttemptId = attempt._id;
+        } else {
+          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+        }
+        await user.save();
+      } else if (!isSuperAdminUser) {
+        const orgId = attempt.organization?.toString();
+        if (!orgId) return; // safety guard — no org, skip credit deduction
+        const unlockEntry = assessment.unlockedBy?.find(
+          u => u.organization.toString() === orgId
+        );
+        if (unlockEntry) {
+          unlockEntry.testsUsed += 1;
           const { Organization } = require('../models');
           const organization = await Organization.findById(orgId);
           if (organization) {
@@ -508,10 +556,8 @@ const assessment = await Assessment.findById(attempt.assessment);
             if (creditCost == null) {
               creditCost = organization.credits?.creditCost?.[assessment.category] ?? 5;
             }
-            
             organization.credits.locked = Math.max(0, (organization.credits.locked || 0) - creditCost);
             organization.credits.used += creditCost;
-            
             const now = new Date();
             let remainingToTrack = creditCost;
             for (const batch of organization.credits.batches) {
@@ -523,12 +569,10 @@ const assessment = await Assessment.findById(attempt.assessment);
                 if (remainingToTrack <= 0) break;
               }
             }
-            
             await organization.save();
           }
+          await assessment.save();
         }
-        
-        await assessment.save();
       }
     }
   }
@@ -1025,13 +1069,25 @@ const abandonAttempt = asyncHandler(async (req, res) => {
         creditDeducted = true;
         const assessment = await Assessment.findById(attempt.assessment);
         if (assessment) {
-          const orgId = attempt.organization.toString();
-          const unlockEntry = assessment.unlockedBy?.find(
-            u => u.organization.toString() === orgId
-          );
-          if (unlockEntry) {
-            unlockEntry.testsUsed += 1;
-            await assessment.save();
+          const isIndividualUser = user?.accountType === 'individual' && !user?.organization;
+          if (isIndividualUser) {
+            if (!user.freeTrialUsed) {
+              user.freeTrialUsed = true;
+              user.freeTrialAssessmentId = attempt.assessment;
+              user.freeTrialAttemptId = attempt._id;
+            } else {
+              user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+            }
+            await user.save();
+          } else {
+            const orgId = attempt.organization.toString();
+            const unlockEntry = assessment.unlockedBy?.find(
+              u => u.organization.toString() === orgId
+            );
+            if (unlockEntry) {
+              unlockEntry.testsUsed += 1;
+              await assessment.save();
+            }
           }
         }
       }
@@ -1687,9 +1743,193 @@ async function handleFiroSubmit(req, res, attempt, assessment) {
   });
 }
 
-/**
- * Deduct test slot from unlock pool
- */
+// ─────────────────────────────────────────────────────────────
+// SJT — Executive Situational Judgement Index
+// ─────────────────────────────────────────────────────────────
+async function handleSjtSubmit(req, res, attempt, assessment) {
+  const { scoreSJT } = require('../services/sjtScoringService');
+  const { SJT_QUESTIONS } = require('../seeders/sjtQuestions');
+
+  // Build responses map: { "Q1": "A", ... } from req.body.responses
+  // Frontend sends { questionId: selectedIndex } for MCQ
+  // We also support { order: optionKey } and attempt.answers fallback
+  let responses = {};
+
+  if (req.body && req.body.responses && typeof req.body.responses === 'object') {
+    responses = req.body.responses;
+  }
+
+  // Fallback: reconstruct from saved answers on the attempt
+  if (!Object.keys(responses).length && attempt.answers && attempt.answers.length > 0) {
+    const attemptWithQ = await Attempt.findById(attempt._id).populate({
+      path: 'answers.question',
+      select: 'order options'
+    });
+    if (attemptWithQ?.answers) {
+      for (const ans of attemptWithQ.answers) {
+        if (!ans.question) continue;
+        const order = ans.question.order;
+        const optionIndex = ans.selectedOption;
+        const optKeys = ['A', 'B', 'C', 'D'];
+        if (optionIndex != null && optKeys[optionIndex]) {
+          responses[`Q${order}`] = optKeys[optionIndex];
+        }
+      }
+    }
+  }
+
+  // Use the seeded question bank (weights are embedded)
+  // If questions are populated on the assessment, prefer them;
+  // otherwise fall back to SJT_QUESTIONS seeder for weights.
+  const questionBank = SJT_QUESTIONS;
+
+  const sjtResults = scoreSJT(responses, questionBank);
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.sjtResults = sjtResults;
+  attempt.score = sjtResults.rawScore;
+  attempt.totalMarks = sjtResults.maxRaw;
+  attempt.percentage = sjtResults.situationalIndex;
+  attempt.answeredQuestions = Object.keys(responses).length;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'sjt',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: {
+      total: sjtResults.rawScore,
+      maxScore: sjtResults.maxRaw,
+      percentage: sjtResults.situationalIndex,
+      percentile: sjtResults.percentile,
+    },
+    analysis: {
+      summary: sjtResults.summary,
+      personalityProfile: sjtResults.band,
+      strengths: sjtResults.strongestDimension ? [sjtResults.strongestDimension] : [],
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Situational Judgement Assessment completed successfully',
+    data: { attempt, results: sjtResults, report }
+  });
+}
+
+async function handlePclaSubmit(req, res, attempt, assessment) {
+  const { scorePCLA } = require('../services/pclaScoringService');
+  const { PCLA_QUESTIONS } = require('../seeders/pclaQuestions');
+
+  // Build responses map: { "Q1": "A", ... } from req.body.responses
+  let responses = {};
+
+  if (req.body && req.body.responses && typeof req.body.responses === 'object') {
+    responses = req.body.responses;
+  }
+
+  // Fallback: reconstruct from saved answers on the attempt
+  if (!Object.keys(responses).length && attempt.answers && attempt.answers.length > 0) {
+    const attemptWithQ = await Attempt.findById(attempt._id).populate({
+      path: 'answers.question',
+      select: 'order options'
+    });
+    if (attemptWithQ?.answers) {
+      for (const ans of attemptWithQ.answers) {
+        if (!ans.question) continue;
+        const order = ans.question.order;
+        const optionIndex = ans.selectedOption;
+        const optKeys = ['A', 'B', 'C', 'D'];
+        if (optionIndex != null && optKeys[optionIndex]) {
+          responses[`Q${order}`] = optKeys[optionIndex];
+        }
+      }
+    }
+  }
+
+  const questionBank = PCLA_QUESTIONS;
+  const pclaResults = scorePCLA(responses, questionBank);
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.sjtResults = pclaResults; // reuse sjtResults field (Mixed type) for PCLA
+  attempt.score = pclaResults.rawScore;
+  attempt.totalMarks = pclaResults.maxRaw;
+  attempt.percentage = pclaResults.coachabilityIndex;
+  attempt.answeredQuestions = Object.keys(responses).length;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'pcla',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: {
+      total: pclaResults.rawScore,
+      maxScore: pclaResults.maxRaw,
+      percentage: pclaResults.coachabilityIndex,
+      percentile: pclaResults.percentile,
+    },
+    analysis: {
+      summary: pclaResults.summary,
+      personalityProfile: pclaResults.band,
+      strengths: pclaResults.greenFlags || [],
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Coachability Assessment completed successfully',
+    data: { attempt, results: pclaResults, report }
+  });
+}
+
 async function deductTestSlot(attempt, assessment) {
   if (attempt.creditDeducted) return;
   

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { creditService, organizationService } from '../../services';
@@ -36,6 +37,7 @@ const Credits = () => {
   const [approveForm, setApproveForm] = useState({ creditsGranted: 0, expiryInDays: '', expiryMode: 'preset', customExpiryDate: '' });
   const [approving, setApproving] = useState(false);
 
+  const [selectedOrgDetail, setSelectedOrgDetail] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOrg, setFilterOrg] = useState('all');
@@ -219,9 +221,41 @@ const handleRejectRequest = async (id) => {
  )}
  </div>
 
- {/* Credit Stats */}
-  {organization?.credits && (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  {/* Credit Summary Report (SuperAdmin) */}
+  {isSuperAdmin && creditSummary && (
+    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Credit Summary</h2>
+        <Coins className="w-6 h-6 opacity-80" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div>
+          <p className="text-xs text-indigo-200 uppercase tracking-wide">Organizations</p>
+          <p className="text-2xl font-bold mt-1">{creditSummary.organizationCount}</p>
+        </div>
+        <div>
+          <p className="text-xs text-indigo-200 uppercase tracking-wide">Total Credits</p>
+          <p className="text-2xl font-bold mt-1">{creditSummary.totalCredits}</p>
+        </div>
+        <div>
+          <p className="text-xs text-indigo-200 uppercase tracking-wide">Used</p>
+          <p className="text-2xl font-bold mt-1">{creditSummary.totalUsed}</p>
+        </div>
+        <div>
+          <p className="text-xs text-indigo-200 uppercase tracking-wide">Locked</p>
+          <p className="text-2xl font-bold mt-1">{creditSummary.totalLocked}</p>
+        </div>
+        <div>
+          <p className="text-xs text-indigo-200 uppercase tracking-wide">Available</p>
+          <p className="text-2xl font-bold mt-1">{creditSummary.totalAvailable}</p>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Credit Stats */}
+   {organization?.credits && (
+   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
   <div className="bg-white rounded-xl border border-gray-200 p-6">
   <div className="flex items-center justify-between">
   <div>
@@ -329,17 +363,48 @@ const handleRejectRequest = async (id) => {
             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
 )}
  
- {/* All Organizations Credits (SuperAdmin Only) */}
- {isSuperAdmin && allOrganizations.length > 0 && (
- <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-   <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-     <h2 className="text-lg font-semibold text-gray-900">All Organizations Credits</h2>
-     <div className="text-sm text-gray-500">
-       Total: <span className="font-bold text-indigo-600">{creditSummary?.totalCredits || 0}</span> | 
-       Available: <span className="font-bold text-green-600">{creditSummary?.totalAvailable || 0}</span>
-     </div>
-   </div>
-   <div className="overflow-x-auto">
+  {/* All Organizations Credits (SuperAdmin Only) */}
+  {isSuperAdmin && allOrganizations.length > 0 && (
+  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+      <h2 className="text-lg font-semibold text-gray-900">All Organizations Credits</h2>
+      <div className="text-sm text-gray-500">
+        Total: <span className="font-bold text-indigo-600">{creditSummary?.totalCredits || 0}</span> | 
+        Available: <span className="font-bold text-green-600">{creditSummary?.totalAvailable || 0}</span>
+        {selectedOrgDetail && (
+          <button onClick={() => setSelectedOrgDetail(null)} className="ml-3 text-xs text-indigo-600 hover:underline">Clear</button>
+        )}
+      </div>
+    </div>
+
+    {selectedOrgDetail && (
+      <div className="mx-6 my-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900">{selectedOrgDetail.name}</h3>
+          <button onClick={() => setSelectedOrgDetail(null)} className="text-xs text-indigo-600 hover:underline">Clear</button>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">{selectedOrgDetail.total}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Used</p>
+            <p className="text-xl font-bold text-orange-600 mt-0.5">{selectedOrgDetail.used}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Locked</p>
+            <p className="text-xl font-bold text-amber-600 mt-0.5">{selectedOrgDetail.locked}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Available</p>
+            <p className="text-xl font-bold text-green-600 mt-0.5">{selectedOrgDetail.available}</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div className="overflow-x-auto">
      <table className="w-full">
        <thead className="bg-gray-50">
          <tr>
@@ -352,17 +417,22 @@ const handleRejectRequest = async (id) => {
          </tr>
        </thead>
        <tbody className="divide-y divide-gray-200">
-         {allOrganizations.map((org) => (
-           <tr key={org._id} className="hover:bg-gray-50">
-             <td className="px-6 py-4">
-               <Link 
-                 to={`/o/${org.slug}/dashboard`}
-                 className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-               >
-                 {org.name}
-               </Link>
-               <p className="text-xs text-gray-400">{org.slug}</p>
-             </td>
+          {allOrganizations.map((org) => (
+            <tr
+              key={org._id}
+              className="hover:bg-gray-50 cursor-pointer"
+              onClick={() => setSelectedOrgDetail(selectedOrgDetail?._id === org._id ? null : { _id: org._id, name: org.name, total: org.credits.total, used: org.credits.used, locked: org.credits.locked, available: org.credits.available })}
+            >
+              <td className="px-6 py-4">
+                <Link 
+                  to={`/o/${org.slug}/dashboard`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  {org.name}
+                </Link>
+                <p className="text-xs text-gray-400">{org.slug}</p>
+              </td>
              <td className="px-6 py-4 text-sm font-bold text-gray-900">
                {org.credits.total}
              </td>
@@ -505,13 +575,21 @@ const handleRejectRequest = async (id) => {
  <tbody className="divide-y divide-gray-200 ">
  {filteredRequests.map((request) => (
  <tr key={request._id} className="hover:bg-gray-50 ">
- {isSuperAdmin && (
- <td className="px-6 py-4">
- <div className="text-sm text-gray-900 ">
- {request.organization?.name}
- </div>
- </td>
- )}
+  {isSuperAdmin && (
+  <td className="px-6 py-4">
+  {request.requestType === 'individual' || !request.organization ? (
+    <div>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 mb-1">Individual</span>
+      <div className="text-sm text-gray-900">
+        {request.requestedForUser?.firstName} {request.requestedForUser?.lastName}
+      </div>
+      <div className="text-xs text-gray-400">{request.requestedForUser?.email}</div>
+    </div>
+  ) : (
+    <div className="text-sm text-gray-900">{request.organization?.name}</div>
+  )}
+  </td>
+  )}
  <td className="px-6 py-4">
  <div className="text-sm text-gray-900 ">
  {request.requestedBy?.firstName} {request.requestedBy?.lastName}

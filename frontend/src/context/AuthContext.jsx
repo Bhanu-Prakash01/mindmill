@@ -35,27 +35,49 @@ export const AuthProvider = ({ children }) => {
   return response;
  };
 
+ const registerFreeTrial = async (registrationData) => {
+  const response = await authService.registerFreeTrial(registrationData);
+  if (response.success) {
+   setUser(response.data.user);
+  }
+  return response;
+ };
+
  const logout = async () => {
   await authService.logout();
   setUser(null);
  };
 
- const updateUser = (updatedUser) => {
-  setUser(updatedUser);
-  localStorage.setItem('user', JSON.stringify(updatedUser));
- };
+  const updateUser = (updatedUser) => {
+   setUser(updatedUser);
+   localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
 
- const value = useMemo(() => ({
-  user,
-  login,
-  demoLogin,
-  logout,
-  updateUser,
-  loading,
+  const refreshUser = async () => {
+    try {
+      const response = await authService.getMe();
+      if (response.success) {
+        updateUser(response.data.user);
+      }
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+    }
+  };
+
+  const value = useMemo(() => ({
+   user,
+   login,
+   demoLogin,
+   registerFreeTrial,
+   logout,
+   updateUser,
+   refreshUser,
+   loading,
   isAuthenticated: !!user,
   isSuperAdmin: user?.role === 'superadmin',
   isAdmin: user?.role === 'admin' || user?.role === 'superadmin',
   isUser: user?.role === 'user',
+  isIndividual: user?.accountType === 'individual',
  }), [user, loading]);
 
  return (

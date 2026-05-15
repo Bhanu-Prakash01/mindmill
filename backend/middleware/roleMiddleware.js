@@ -159,11 +159,28 @@ const isOwnerOrAdmin = (getResourceUserId) => {
   };
 };
 
+/**
+ * Allow admin/superadmin OR individual account users (no org)
+ * Used for credit request endpoints that individual users also need
+ */
+const isAdminOrIndividual = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  }
+  const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+  const isIndividual = req.user.accountType === 'individual' && !req.user.organization;
+  if (!isAdmin && !isIndividual) {
+    return res.status(403).json({ success: false, message: 'Access denied.' });
+  }
+  next();
+};
+
 module.exports = {
   roleMiddleware,
   hasRole,
   isSuperAdmin,
   isAdmin,
+  isAdminOrIndividual,
   isSameOrganization,
   isOwnerOrAdmin
 };

@@ -55,12 +55,9 @@ const submitHogan = asyncHandler(async (req, res) => {
   attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
   attempt.hoganResults = hoganResults.results;
   attempt.answeredQuestions = responseKeys.length;
-  attempt.answers = responseKeys.map(qNum => ({
-    question: qNum,
-    selectedOption: responses[qNum],
-    textAnswer: null,
-    ratingAnswer: null
-  }));
+  // Hogan stores all results in hoganResults — no need to populate attempt.answers
+  // (answers[] requires ObjectId question refs which we don't have for Hogan order numbers)
+
 
   if (!attempt.creditDeducted && !attempt.isPublicAttempt && req.user.role !== 'superadmin') {
     attempt.creditDeducted = true;
@@ -312,12 +309,8 @@ const submitHoganPublic = asyncHandler(async (req, res) => {
   attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
   attempt.hoganResults = hoganResults.results;
   attempt.answeredQuestions = responseKeys.length;
-  attempt.answers = responseKeys.map(qNum => ({
-    question: qNum,
-    selectedOption: responses[qNum],
-    textAnswer: null,
-    ratingAnswer: null
-  }));
+  // Hogan stores all results in hoganResults — no need to populate attempt.answers
+
 
   await attempt.save();
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getTickets,
+  getMyTickets,
   getTicket,
   createTicket,
   addResponse,
@@ -18,7 +19,7 @@ const { supportTicketLimiter } = require('../middleware/rateLimiter');
 router.use(authMiddleware);
 
 router.get('/tickets', paginationValidation, getTickets);
-router.get('/my-tickets', paginationValidation, getTickets);
+router.get('/my-tickets', paginationValidation, getMyTickets);
 router.get('/tickets/:id', idParamValidation, getTicket);
 router.get('/stats', isAdmin, getStats);
 router.get('/coordinators', isAdmin, getCoordinators);

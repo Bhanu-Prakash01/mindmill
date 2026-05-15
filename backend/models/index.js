@@ -2,6 +2,7 @@ const User = require('./User');
 const Organization = require('./Organization');
 const Assessment = require('./Assessment');
 const Question = require('./Question');
+const Resource = require('./Resource');
 const Attempt = require('./Attempt');
 const Report = require('./Report');
 const CreditRequest = require('./CreditRequest');
@@ -16,6 +17,7 @@ module.exports = {
   Organization,
   Assessment,
   Question,
+  Resource,
   Attempt,
   Report,
   CreditRequest,

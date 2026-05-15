@@ -36,6 +36,7 @@ const mbtiRoutes = require('./routes/mbtiRoutes');
 const firoRoutes = require('./routes/firoRoutes');
 const hoganRoutes = require('./routes/hoganRoutes');
 const inviteRoutes = require('./routes/inviteRoutes');
+const resourceRoutes = require('./routes/resourceRoutes');
 
 // Initialize express app
 const app = express();
@@ -104,6 +105,7 @@ app.use('/api', mbtiRoutes);
 app.use('/api', firoRoutes);
 app.use('/api', hoganRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/resources', resourceRoutes);
 
 // 404 handler
 app.use(notFound);

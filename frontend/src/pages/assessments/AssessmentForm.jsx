@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { assessmentService, organizationService } from '../../services';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import {
- ArrowLeft,
- Save,
- Plus,
- Trash2,
- GripVertical,
- Clock,
- FileText,
- Settings,
- CheckCircle,
- AlertCircle,
- Lock,
- Info,
- Sparkles,
- Image,
- Upload,
- X
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Plus,
+  Trash2,
+  GripVertical,
+  Clock,
+  FileText,
+  Settings,
+  CheckCircle,
+  AlertCircle,
+  Lock,
+  Info,
+  Sparkles,
+  Image,
+  Upload,
+  X,
+  Send,
+  Pencil
 } from 'lucide-react';
 
 // Category → Subcategory mapping
@@ -28,12 +31,14 @@ const SUBCATEGORY_MAP = {
   personality: ['Big5'],
   cognitive: ['Reasoning'],
   aptitude: ['General Aptitude'],
+  professional: ['PCLA'],
 };
 
 // Display labels for subcategories (value → display label mapping)
 const SUBCATEGORY_LABELS = {
   'FIRO-B': 'Professional Interpersonal Relations Orientation (PIRO)',
   'Hogan': 'TraitMap Index',
+  'PCLA': 'Professional Coachability & Learning Agility Index (PCLA™)',
 };
 
 // Big5 trait configuration for question positions
@@ -142,13 +147,14 @@ const getBig5Direction = (questionNum, trait) => {
 const AssessmentForm = () => {
   const { id, orgSlug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const toast = useToast();
   const isEditing = !!id;
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'details');
   const [questions, setQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [organizations, setOrganizations] = useState([]);
@@ -190,7 +196,10 @@ const AssessmentForm = () => {
   creditCostPerTest: '',
   });
 
- const [newQuestion, setNewQuestion] = useState({
+  const [editingId, setEditingId] = useState(null);
+  const [editFormData, setEditFormData] = useState(null);
+
+  const [newQuestion, setNewQuestion] = useState({
  type: 'mcq',
  questionText: '',
  trait: '',
@@ -293,30 +302,77 @@ const fetchQuestions = async () => {
    e.preventDefault();
    setSaving(true);
    try {
-   const submitData = { ...formData };
-   // Convert creditCostPerTest: empty string → null (use default), otherwise number
-   submitData.creditCostPerTest = submitData.creditCostPerTest !== '' ? Number(submitData.creditCostPerTest) : null;
-   if (isEditing) {
-   await assessmentService.updateAssessment(id, submitData);
-  } else {
-     const response = await assessmentService.createAssessment(submitData);
-      const newId = response.data?.assessment?._id || response.assessment?._id;
-      if (newId) {
-        const prefix = orgSlug ? `/o/${orgSlug}` : '';
-        navigate(`${prefix}/assessments/${newId}`, { replace: true });
-        setActiveTab("questions");
-        return;
-      }
-    }
-    const prefix = orgSlug ? `/o/${orgSlug}` : '';
-    navigate(`${prefix}/assessments`);
-  } catch (error) {
+    const submitData = { ...formData };
+    // Convert creditCostPerTest: empty string → null (use default), otherwise number
+    submitData.creditCostPerTest = submitData.creditCostPerTest !== '' ? Number(submitData.creditCostPerTest) : null;
+    if (isEditing) {
+    await assessmentService.updateAssessment(id, submitData);
+   } else {
+      const response = await assessmentService.createAssessment(submitData);
+       const newId = response.data?.assessment?._id || response.assessment?._id;
+       if (newId) {
+         const prefix = orgSlug ? `/o/${orgSlug}` : '';
+         navigate(`${prefix}/assessments/${newId}`, { replace: true, state: { activeTab: 'questions' } });
+         return;
+       }
+     }
+     const prefix = orgSlug ? `/o/${orgSlug}` : '';
+     navigate(`${prefix}/assessments`);
+   } catch (error) {
   console.error('Error saving assessment:', error);
   toast.error(error.response?.data?.message || 'Failed to save assessment');
   } finally {
    setSaving(false);
    }
    };
+
+  const handleNext = () => {
+    if (activeTab === 'details') {
+      if (!formData.title.trim()) {
+        toast.warning('Please enter a title');
+        return;
+      }
+      if (isEditing) {
+        setQuestionsLoading(true);
+      }
+      setActiveTab('questions');
+    } else if (activeTab === 'questions') {
+      setActiveTab('settings');
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!isEditing && !formData.title.trim()) {
+      toast.warning('Please enter a title');
+      return;
+    }
+    setSaving(true);
+    try {
+      const submitData = { ...formData, isPublished: true };
+      submitData.creditCostPerTest = submitData.creditCostPerTest !== '' ? Number(submitData.creditCostPerTest) : null;
+
+      if (isEditing) {
+        await assessmentService.updateAssessment(id, submitData);
+      } else {
+        // Create assessment with all data + bulk create questions in one publish
+        const response = await assessmentService.createAssessment(submitData);
+        const newId = response.data?.assessment?._id || response.assessment?._id;
+        if (!newId) throw new Error('Failed to create assessment');
+        if (questions.length > 0) {
+          await assessmentService.bulkCreateQuestions(newId, questions);
+        }
+      }
+
+      toast.success('Assessment published successfully');
+      const prefix = orgSlug ? `/o/${orgSlug}` : '';
+      navigate(`${prefix}/assessments`);
+    } catch (error) {
+      console.error('Error publishing assessment:', error);
+      toast.error(error.response?.data?.message || 'Failed to publish');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleBannerChange = (e) => {
     const file = e.target.files?.[0];
@@ -365,39 +421,136 @@ const handleAddQuestion = async () => {
   toast.warning('Please enter a question');
   return;
  }
- try {
- await assessmentService.createQuestion(id, newQuestion);
- setNewQuestion({
- type: 'mcq',
- questionText: '',
- options: [
- { text: '', score: 0, isCorrect: false },
- { text: '', score: 0, isCorrect: false },
- { text: '', score: 0, isCorrect: false },
- { text: '', score: 0, isCorrect: false },
- ],
- difficulty: 'moderate',
- dimension: '',
- marks: 1,
- explanation: '',
- });
- fetchQuestions();
-} catch (error) {
-  console.error('Error adding question:', error);
-  toast.error('Failed to add question');
-  }
+
+ const question = {
+   type: newQuestion.type,
+   questionText: newQuestion.questionText,
+   options: newQuestion.options,
+   difficulty: newQuestion.difficulty,
+   dimension: newQuestion.dimension,
+   marks: newQuestion.marks,
+   explanation: newQuestion.explanation,
+   order: questions.length + 1,
  };
+
+  if (newQuestion._editId) {
+    // Editing existing question
+    if (isEditing) {
+      try {
+        await assessmentService.updateQuestion(id, newQuestion._editId, question);
+        fetchQuestions();
+      } catch (error) {
+        console.error('Error updating question:', error);
+        toast.error('Failed to update question');
+        return;
+      }
+    } else {
+      setQuestions(questions.map(q => q._id === newQuestion._editId ? { ...q, ...question } : q));
+    }
+  } else {
+    // Adding new question
+    if (isEditing) {
+      try {
+        await assessmentService.createQuestion(id, question);
+        fetchQuestions();
+      } catch (error) {
+        console.error('Error adding question:', error);
+        toast.error('Failed to add question');
+        return;
+      }
+    } else {
+      question._id = Date.now().toString();
+      setQuestions([...questions, question]);
+    }
+  }
+
+  setNewQuestion({
+  type: 'mcq',
+  questionText: '',
+  options: [
+  { text: '', score: 0, isCorrect: false },
+  { text: '', score: 0, isCorrect: false },
+  { text: '', score: 0, isCorrect: false },
+  { text: '', score: 0, isCorrect: false },
+  ],
+  difficulty: 'moderate',
+  dimension: '',
+  marks: 1,
+  explanation: '',
+  });
+};
 
 const handleDeleteQuestion = async (questionId) => {
  if (!confirm('Are you sure you want to delete this question?')) return;
- try {
-  await assessmentService.deleteQuestion(id, questionId);
-  fetchQuestions();
- } catch (error) {
-  console.error('Error deleting question:', error);
-  toast.error('Failed to delete question');
- }
- };
+ if (isEditing) {
+   try {
+     await assessmentService.deleteQuestion(id, questionId);
+     fetchQuestions();
+   } catch (error) {
+     console.error('Error deleting question:', error);
+     toast.error('Failed to delete question');
+   }
+  } else {
+    setQuestions(questions.filter(q => q._id !== questionId));
+  }
+  };
+
+// Inline edit: question row becomes editable (PCLA, MBTI, etc.)
+const handleEditQuestion = (question) => {
+  setEditingId(question._id);
+  setEditFormData({
+    questionText: question.questionText || '',
+    type: question.type || 'mcq',
+    dimension: question.dimension || '',
+    marks: question.marks || 1,
+    options: question.options ? question.options.map(o => ({ ...o })) : [],
+  });
+};
+
+// Form-based edit: populate the generic add/edit form
+const handleFormEdit = (question) => {
+  setNewQuestion({
+    type: question.type || 'mcq',
+    questionText: question.questionText || '',
+    trait: question.trait || '',
+    direction: question.direction || 'positive',
+    options: question.options || [
+      { text: '', score: 0, isCorrect: false },
+      { text: '', score: 0, isCorrect: false },
+      { text: '', score: 0, isCorrect: false },
+      { text: '', score: 0, isCorrect: false },
+    ],
+    difficulty: question.difficulty || 'moderate',
+    dimension: question.dimension || '',
+    marks: question.marks || 1,
+    explanation: question.explanation || '',
+    statements: question.statements || [],
+    _editId: question._id,
+  });
+};
+
+const handleInlineEditCancel = () => {
+  setEditingId(null);
+  setEditFormData(null);
+};
+
+const handleInlineEditSave = async () => {
+  if (!editFormData || !editingId) return;
+  if (isEditing) {
+    try {
+      await assessmentService.updateQuestion(id, editingId, editFormData);
+      fetchQuestions();
+    } catch (error) {
+      console.error('Error updating question:', error);
+      toast.error('Failed to update question');
+      return;
+    }
+  } else {
+    setQuestions(questions.map(q => q._id === editingId ? { ...q, ...editFormData } : q));
+  }
+  setEditingId(null);
+  setEditFormData(null);
+};
 
 const handleAddBig5Question = async () => {
  if (!newQuestion.questionText.trim()) {
@@ -442,17 +595,22 @@ const handleAddBig5Question = async () => {
  tags: [newQuestion.trait.toLowerCase(), 'big5', 'personality']
  };
 
- try {
- await assessmentService.createQuestion(id, big5Question);
+  if (isEditing) {
+    try {
+      await assessmentService.createQuestion(id, big5Question);
+      fetchQuestions();
+    } catch (error) {
+      console.error('Error adding Big5 question:', error);
+      toast.error(error.response?.data?.message || 'Failed to add question');
+      return;
+    }
+  } else {
+    big5Question._id = Date.now().toString();
+    setQuestions([...questions, big5Question]);
+  }
+  };
 
-  fetchQuestions();
-  } catch (error) {
- console.error('Error adding Big5 question:', error);
- toast.error(error.response?.data?.message || 'Failed to add question');
- }
- };
-
- // Self-populate question based on current position and selected trait
+  // Self-populate question based on current position and selected trait
 const handleSelfPopulate = () => {
  const questionNum = questions.length + 1;
  if (questionNum > 50) {
@@ -519,9 +677,14 @@ const handleSelfPopulate = () => {
       }
 
       if (questionsToCreate.length > 0) {
-        await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+        if (isEditing) {
+          await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+          fetchQuestions();
+        } else {
+          const withIds = questionsToCreate.map((q, i) => ({ ...q, _id: Date.now() + i }));
+          setQuestions([...questions, ...withIds]);
+        }
         toast.success(`Successfully added ${questionsToCreate.length} questions.`);
-        fetchQuestions();
       }
     } catch (error) {
       console.error('Error in bulk create Big5:', error);
@@ -603,9 +766,14 @@ const handleDiscSelfPopulate = () => {
       }
 
       if (questionsToCreate.length > 0) {
-        await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+        if (isEditing) {
+          await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+          fetchQuestions();
+        } else {
+          const withIds = questionsToCreate.map((q, i) => ({ ...q, _id: Date.now() + i }));
+          setQuestions([...questions, ...withIds]);
+        }
         toast.success(`Successfully added ${questionsToCreate.length} questions.`);
-        fetchQuestions();
       }
     } catch (error) {
       console.error('Error in bulk create DISC:', error);
@@ -615,7 +783,140 @@ const handleDiscSelfPopulate = () => {
     }
   };
 
- // Add DISC question
+  // ========== PCLA Question Handlers ==========
+  const handlePclaPopulateAll = async () => {
+    if (questions.length >= 35) {
+      toast.warning('All 35 PCLA questions are already loaded');
+      return;
+    }
+    if (!confirm('This will load all 35 pre-configured PCLA™ questions from the question bank. Continue?')) return;
+
+    setSaving(true);
+    try {
+      const { PCLA_QUESTIONS } = await import('../../data/pclaQuestions');
+      const questionsToCreate = PCLA_QUESTIONS.slice(questions.length).map(q => ({
+        type: 'mcq',
+        questionText: q.scenario,
+        order: q.order,
+        dimension: q.dimension,
+        marks: q.options.reduce((m, o) => Math.max(m, o.weight), 0),
+        difficulty: 'moderate',
+        isRequired: true,
+        options: q.options.map(o => ({
+          text: o.text,
+          score: o.weight,
+          isCorrect: o.weight === q.options.reduce((m, op) => Math.max(m, op.weight), 0),
+        })),
+        tags: ['pcla', 'coachability', q.dimension.toLowerCase().replace(/[^a-z0-9]/g, '-')],
+        explanation: `This question measures ${q.dimension}.`,
+      }));
+
+      if (isEditing) {
+        await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+        fetchQuestions();
+      } else {
+        const withIds = questionsToCreate.map((q, i) => ({ ...q, _id: Date.now() + i }));
+        setQuestions(prev => [...prev, ...withIds]);
+      }
+      toast.success(`Loaded ${questionsToCreate.length} PCLA™ questions successfully.`);
+    } catch (error) {
+      console.error('Error loading PCLA questions:', error);
+      toast.error('Failed to load PCLA questions. Make sure the question bank file exists.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMbtiPopulateAll = async () => {
+    if (questions.length >= 32) {
+      toast.warning('All 32 MBTI questions are already loaded');
+      return;
+    }
+    if (!confirm('This will add all 32 predefined MBTI questions. Continue?')) return;
+
+    setSaving(true);
+    try {
+      const MBTI_DIMENSIONS = [
+        { key: 'EI', templates: [
+          { left: 'I enjoy being the center of attention', right: 'I prefer to stay in the background' },
+          { left: 'I talk more than I listen', right: 'I listen more than I talk' },
+          { left: 'I feel energized by social interactions', right: 'I feel drained by social interactions' },
+          { left: 'I prefer working in groups', right: 'I prefer working alone' },
+          { left: 'I am outgoing and sociable', right: 'I am reserved and private' },
+          { left: 'I express myself easily', right: 'I keep my thoughts to myself' },
+          { left: 'I enjoy meeting new people', right: 'I prefer familiar people' },
+          { left: 'I am comfortable in large groups', right: 'I am comfortable in small groups' },
+        ]},
+        { key: 'SN', templates: [
+          { left: 'I focus on concrete facts', right: 'I focus on possibilities' },
+          { left: 'I trust experience', right: 'I trust instincts' },
+          { left: 'I am practical and realistic', right: 'I am imaginative and theoretical' },
+          { left: 'I notice details', right: 'I see the big picture' },
+          { left: 'I learn by doing', right: 'I learn by thinking' },
+          { left: 'I remember what I see', right: 'I remember what I imagine' },
+          { left: 'I prefer concrete information', right: 'I prefer abstract concepts' },
+          { left: 'I am conventional', right: 'I am innovative' },
+        ]},
+        { key: 'TF', templates: [
+          { left: 'I make decisions with my head', right: 'I make decisions with my heart' },
+          { left: 'I value truth', right: 'I value harmony' },
+          { left: 'I am analytical', right: 'I am emotional' },
+          { left: 'I am objective', right: 'I am subjective' },
+          { left: 'I prefer fairness', right: 'I prefer compassion' },
+          { left: 'I use logic', right: 'I use values' },
+          { left: 'I am tough-minded', right: 'I am sensitive' },
+          { left: 'I question others emotions', right: 'I understand others emotions' },
+        ]},
+        { key: 'JP', templates: [
+          { left: 'I like planned activities', right: 'I like flexible activities' },
+          { left: 'I prefer structure', right: 'I prefer spontaneity' },
+          { left: 'I am organized', right: 'I am flexible' },
+          { left: 'I follow schedules', right: 'I go with the flow' },
+          { left: 'I am punctual', right: 'I am relaxed about time' },
+          { left: 'I make lists', right: 'I go with the moment' },
+          { left: 'I expect closure', right: 'I keep options open' },
+          { left: 'I follow rules', right: 'I make my own rules' },
+        ]},
+      ];
+
+      const questionsToCreate = [];
+      let order = 1;
+      MBTI_DIMENSIONS.forEach(dim => {
+        dim.templates.forEach(t => {
+          questionsToCreate.push({
+            type: 'mcq',
+            questionText: `Which statement describes you better?\nA) ${t.left}\nB) ${t.right}`,
+            options: [
+              { text: t.left, score: 1, isCorrect: false },
+              { text: t.right, score: 1, isCorrect: false },
+            ],
+            difficulty: 'basic',
+            dimension: `MBTI-${dim.key}`,
+            marks: 1,
+            order: order++,
+            tags: ['mbti', 'personality', dim.key.toLowerCase()],
+            isRequired: true,
+          });
+        });
+      });
+
+      if (isEditing) {
+        await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+        fetchQuestions();
+      } else {
+        const withIds = questionsToCreate.map((q, i) => ({ ...q, _id: Date.now() + i }));
+        setQuestions(prev => [...prev, ...withIds]);
+      }
+      toast.success(`Loaded all 32 MBTI questions successfully.`);
+    } catch (error) {
+      console.error('Error loading MBTI questions:', error);
+      toast.error('Failed to load MBTI questions');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Add DISC question
 const handleAddDiscQuestion = async () => {
  if (!newQuestion.questionText.trim()) {
   toast.warning('Please enter a question');
@@ -655,15 +956,20 @@ const handleAddDiscQuestion = async () => {
  tags: ['disc', 'personality', 'behavioral']
  };
 
- try {
- await assessmentService.createQuestion(id, discQuestion);
-
-  fetchQuestions();
-} catch (error) {
-  console.error('Error adding DISC question:', error);
-  toast.error(error.response?.data?.message || 'Failed to add question');
+  if (isEditing) {
+    try {
+      await assessmentService.createQuestion(id, discQuestion);
+      fetchQuestions();
+    } catch (error) {
+      console.error('Error adding DISC question:', error);
+      toast.error(error.response?.data?.message || 'Failed to add question');
+      return;
+    }
+  } else {
+    discQuestion._id = Date.now().toString();
+    setQuestions([...questions, discQuestion]);
   }
- };
+  };
 
 
  const updateOption = (index, field, value) => {
@@ -719,15 +1025,39 @@ const removeOption = (index) => {
  </p>
  </div>
  </div>
- <button
- onClick={handleSubmit}
- disabled={saving}
- className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
- >
- <Save className="w-4 h-4 mr-2" />
- {saving ? 'Saving...' : 'Save Assessment'}
- </button>
- </div>
+  <div className="flex items-center gap-2">
+        {/* Save button — always visible */}
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="inline-flex items-center px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+
+        {/* Next / Publish button — context-aware */}
+        {activeTab === 'settings' ? (
+          <button
+            onClick={handlePublish}
+            disabled={saving}
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {saving ? 'Publishing...' : 'Publish Assessment'}
+          </button>
+        ) : (
+          <button
+            onClick={handleNext}
+            disabled={saving || (!formData.title.trim() && activeTab === 'details')}
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {saving ? 'Saving...' : activeTab === 'details' ? 'Next' : 'Next'}
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </button>
+        )}
+      </div>
+      </div>
 
  {/* Tabs */}
  <div className="border-b border-gray-200 ">
@@ -745,79 +1075,21 @@ const removeOption = (index) => {
   Details
   </span>
   </button>
-  {/* Generic questions tab for non-psychometric/non-personality assessments */}
-  {isEditing && formData.category !== 'psychometric' && formData.category !== 'personality' && (
-  <button
-  onClick={() => setActiveTab('questions')}
-  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-    activeTab === 'questions'
-    ? 'border-indigo-600 text-indigo-600 '
-    : 'border-transparent text-gray-500 hover:text-gray-700 '
-  }`}
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length})
-  </span>
-  </button>
-  )}
-  {/* Dedicated question forms for psychometric/personality tests */}
-  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'FIRO-B' && (
-  <button
-  onClick={() => { const p = orgSlug ? `/o/${orgSlug}` : ''; navigate(`${p}/assessments/${id}/questions/firo`); }}
-  className="pb-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length}/54)
-  </span>
-  </button>
-  )}
-  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'Hogan' && (
-  <button
-  onClick={() => { const p = orgSlug ? `/o/${orgSlug}` : ''; navigate(`${p}/assessments/${id}/questions/hogan`); }}
-  className="pb-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length}/70)
-  </span>
-  </button>
-  )}
-  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'MBTI' && (
-  <button
-  onClick={() => { const p = orgSlug ? `/o/${orgSlug}` : ''; navigate(`${p}/assessments/${id}/questions/mbti`); }}
-  className="pb-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length}/32)
-  </span>
-  </button>
-  )}
-  {isEditing && formData.category === 'psychometric' && formData.subCategory === 'DISC' && (
-  <button
-  onClick={() => { const p = orgSlug ? `/o/${orgSlug}` : ''; navigate(`${p}/assessments/${id}/questions/disc`); }}
-  className="pb-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length}/24)
-  </span>
-  </button>
-  )}
-  {isEditing && formData.category === 'personality' && formData.subCategory === 'Big5' && (
-  <button
-  onClick={() => { const p = orgSlug ? `/o/${orgSlug}` : ''; navigate(`${p}/assessments/${id}/questions/big5`); }}
-  className="pb-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
-  >
-  <span className="flex items-center gap-2">
-  <AlertCircle className="w-4 h-4" />
-  Questions ({questions.length}/50)
-  </span>
-  </button>
-  )}
-  <button
+  {/* Questions tab — works inline for all types; content adapts to category */}
+   <button
+   onClick={() => setActiveTab('questions')}
+   className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
+     activeTab === 'questions'
+     ? 'border-indigo-600 text-indigo-600 '
+     : 'border-transparent text-gray-500 hover:text-gray-700 '
+   }`}
+   >
+   <span className="flex items-center gap-2">
+   <AlertCircle className="w-4 h-4" />
+   Questions ({questions.length})
+   </span>
+   </button>
+   <button
  onClick={() => setActiveTab('settings')}
  className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
  activeTab === 'settings'
@@ -927,28 +1199,12 @@ const removeOption = (index) => {
  <select
  value={formData.category}
  onChange={(e) => {
- const category = e.target.value;
- setFormData({
- ...formData,
- category,
- subCategory: '', // Reset subcategory when category changes
- // Auto-configure Big5 settings
- ...(category === 'big5' ? {
- isLockedStructure: true,
- isEditable: false,
- totalQuestions: 50,
- randomizeQuestions: false,
- randomizeOptions: false
- } : {}),
- // Auto-configure DISC settings
- ...(category === 'disc' ? {
- isLockedStructure: true,
- isEditable: false,
- totalQuestions: 24,
- randomizeQuestions: false,
- randomizeOptions: false
- } : {})
- });
+   const category = e.target.value;
+   setFormData({
+     ...formData,
+     category,
+     subCategory: '' // Reset subcategory when category changes
+   });
  }}
 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
   >
@@ -995,7 +1251,18 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  {SUBCATEGORY_MAP[formData.category] ? (
  <select
  value={formData.subCategory}
- onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+  onChange={(e) => {
+    const sub = e.target.value;
+    let configOverrides = {};
+    if (sub === 'PCLA') {
+      configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 35, duration: 25, randomizeQuestions: false, randomizeOptions: false };
+    } else if (sub === 'Big5') {
+      configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 50, randomizeQuestions: false, randomizeOptions: false };
+    } else if (sub === 'DISC') {
+      configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 24, randomizeQuestions: false, randomizeOptions: false };
+    }
+    setFormData({ ...formData, subCategory: sub, ...configOverrides });
+  }}
  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  >
  <option value="">Select Sub Category</option>
@@ -1055,9 +1322,9 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- {activeTab === 'questions' && isEditing && formData.category === '_never_' && (
- <div className="space-y-6">
- {/* Big5 Structure Info */}
+  {activeTab === 'questions' && formData.category === 'personality' && formData.subCategory === 'Big5' && (
+  <div className="space-y-6">
+  {/* Big5 Structure Info */}
  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
  <div className="flex items-start gap-4">
  <div className="p-3 bg-blue-100 rounded-lg">
@@ -1279,9 +1546,9 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- {activeTab === 'questions' && isEditing && formData.category === '_never_' && (
- <div className="space-y-6">
- {/* DISC Structure Info */}
+  {activeTab === 'questions' && formData.category === 'psychometric' && formData.subCategory === 'DISC' && (
+  <div className="space-y-6">
+  {/* DISC Structure Info */}
  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
  <div className="flex items-start gap-4">
  <div className="p-3 bg-blue-100 rounded-lg">
@@ -1437,17 +1704,300 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- {activeTab === 'questions' && isEditing && formData.category !== 'psychometric' && formData.category !== 'personality' && questionsLoading && (
-    <div className="flex items-center justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-    </div>
-  )}
+  {/* ── PCLA Questions Panel ── */}
+  {activeTab === 'questions' && formData.category === 'professional' && formData.subCategory === 'PCLA' && (
+    <div className="space-y-6">
+      {/* Info banner */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-emerald-100 rounded-lg flex-shrink-0">
+            <Info className="w-6 h-6 text-emerald-700" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-emerald-900 mb-2">
+              Professional Coachability &amp; Learning Agility Index (PCLA™)
+            </h3>
+            <p className="text-emerald-800 text-sm mb-4">
+              PCLA™ uses a fixed 35-scenario question bank measuring 8 coachability dimensions.
+              The questions are pre-validated and locked — use the button below to load them all at once.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+              {[
+                { dim: 'Coachability', color: 'emerald', count: 5 },
+                { dim: 'Learning Orientation', color: 'purple', count: 5 },
+                { dim: 'Unlearning Ability', color: 'amber', count: 4 },
+                { dim: 'Technology Adaptability', color: 'cyan', count: 4 },
+                { dim: 'Reflection & Self-awareness', color: 'pink', count: 5 },
+                { dim: 'Growth Drive', color: 'red', count: 4 },
+                { dim: 'Adaptability to Coaching', color: 'indigo', count: 4 },
+                { dim: 'Emotional Coachability', color: 'orange', count: 4 },
+              ].map(({ dim, count }) => (
+                <div key={dim} className="bg-white rounded-lg p-2 text-center border border-emerald-100">
+                  <div className="font-bold text-emerald-700">{count}Q</div>
+                  <div className="text-gray-600 text-xs mt-0.5 leading-tight">{dim}</div>
+                </div>
+              ))}
+            </div>
+            {questions.length === 35 ? (
+              <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+                <CheckCircle className="w-5 h-5" />
+                <span>All 35 PCLA™ questions loaded and ready!</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
+                <AlertCircle className="w-5 h-5" />
+                <span>{35 - questions.length} questions remaining — click &ldquo;Load All Questions&rdquo; below</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-  {activeTab === 'questions' && isEditing && formData.category !== 'psychometric' && formData.category !== 'personality' && !questionsLoading && (
+      {/* Load button */}
+      {questions.length < 35 && (
+        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 35</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 35 scenarios will be added in the correct order</p>
+          </div>
+          <button
+            onClick={handlePclaPopulateAll}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {saving ? 'Loading...' : `Load All ${35 - questions.length} Questions`}
+          </button>
+        </div>
+      )}
+
+      {/* Load button */}
+      {questions.length < 35 && (
+        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 35</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 35 scenarios will be added in the correct order</p>
+          </div>
+          <button
+            onClick={handlePclaPopulateAll}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {saving ? 'Loading...' : `Load All ${35 - questions.length} Questions`}
+          </button>
+        </div>
+      )}
+
+      {/* Questions list with inline edit */}
+      {questions.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700">Loaded Questions ({questions.length}/35)</h3>
+          {questions.map((q, idx) => (
+            editingId === q._id && editFormData ? (
+              /* Inline edit mode for this question */
+              <div key={q._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    value={editFormData.questionText}
+                    onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editFormData.type}
+                      onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                    >
+                      <option value="mcq">MCQ</option>
+                      <option value="text">Text</option>
+                      <option value="rating">Rating</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={editFormData.dimension}
+                      onChange={(e) => setEditFormData({ ...editFormData, dimension: e.target.value })}
+                      className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                      placeholder="Dimension"
+                    />
+                    <input
+                      type="number"
+                      value={editFormData.marks}
+                      onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })}
+                      className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                      min="1"
+                    />
+                  </div>
+                  {editFormData.type === 'mcq' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600">Options</label>
+                      {editFormData.options?.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) => {
+                              const updated = [...editFormData.options];
+                              updated[oi] = { ...updated[oi], text: e.target.value };
+                              setEditFormData({ ...editFormData, options: updated });
+                            }}
+                            className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                            placeholder={`Option ${oi + 1}`}
+                          />
+                          <input
+                            type="number"
+                            value={opt.score}
+                            onChange={(e) => {
+                              const updated = [...editFormData.options];
+                              updated[oi] = { ...updated[oi], score: parseInt(e.target.value) || 0 };
+                              setEditFormData({ ...editFormData, options: updated });
+                            }}
+                            className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                            placeholder="Score"
+                          />
+                          <button
+                            onClick={() => {
+                              if (editFormData.options.length <= 2) { toast.warning('Minimum 2 options required'); return; }
+                              setEditFormData({ ...editFormData, options: editFormData.options.filter((_, i) => i !== oi) });
+                            }}
+                            className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setEditFormData({ ...editFormData, options: [...editFormData.options, { text: '', score: 0, isCorrect: false }] })}
+                        className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Option
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+                      <Save className="w-3.5 h-3.5 mr-1 inline" />
+                      Save
+                    </button>
+                    <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Normal display mode */
+              <div key={q._id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900">{q.questionText}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {q.dimension && (
+                      <span className="inline-block text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-2 py-0.5">{q.dimension}</span>
+                    )}
+                    <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5 capitalize">{q.type}</span>
+                    <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{q.marks} mark{q.marks !== 1 ? 's' : ''}</span>
+                  </div>
+                  {q.options?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {q.options.map((opt, oi) => (
+                        <span key={oi} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                          {opt.text}
+                          {opt.score !== undefined && <span className="ml-1 text-gray-400">({opt.score})</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleEditQuestion(q)} className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg flex-shrink-0" title="Edit question">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDeleteQuestion(q._id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg flex-shrink-0" title="Delete question">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
+     </div>
+   )}
+
+     {activeTab === 'questions' && questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )}
+
+    {activeTab === 'questions' && !questionsLoading && formData.category === 'psychometric' && formData.subCategory === 'MBTI' && (
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Info className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-medium text-blue-900 mb-2">MBTI Assessment Structure</h3>
+              <p className="text-blue-800 text-sm mb-4">
+                MBTI uses 32 bipolar questions measuring 4 dimensions (8 questions per dimension).
+                Each question presents a pair of opposing statements — test takers rate which side resonates more.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+                {[
+                  { key: 'EI', name: 'Extraversion vs Introversion', color: 'blue' },
+                  { key: 'SN', name: 'Sensing vs Intuition', color: 'purple' },
+                  { key: 'TF', name: 'Thinking vs Feeling', color: 'green' },
+                  { key: 'JP', name: 'Judging vs Perceiving', color: 'amber' },
+                ].map(({ key, name }) => (
+                  <div key={key} className="bg-white rounded-lg p-3 text-center border border-blue-100">
+                    <div className="font-bold text-blue-600">{key}</div>
+                    <div className="text-gray-600 text-xs mt-1">{name}</div>
+                  </div>
+                ))}
+              </div>
+              {questions.length === 32 ? (
+                <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
+                  <span>All 32 MBTI questions loaded!</span>
+                </div>
+              ) : (
+                <div className="text-amber-700 bg-amber-100 p-3 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  Use the button below to load all 32 predefined MBTI questions at once
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 32</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 32 questions will be added with correct dimension mapping</p>
+          </div>
+          <button
+            onClick={handleMbtiPopulateAll}
+            disabled={saving || questions.length >= 32}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {saving ? 'Loading...' : `Load All ${32 - questions.length} Questions`}
+          </button>
+        </div>
+
+      </div>
+    )}
+
+    {activeTab === 'questions' && !questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && (
  <div className="space-y-6">
  {/* Add New Question */}
  <div className="bg-gray-50 rounded-lg p-4">
- <h3 className="text-sm font-medium text-gray-900 mb-4">Add New Question</h3>
+  <h3 className="text-sm font-medium text-gray-900 mb-4">{newQuestion._editId ? 'Edit Question' : 'Add New Question'}</h3>
  <div className="space-y-4">
  <div>
  <label className="block text-sm text-gray-700 mb-1">Question Text</label>
@@ -1532,12 +2082,12 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- <button
- onClick={handleAddQuestion}
- className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
- >
- Add Question
- </button>
+  <button
+  onClick={handleAddQuestion}
+  className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+  >
+  {newQuestion._editId ? 'Update Question' : 'Add Question'}
+  </button>
  </div>
  </div>
 
@@ -1555,25 +2105,34 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  <GripVertical className="w-4 h-4" />
  <span className="text-sm font-medium">{index + 1}</span>
  </div>
- <div className="flex-1">
- <p className="text-sm text-gray-900 ">{question.questionText}</p>
- <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
- <span className="capitalize">{question.type}</span>
- {question.dimension && <span>Dimension: {question.dimension}</span>}
- <span>{question.marks} mark{question.marks !== 1 ? 's' : ''}</span>
- </div>
- </div>
- <button
- onClick={() => handleDeleteQuestion(question._id)}
- className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
- >
- <Trash2 className="w-4 h-4" />
- </button>
- </div>
- ))}
- </div>
- </div>
- )}
+  <div className="flex-1">
+  <p className="text-sm text-gray-900 ">{question.questionText}</p>
+  <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+  <span className="capitalize">{question.type}</span>
+  {question.dimension && <span>Dimension: {question.dimension}</span>}
+  <span>{question.marks} mark{question.marks !== 1 ? 's' : ''}</span>
+  </div>
+  </div>
+  <div className="flex items-center gap-1">
+  <button
+  onClick={() => handleFormEdit(question)}
+  className="p-2 text-indigo-400 hover:bg-indigo-50 rounded-lg"
+  title="Edit question"
+  >
+  <Pencil className="w-4 h-4" />
+  </button>
+  <button
+  onClick={() => handleDeleteQuestion(question._id)}
+  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+  >
+  <Trash2 className="w-4 h-4" />
+  </button>
+  </div>
+  </div>
+  ))}
+  </div>
+  </div>
+  )}
 
  {activeTab === 'settings' && (
  <div className="space-y-6 max-w-2xl">

@@ -136,6 +136,8 @@ const Reports = () => {
     if (category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
     if (category === 'firo' || category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
     if (category === 'hogan') return `${orgPrefix}/reports/hogan/${attemptId}`;
+    if (category === 'sjt') return `${orgPrefix}/reports/sjt/${attemptId}`;
+    if (category === 'pcla' || category === 'coachability') return `${orgPrefix}/reports/pcla/${attemptId}`;
     if (category === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
     if (category === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
     if (report.assessment?.subCategory === 'General Aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
@@ -160,6 +162,8 @@ const Reports = () => {
       cognitive: { label: 'Cognitive', color: 'bg-blue-100 text-blue-700', icon: FileBarChart },
       situational: { label: 'Situational', color: 'bg-orange-100 text-orange-700', icon: FileBarChart },
       professional: { label: 'Aptitude', color: 'bg-purple-100 text-purple-700', icon: FileBarChart },
+      pcla: { label: 'Coachability', color: 'bg-emerald-100 text-emerald-700', icon: Brain },
+      coachability: { label: 'Coachability', color: 'bg-emerald-100 text-emerald-700', icon: Brain },
       standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700', icon: FileBarChart },
       key_factors: { label: 'Key Factors', color: 'bg-amber-100 text-amber-700', icon: Key },
       detailed: { label: 'Detailed', color: 'bg-cyan-100 text-cyan-700', icon: FileText },
@@ -328,20 +332,20 @@ const Reports = () => {
                       <div className="flex items-center gap-1.5 text-sm text-gray-500">
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
                         <span>
-                          {new Date(report.generatedAt).toLocaleDateString('en-US', {
+                          {report.generatedAt ? new Date(report.generatedAt).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
-                          })}
+                          }) : 'N/A'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                         <Clock className="w-3 h-3" />
                         <span>
-                          {new Date(report.generatedAt).toLocaleTimeString('en-US', {
+                          {report.generatedAt ? new Date(report.generatedAt).toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit'
-                          })}
+                          }) : ''}
                         </span>
                       </div>
                     </td>

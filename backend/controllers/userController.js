@@ -178,7 +178,7 @@ const updateUser = asyncHandler(async (req, res) => {
   const { 
     firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, isActive, role, city, company, 
     isEmailVerified, deactivationDate, deactivationReason,
-    organizationName, organizationSlug, organizationDescription, organizationCredits
+    organizationId, organizationName, organizationSlug, organizationDescription, organizationCredits
   } = req.body;
 
   let user = await User.findById(req.params.id);
@@ -208,6 +208,17 @@ const updateUser = asyncHandler(async (req, res) => {
     // Only SuperAdmin can change roles
     if (role && req.user.role === 'superadmin') {
       updateData.role = role;
+    }
+
+    // SuperAdmin can reassign or remove organization
+    if (req.user.role === 'superadmin' && organizationId !== undefined) {
+      if (organizationId) {
+        const org = await Organization.findById(organizationId);
+        if (!org) throw new ApiError(404, 'Organization not found');
+        updateData.organization = org._id;
+      } else {
+        updateData.organization = null;
+      }
     }
 
     if (req.user.role === 'superadmin' && user.organization) {

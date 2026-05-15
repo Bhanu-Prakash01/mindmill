@@ -15,12 +15,14 @@ const AuthLayout = () => {
 
   redirected.current = true;
 
-  if (orgSlug && user?.role !== 'superadmin') {
+  if (user?.accountType === 'individual' || (!user?.organization && user?.role !== 'superadmin')) {
+   navigate('/dashboard', { replace: true });
+  } else if (orgSlug && user?.role !== 'superadmin') {
    navigate(`/o/${orgSlug}/`, { replace: true });
   } else {
    navigate('/', { replace: true });
   }
- }, [isAuthenticated, loading, orgSlug, user?.role, navigate]);
+ }, [isAuthenticated, loading, orgSlug, user?.role, user?.accountType, user?.organization, navigate]);
 
  if (loading) {
   return (

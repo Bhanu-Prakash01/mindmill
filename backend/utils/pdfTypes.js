@@ -13,6 +13,8 @@ const AssessmentType = {
   FIRO: 'firo',
   MBTI: 'mbti',
   HOGAN: 'hogan',
+  SJT: 'sjt',
+  PCLA: 'pcla',
 };
 
 /** @readonly @type {AssessmentType[]} */
@@ -71,6 +73,8 @@ const getAssessmentDisplayName = (type) => {
     firo: 'FIRO-B',
     mbti: 'MBTI',
     hogan: 'Hogan',
+    sjt: 'Situational Judgement',
+    pcla: 'Coachability & Learning Agility',
   };
   return names[type] || type.toUpperCase();
 };

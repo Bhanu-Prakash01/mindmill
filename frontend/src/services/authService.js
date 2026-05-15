@@ -66,6 +66,21 @@ logout: async () => {
     return response.data;
   },
 
+  // Free trial registration
+  getFreeTrialAssessments: async () => {
+    const response = await api.get('/auth/free-trial/assessments');
+    return response.data;
+  },
+
+  registerFreeTrial: async (registrationData) => {
+    const response = await api.post('/auth/register', registrationData);
+    if (response.data.success) {
+      localStorage.setItem('token', response.data.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.data.user));
+    }
+    return response.data;
+  },
+
   getToken: () => localStorage.getItem('token'),
 
  getUser: () => {

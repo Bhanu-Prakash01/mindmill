@@ -26,7 +26,7 @@ category: {
   },
   subCategory: {
     type: String,
-    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'Situational Judgement', 'General Aptitude'],
+    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'Situational Judgement', 'General Aptitude', 'PCLA'],
     default: ''
   },
   isLockedStructure: {
@@ -36,11 +36,6 @@ category: {
   isEditable: {
     type: Boolean,
     default: true
-  },
-  subCategory: {
-    type: String,
-    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'Situational Judgement', 'General Aptitude'],
-    default: ''
   },
   organization: {
     type: mongoose.Schema.Types.ObjectId,

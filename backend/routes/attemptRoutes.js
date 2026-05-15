@@ -29,6 +29,7 @@ router.get('/public/attempt/:id', optionalAuth, getPublicAttempt);
 // ============================================================
 
 router.get('/', authMiddleware, paginationValidation, getAttempts);
+router.get('/my', authMiddleware, getAttempts);  // alias — individual dashboard uses /my
 router.get('/:id', authMiddleware, idParamValidation, getAttempt);
 router.post('/assessments/:assessmentId/start', authMiddleware, startAttempt);
 router.post('/assessments/:assessmentId/verify-passcode', authMiddleware, verifyPasscode);

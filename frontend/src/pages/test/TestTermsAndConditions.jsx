@@ -102,6 +102,7 @@ const TestTermsAndConditions = () => {
       } else if (assessmentCategory === 'firo-b' || assessmentCategory === 'firo' || assessment?.subCategory === 'FIRO-B') {
         navigate(`/take/${urlCategoryPrefix}${token}/firo/${attemptId}`);
       } else {
+        // SJT, PCLA and all other types use the generic TakeTest component
         navigate(`/take/${urlCategoryPrefix}${token}/test/${attemptId}`);
       }
     } else {
@@ -117,6 +118,7 @@ const TestTermsAndConditions = () => {
       } else if (assessmentCategory === 'firo-b' || assessmentCategory === 'firo' || assessment?.subCategory?.toLowerCase() === 'firo-b') {
         navigate(`${prefix}/assessments/${id}/firo`);
       } else {
+        // PCLA, SJT and all other types use the generic take route
         navigate(`${prefix}/assessments/${id}/take`);
       }
     }

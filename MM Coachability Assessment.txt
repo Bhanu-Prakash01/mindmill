@@ -1,0 +1,741 @@
+﻿This is an excellent construct for corporate L&D. What you’re describing is not personality alone—it is a measurable learning orientation + adaptability + receptivity to coaching construct.
+As a psychometrician, I would frame it as:
+Professional Coachability & Learning Agility Index (PCLA™)
+Measures readiness to learn, unlearn, relearn, and grow.
+This instrument helps Training Heads, HR, Managers, and Leadership Teams answer:
+✔ Who is most receptive to coaching?
+✔ Who shows growth mindset vs fixed mindset?
+✔ Who embraces technology adoption?
+✔ Who can unlearn outdated ways of working?
+✔ Who converts feedback into behaviour change?
+✔ Who is ready for future roles / reskilling / leadership growth?
+✔ Who resists development despite training investment?
+Applicable for:
+* Frontline employees
+* Managers
+* Functional heads
+* Senior leaders
+* HiPo talent pools
+________________
+
+
+Psychometric Dimensions (7 Dimensions | 35 Questions)
+Dimension
+	Measures
+	Questions
+	Learning Orientation
+	curiosity to learn
+	5
+	Coachability
+	openness to feedback
+	5
+	Unlearning Ability
+	letting go of old habits
+	5
+	Relearning Agility
+	speed of new capability adoption
+	5
+	Technology Adaptability
+	openness to AI / tools / digital learning
+	5
+	Reflection & Self-awareness
+	learns from mistakes
+	5
+	Growth Drive
+	intentional career growth
+	5
+	Total = 35 Questions
+Format:
+Scenario-based MCQ (best for corporates)
+Duration:
+20–25 mins
+Scoring:
+Weighted behavioural scoring.
+________________
+
+
+Part 1 — Questions 1–12
+Theme: Learning Orientation | Coachability | Feedback Openness
+________________
+
+
+Q1 — Receiving Constructive Feedback
+Your manager tells you that while your work quality is strong, your collaboration style needs improvement.
+You are most likely to:
+A) Feel the feedback is unfair
+B) Listen politely but make no real change
+C) Seek examples, reflect honestly, and work consciously on improvement ✅
+D) Defend your current style strongly
+Dimension: Coachability
+Weights: A=2 | B=2 | C=4 | D=1
+________________
+
+
+Q2 — New Skill Requirement
+Your organization introduces a new digital tool that changes how work is managed.
+Your response:
+A) Learn only if mandatory
+B) Wait for others to become experts first
+C) Explore the tool proactively and learn how it can improve your work ✅
+D) Resist because current methods work
+Dimension: Technology Adaptability
+Weights: A=2 | B=2 | C=4 | D=1
+________________
+
+
+Q3 — Challenging Old Methods
+A long-used process you are comfortable with is being replaced by a more efficient method.
+Your likely reaction:
+A) Compare objectively and adapt if the new method is better ✅
+B) Defend the old way strongly
+C) Adopt publicly but quietly keep old habits
+D) Avoid involvement
+Dimension: Unlearning Ability
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+Q4 — Coaching Opportunity
+You are offered mentoring from a senior leader outside your function.
+You would:
+A) See it as valuable exposure and actively engage ✅
+B) Join only if asked repeatedly
+C) Decline due to workload
+D) Join but participate minimally
+Dimension: Growth Drive
+Weights: A=4 | B=2 | C=1 | D=2
+________________
+
+
+Q5 — Learning from Failure
+A project you led did not deliver expected results.
+Your instinct:
+A) Identify what failed, what you could improve, and apply learning forward ✅
+B) Focus mainly on external reasons
+C) Avoid discussing failure
+D) Move on quickly without reflection
+Dimension: Reflection & Self-awareness
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q6 — Stretch Assignment
+You are offered a project outside your expertise.
+A) Accept and build capability while seeking guidance ✅
+B) Decline because of uncertainty
+C) Accept reluctantly with resistance
+D) Avoid ownership
+Dimension: Learning Agility
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+Q7 — Peer Learning
+A younger colleague demonstrates a smarter way of doing something.
+You:
+A) Learn openly, regardless of hierarchy ✅
+B) Ignore because experience matters more
+C) Appreciate privately but do not adopt
+D) Feel threatened
+Dimension: Learning Orientation
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+Q8 — Technology Shift
+AI tools are entering your profession.
+Your outlook:
+A) Learn how to leverage them as capability multipliers ✅
+B) Assume they are temporary trends
+C) Avoid adoption until forced
+D) View them mainly as threats
+Dimension: Future Readiness
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q9 — Behaviour Change
+You receive repeated feedback about improving executive presence.
+You:
+A) Work on communication, confidence, and presence deliberately ✅
+B) Assume style cannot change
+C) Ignore repeated feedback
+D) Expect others to accept your style
+Dimension: Coachability
+Weights: A=4 | B=1 | C=1 | D=2
+________________
+
+
+Q10 — Learning Habit
+A new certification relevant to your career becomes available.
+You:
+A) Explore if it meaningfully supports growth and act proactively ✅
+B) Wait for company sponsorship
+C) Delay indefinitely
+D) Ignore learning unless promotion demands it
+Dimension: Growth Drive
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q11 — Cross-functional Exposure
+You are invited to work on a cross-functional initiative.
+You:
+A) Welcome the learning and broader perspective ✅
+B) Join only if it benefits appraisal
+C) Prefer staying in comfort zone
+D) Avoid additional complexity
+Dimension: Learning Orientation
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q12 — Feedback from Juniors
+A junior colleague gives you useful constructive feedback.
+You:
+A) Evaluate it objectively and apply it if valuable ✅
+B) Dismiss it due to hierarchy
+C) Feel uncomfortable but acknowledge politely
+D) Ignore it
+Dimension: Humility in Learning
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+NodeJS Scoring Logic
+class ProfessionalCoachabilityAssessment {
+  constructor(questionBank, responses) {
+    this.questionBank = questionBank;
+    this.responses = responses;
+  }
+
+
+  evaluate() {
+    let total = 0;
+    let max = 0;
+    let dimensions = {};
+
+
+    this.questionBank.forEach(q => {
+      const selected = q.options.find(
+        o => o.key === this.responses[q.id]
+      );
+
+
+      total += selected.weight;
+      max += 4;
+
+
+      if (!dimensions[q.dimension]) {
+        dimensions[q.dimension] = {
+          score: 0,
+          max: 0
+        };
+      }
+
+
+      dimensions[q.dimension].score += selected.weight;
+      dimensions[q.dimension].max += 4;
+    });
+
+
+    const overall = Math.round((total / max) * 100);
+
+
+    const profile = {};
+    Object.keys(dimensions).forEach(dim => {
+      profile[dim] = Math.round(
+        (dimensions[dim].score / dimensions[dim].max) * 100
+      );
+    });
+
+
+    return {
+      score: overall,
+      percentile: this.percentile(overall),
+      coachabilityBand: this.band(overall),
+      learningReadiness: this.readiness(overall),
+      profile,
+      narrative: this.narrative(overall, profile)
+    };
+  }
+
+
+  percentile(score){
+    if(score>=90) return 95;
+    if(score>=80) return 85;
+    if(score>=70) return 70;
+    if(score>=60) return 55;
+    return 35;
+  }
+
+
+  band(score){
+    if(score>=90) return "Highly Coachable Growth Leader";
+    if(score>=80) return "Strong Learner";
+    if(score>=70) return "Trainable Professional";
+    if(score>=60) return "Moderately Receptive";
+    return "Resistant / Fixed Pattern";
+  }
+
+
+  readiness(score){
+    if(score>=85) return "Ready for accelerated development";
+    if(score>=70) return "Ready with coaching";
+    return "Needs mindset intervention";
+  }
+
+
+  narrative(score, profile){
+    return {
+      summary:
+        `Professional demonstrates ${this.band(score)} orientation toward coaching, learning agility, and career adaptability.`,
+      strongestDimension:
+        Object.keys(profile).reduce((a,b)=>profile[a]>profile[b]?a:b),
+      weakestDimension:
+        Object.keys(profile).reduce((a,b)=>profile[a]<profile[b]?a:b)
+    };
+  }
+}
+
+
+module.exports = ProfessionalCoachabilityAssessment;
+
+
+________________
+
+
+This is Part 1 (Q1–Q12).
+Next I can create:
+Part 2 (Q13–Q24) → tougher workplace coaching scenarios
+Part 3 (Q25–Q35) → senior executive relearning / transformation mindset / digital adaptability
+That will complete a market-ready corporate Coachability Assessment IP.
+Excellent. We now move into deeper workplace coachability—where the test starts distinguishing:
+* people who attend training vs people who transform behaviour
+* people who accept feedback politely vs people who actively change
+* professionals who hold onto old success formulas vs those willing to unlearn and rebuild capability
+Professional Coachability & Learning Agility Index (PCLA™)
+Part 2 — Questions 13–24
+Theme: Behaviour Change | Adaptability | Feedback Integration | Growth Mindset in Real Corporate Situations
+Scoring logic:
+Best adaptive response = 4
+Good response = 3
+Limited openness = 2
+Low coachability = 1
+________________
+
+
+Q13 — New Manager, New Style
+A new manager joins and suggests changing your way of working, even though your current method has produced results.
+You:
+A) Resist because your method works
+B) Agree outwardly but continue your old way
+C) Evaluate the suggestion objectively and adopt improvements if valuable ✅
+D) Feel personally criticized
+Dimension: Adaptability to Coaching
+Weights: A=1 | B=2 | C=4 | D=1
+________________
+
+
+Q14 — Public Feedback
+During a review meeting, your senior leader openly challenges your presentation and suggests stronger executive communication.
+You:
+A) Feel offended and disengage
+B) Defend yourself immediately
+C) Manage emotions, extract useful feedback, and improve presentation impact ✅
+D) Avoid presenting next time
+Dimension: Emotional Coachability
+Weights: A=1 | B=2 | C=4 | D=1
+________________
+
+
+Q15 — Role Evolution
+Your role is changing due to automation, requiring you to learn analytics and digital tools.
+Your response:
+A) Upgrade skills proactively and reposition your capability for future roles ✅
+B) Wait until change becomes unavoidable
+C) Hope the organization retains current work model
+D) Resist change openly
+Dimension: Future Skills Orientation
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q16 — Repeated Development Feedback
+Over several years, different managers tell you that you need stronger stakeholder management skills.
+You:
+A) Recognize the pattern and intentionally build that capability ✅
+B) Assume managers misunderstood you
+C) Ignore because technical skill matters more
+D) Wait for formal training only
+Dimension: Feedback Integration
+Weights: A=4 | B=1 | C=1 | D=2
+________________
+
+
+Q17 — Learning Outside Comfort Zone
+You are nominated for a strategic workshop in an unfamiliar area.
+You:
+A) Participate actively and use it to broaden capability ✅
+B) Attend but remain passive
+C) Decline due to lack of expertise
+D) Join only if mandatory
+Dimension: Learning Curiosity
+Weights: A=4 | B=2 | C=1 | D=2
+________________
+
+
+Q18 — Reverse Mentoring
+Your organization launches a reverse mentoring program where younger employees teach digital tools and trends to senior staff.
+You:
+A) Welcome learning regardless of age or hierarchy ✅
+B) Participate reluctantly
+C) Feel such learning is beneath your level
+D) Avoid the program
+Dimension: Learning Humility
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q19 — New Technology Adoption
+A new AI-enabled workflow tool reduces manual work but requires behavioural change and learning effort.
+You:
+A) Learn quickly and integrate it into your work style ✅
+B) Wait until everyone adopts it
+C) Continue old methods as long as possible
+D) See it mainly as disruption
+Dimension: Technology Coachability
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q20 — Constructive Peer Challenge
+A peer respectfully points out that your leadership style sometimes limits team ownership.
+You:
+A) Reflect deeply and experiment with empowering behaviour ✅
+B) Defend your style strongly
+C) Ignore peer feedback
+D) Acknowledge politely but make no change
+Dimension: Behavioural Flexibility
+Weights: A=4 | B=1 | C=1 | D=2
+________________
+
+
+Q21 — Failure After Learning
+You invest time learning a new approach, but your first attempt fails.
+You:
+A) Treat failure as part of learning and refine approach ✅
+B) Return immediately to old methods
+C) Blame poor training
+D) Avoid experimentation again
+Dimension: Learning Resilience
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q22 — Stretch Leadership Assignment
+You are asked to lead a team larger than any team you’ve managed before.
+You:
+A) Build capability, seek coaching, and prepare deliberately for scale leadership ✅
+B) Accept but improvise without preparation
+C) Decline because you feel underprepared
+D) Accept only for title gain
+Dimension: Leadership Growth Orientation
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q23 — Old Success Formula
+A method that made you successful for years is becoming less relevant.
+You:
+A) Actively unlearn, modernize, and build fresh capability ✅
+B) Hold onto what worked before
+C) Wait until performance drops sharply
+D) Assume trends will reverse
+Dimension: Unlearning Readiness
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+Q24 — Training Transfer
+After attending a leadership program, what are you most likely to do?
+A) Identify 2–3 behaviours to apply immediately and track change consciously ✅
+B) Keep notes for future reference
+C) Feel inspired briefly but change little
+D) Attend mainly because organization expects it
+Dimension: Coaching Conversion Ability
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+NodeJS Schema — Part 2
+const questionBankPart2 = [
+{
+ id:"Q13",
+ dimension:"Adaptability to Coaching",
+ options:[
+   {key:"A", weight:1},
+   {key:"B", weight:2},
+   {key:"C", weight:4},
+   {key:"D", weight:1}
+ ]
+},
+{
+ id:"Q14",
+ dimension:"Emotional Coachability",
+ options:[
+   {key:"A", weight:1},
+   {key:"B", weight:2},
+   {key:"C", weight:4},
+   {key:"D", weight:1}
+ ]
+},
+{
+ id:"Q15",
+ dimension:"Future Skills Orientation",
+ options:[
+   {key:"A", weight:4},
+   {key:"B", weight:2},
+   {key:"C", weight:1},
+   {key:"D", weight:1}
+ ]
+}
+// continue through Q24
+];
+
+
+module.exports = questionBankPart2;
+
+
+________________
+
+
+What Part 2 now measures better
+This section sharply differentiates:
+✔ growth mindset
+✔ humility to learn
+✔ willingness to be coached
+✔ tech adaptability
+✔ ability to unlearn
+✔ resilience after failed learning
+✔ leadership stretch readiness
+✔ transfer of training into behaviour change
+________________
+
+
+Next: Part 3 (Q25–Q35) — senior executive coachability:
+ego barriers, leadership reinvention, digital transformation mindset, and readiness for next-level responsibility.
+Excellent. This final block is where we assess executive reinvention capacity—the difference between leaders who plateau and leaders who keep evolving. These questions are designed to surface ego barriers, openness to disruptive learning, executive humility, technology adaptability, and willingness to reinvent leadership style.
+Professional Coachability & Learning Agility Index (PCLA™)
+Part 3 — Questions 25–35
+Theme: Senior Executive Coachability | Leadership Reinvention | Unlearning | Digital Adaptability | Growth Maturity
+Scoring Logic:
+Best coachable response = 4
+Good response = 3
+Moderate openness = 2
+Low coachability / fixed mindset = 1
+________________
+
+
+Q25 — Experience vs Learning
+You have 18+ years of experience in your field. A younger leader introduces a new operating model that challenges many of your long-held practices.
+You:
+A) Compare objectively, learn what is valuable, and integrate new thinking without ego ✅
+B) Respectfully listen but retain old methods
+C) Feel experience should outweigh new ideas
+D) Resist because proven methods matter most
+Dimension: Executive Humility in Learning
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q26 — Executive Coaching Feedback
+During executive coaching, you are told that your biggest limitation is not skill—but rigidity in leadership style.
+Your response:
+A) Reflect deeply, seek patterns in feedback, and consciously work on behavioural flexibility ✅
+B) Accept politely but change little
+C) Feel the coach misunderstood you
+D) Stop the coaching process
+Dimension: Deep Coachability
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q27 — Digital Reinvention
+Your industry is rapidly changing due to AI, automation, and digital platforms.
+You:
+A) Invest time learning, experimenting, and understanding how technology changes leadership and work ✅
+B) Delegate all digital understanding to younger teams
+C) Assume your core leadership skills are enough
+D) Avoid engagement because technology is too disruptive
+Dimension: Digital Leadership Adaptability
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q28 — Reputation Barrier
+You are known as an expert in a traditional model, but market shifts now require very different capabilities.
+You:
+A) Reinvent openly—even if it means becoming a learner again ✅
+B) Hold onto expertise identity as long as possible
+C) Wait for external pressure
+D) Assume market will return to old ways
+Dimension: Identity Flexibility
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+Q29 — Coaching from Below
+A junior team member suggests your meetings are too directive and reduce innovation.
+You:
+A) Evaluate feedback objectively and experiment with more participative leadership ✅
+B) Dismiss because leadership experience matters more
+C) Feel authority is being challenged
+D) Ignore the feedback
+Dimension: Leadership Humility
+Weights: A=4 | B=1 | C=1 | D=1
+________________
+
+
+Q30 — Reinvention After Success
+You have been consistently successful for years, but sense your current leadership style may not suit larger roles.
+You:
+A) Actively seek coaching, benchmarking, and capability expansion for the next level ✅
+B) Wait until promotion requires change
+C) Believe success proves readiness
+D) Avoid examining strengths too deeply
+Dimension: Growth Orientation at Senior Level
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q31 — Learning from Failure at Senior Level
+A visible strategic initiative you led fails.
+You:
+A) Analyze deeply, seek candid feedback, and convert failure into leadership growth ✅
+B) Focus mainly on external causes
+C) Avoid discussing the failure
+D) Become less willing to take future risks
+Dimension: Learning Resilience
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q32 — Stretch Beyond Functional Expertise
+You are offered a broader enterprise role outside your functional comfort zone.
+You:
+A) Prepare intensely, seek mentoring, and build cross-functional understanding proactively ✅
+B) Accept but rely only on existing expertise
+C) Decline due to uncertainty
+D) Accept only for title/status
+Dimension: Enterprise Learning Agility
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q33 — Challenging Personal Bias
+You discover that you consistently favour familiar working styles when selecting talent or ideas.
+You:
+A) Acknowledge bias and intentionally create broader decision frameworks ✅
+B) Defend your instincts
+C) Ignore because experience validates judgement
+D) Continue as before
+Dimension: Bias Awareness & Correction
+Weights: A=4 | B=1 | C=1 | D=1
+________________
+
+
+Q34 — Coaching Others by Example
+Your team is resistant to learning new methods.
+You:
+A) Model visible learning, experimentation, and humility so learning culture becomes contagious ✅
+B) Force compliance through policy
+C) Delegate learning responsibility to HR/training
+D) Ignore resistance
+Dimension: Learning Leadership
+Weights: A=4 | B=2 | C=1 | D=1
+________________
+
+
+Q35 — Next-Level Readiness Mindset
+When thinking about future career growth, your dominant belief is:
+A) “I must continuously learn, unlearn, and reinvent to remain relevant.” ✅
+B) “My experience should naturally create growth opportunities.”
+C) “Organizations should guide my development path.”
+D) “Career growth depends mainly on timing.”
+Dimension: Growth Mindset Maturity
+Weights: A=4 | B=1 | C=2 | D=1
+________________
+
+
+NodeJS Schema — Part 3
+const questionBankPart3 = [
+{
+ id:"Q25",
+ dimension:"Executive Humility in Learning",
+ options:[
+   {key:"A", weight:4},
+   {key:"B", weight:2},
+   {key:"C", weight:1},
+   {key:"D", weight:1}
+ ]
+},
+{
+ id:"Q26",
+ dimension:"Deep Coachability",
+ options:[
+   {key:"A", weight:4},
+   {key:"B", weight:2},
+   {key:"C", weight:1},
+   {key:"D", weight:1}
+ ]
+},
+{
+ id:"Q27",
+ dimension:"Digital Leadership Adaptability",
+ options:[
+   {key:"A", weight:4},
+   {key:"B", weight:2},
+   {key:"C", weight:1},
+   {key:"D", weight:1}
+ ]
+}
+// continue through Q35
+];
+
+
+module.exports = questionBankPart3;
+
+
+________________
+
+
+Final Interpretation Model (All 35 Questions)
+Score Bands
+122–140 → Highly Coachable Growth Leader (accelerated leadership pipeline)
+105–121 → Strong Learning Agile Professional (high coaching ROI)
+87–104 → Trainable / Moderately Adaptive (development-ready)
+70–86 → Conditionally Coachable (requires mindset shift)
+Below 70 → Fixed-pattern / Learning Resistance Risk
+________________
+
+
+What Training Managers Learn
+This instrument identifies:
+✔ who is most coachable
+✔ who embraces change
+✔ who is digitally adaptable
+✔ who converts training into behaviour change
+✔ who resists feedback
+✔ who can reinvent for next-level roles
+✔ who should enter HiPo / accelerated development programs
+✔ where coaching investment will yield highest ROI
+________________
+
+
+You now have a full corporate Coachability Assessment IP (35 questions) that sits beautifully alongside:
+1. Executive Cognitive Ability Assessment → capability to think
+2. Executive Critical Thinking Index → quality of judgement
+3. PIRO → interpersonal orientation
+4. PCLA Coachability Index → willingness to grow
+Together, this becomes a robust executive psychometric suite.

@@ -1266,6 +1266,220 @@ const generateHoganReportPdf = async (report, testTaker, options = {}) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SJT REPORT — Executive Situational Judgement Index (ESJI™)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const generateSjtReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    const reportObj = report?.toObject ? report.toObject() : report;
+    const sjtData   = reportObj.sjtResults || reportObj.attempt?.sjtResults || reportObj.scores || {};
+
+    const { RADAR_AXIS_MAP } = require('./sjtScoringService');
+    const { SJT_BANDS }      = require('../seeders/sjtQuestions');
+
+    const situationalIndex   = sjtData.situationalIndex ?? Math.round(sjtData.percentage || 0);
+    const rawScore           = sjtData.rawScore  || sjtData.total    || 0;
+    const maxRaw             = sjtData.maxRaw    || sjtData.maxScore || 160;
+    const percentile         = sjtData.percentile || (situationalIndex >= 90 ? 95 : situationalIndex >= 80 ? 85 : situationalIndex >= 70 ? 70 : situationalIndex >= 60 ? 55 : 35);
+    const bandInfo           = SJT_BANDS.find(b => situationalIndex >= b.min) || SJT_BANDS[SJT_BANDS.length - 1];
+    const band               = sjtData.band  || bandInfo.label;
+    const grade              = sjtData.grade || bandInfo.grade;
+    const promotionReadiness = sjtData.promotionReadiness || bandInfo.promotionReadiness;
+    const radar              = sjtData.radar || {};
+    const dimensionScores    = sjtData.dimensionScores || {};
+    const strongest          = sjtData.strongestDimension || (Object.entries(dimensionScores).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'N/A');
+    const weakest            = sjtData.weakestDimension   || (Object.entries(dimensionScores).sort((a,b)=>a[1]-b[1])[0]?.[0] || 'N/A');
+
+    const dimensionRows = Object.entries(dimensionScores)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, score]) => ({
+        name,
+        score,
+        zone:   score >= 80 ? '🟢' : score >= 60 ? '🟡' : '🔴',
+        signal: score >= 80 ? 'Strong' : score >= 60 ? 'Moderate Watch' : 'Watch',
+        barWidth: score,
+      }));
+
+    const FLAG_MAP = {
+      'Composure':              { green: 'Calm Under Fire',                amber: 'Self-regulation at Risk',        red: 'Panic Behaviour' },
+      'Decision Quality':       { green: 'Clear Decision Logic',           amber: 'Needs Decision Coaching',        red: 'Poor Judgement Under Pressure' },
+      'Crisis Communication':   { green: 'Transparent Crisis Communicator',amber: 'Communication Gaps',             red: 'Avoids Difficult Conversations' },
+      'Stakeholder Handling':   { green: 'Strong Stakeholder Maturity',    amber: 'Stakeholder Management Gaps',    red: 'Poor Client Handling' },
+      'Business Continuity':    { green: 'Business Continuity Thinker',    amber: 'Continuity Gaps',                red: 'Execution Risk Under Pressure' },
+      'Resourcefulness':        { green: 'Adaptive & Resourceful',          amber: 'Resource Bottleneck Risk',       red: 'Low Resourcefulness' },
+      'Escalation Judgement':   { green: 'Escalates Wisely',               amber: 'Over or Under-Escalation Risk',  red: 'Escalation Paralysis' },
+    };
+    const greenFlags = [], amberFlags = [], redFlags = [];
+    for (const [axis, score] of Object.entries(radar)) {
+      const fm = FLAG_MAP[axis]; if (!fm) continue;
+      if (score >= 80)      greenFlags.push(fm.green);
+      else if (score >= 60) amberFlags.push(fm.amber);
+      else                  redFlags.push(fm.red);
+    }
+
+    const composure   = radar['Composure']           || 0;
+    const decision    = radar['Decision Quality']     || 0;
+    const stakeholder = radar['Stakeholder Handling'] || 0;
+    const continuity  = radar['Business Continuity']  || 0;
+    const escalation  = radar['Escalation Judgement'] || 0;
+
+    const clientFit     = Math.round(stakeholder * 0.5 + composure * 0.3 + decision * 0.2);
+    const crisisFit     = Math.round(composure   * 0.4 + continuity * 0.3 + escalation * 0.3);
+    const operationsFit = Math.round(continuity  * 0.4 + decision   * 0.3 + escalation * 0.3);
+    const regionalFit   = Math.round(decision    * 0.35 + composure * 0.35 + stakeholder * 0.3);
+    const cxoPipeline   = Math.round(situationalIndex * 0.6 + percentile * 0.4);
+
+    const hiringRec  = situationalIndex >= 85 ? 'Strongly Recommended' : situationalIndex >= 70 ? 'Recommended' : situationalIndex >= 60 ? 'Recommended with Coaching' : 'Further Development Needed';
+    const confidence = situationalIndex >= 80 ? 'High' : situationalIndex >= 65 ? 'Moderate' : 'Low';
+    const riskLevel  = situationalIndex >= 80 ? 'Low–Moderate' : situationalIndex >= 65 ? 'Moderate' : 'High';
+
+    const currentRole     = Math.min(100, situationalIndex + 5);
+    const largerTeam      = Math.min(100, situationalIndex);
+    const crossFunctional = Math.min(100, Math.max(0, situationalIndex - 5));
+    const transformation  = Math.min(100, Math.max(0, situationalIndex - 8));
+    const enterprise      = Math.min(100, Math.max(0, situationalIndex - 12));
+
+    const templateData = {
+      candidateName:    esc(testTaker?.name  || 'N/A'),
+      candidateEmail:   esc(testTaker?.email || 'N/A'),
+      assessmentDate:   new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }),
+      situationalIndex,
+      rawScore, maxRaw, percentile,
+      band: esc(band), grade, promotionReadiness: esc(promotionReadiness),
+      strongest: esc(strongest), weakest: esc(weakest),
+      esiOffset: ringOffset(situationalIndex),
+      composureScore:       radar['Composure']           || 0,
+      decisionScore:        radar['Decision Quality']    || 0,
+      communicationScore:   radar['Crisis Communication']|| 0,
+      stakeholderScore:     radar['Stakeholder Handling']|| 0,
+      continuityScore:      radar['Business Continuity'] || 0,
+      resourcefulnessScore: radar['Resourcefulness']     || 0,
+      escalationScore:      radar['Escalation Judgement']|| 0,
+      composureOffset:      ringOffset(radar['Composure']           || 0),
+      decisionOffset:       ringOffset(radar['Decision Quality']    || 0),
+      communicationOffset:  ringOffset(radar['Crisis Communication']|| 0),
+      stakeholderOffset:    ringOffset(radar['Stakeholder Handling']|| 0),
+      continuityOffset:     ringOffset(radar['Business Continuity'] || 0),
+      resourcefulnessOffset:ringOffset(radar['Resourcefulness']     || 0),
+      escalationOffset:     ringOffset(radar['Escalation Judgement']|| 0),
+      dimensionRows,
+      greenFlags, amberFlags, redFlags,
+      hasGreenFlags: greenFlags.length > 0,
+      hasAmberFlags: amberFlags.length > 0,
+      hasRedFlags:   redFlags.length > 0,
+      clientFit, crisisFit, operationsFit, regionalFit, cxoPipeline,
+      hiringRec: esc(hiringRec), confidence, riskLevel,
+      currentRole, largerTeam, crossFunctional, transformation, enterprise,
+      ...getAttemptMetrics(testTaker),
+    };
+
+    const template = readTemplate('sjt-comprehensive.html');
+    const html     = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('SJT PDF generation error:', err);
+    throw err;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+// PCLA REPORT
+// ─────────────────────────────────────────────────────────────────
+
+const generatePclaReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    const reportObj = report?.toObject ? report.toObject() : report;
+
+    // Extract pcla results — stored in attempt.sjtResults (Mixed field) or attempt itself
+    const pclaResults = reportObj.pclaResults
+      || reportObj.sjtResults  // stored here by handlePclaSubmit
+      || reportObj.attempt?.sjtResults
+      || {};
+
+    const ci = pclaResults.coachabilityIndex || reportObj.scores?.percentage || 0;
+    const band = pclaResults.band || reportObj.analysis?.personalityProfile || 'N/A';
+    const grade = pclaResults.grade || 'N/A';
+    const percentile = pclaResults.percentile || 0;
+    const promotionReadiness = pclaResults.promotionReadiness || 'N/A';
+    const bandDescription = pclaResults.bandDescription || '';
+    const archetype = pclaResults.archetype || 'Learning Professional';
+    const strongestDimension = pclaResults.strongestDimension || 'N/A';
+    const weakestDimension = pclaResults.weakestDimension || 'N/A';
+    const trainingROI = pclaResults.trainingROI || ci;
+    const promotionReadinessScore = pclaResults.promotionReadinessScore || ci;
+    const greenFlags = pclaResults.greenFlags || reportObj.analysis?.strengths || [];
+    const amberFlags = pclaResults.amberFlags || [];
+    const summary = pclaResults.summary || reportObj.analysis?.summary || '';
+    const radarScores = pclaResults.radarScores || {};
+    const dimensionScores = pclaResults.dimensionScores || {};
+
+    // Build dimension rows for heat map
+    const zoneFor = (s) => s >= 75 ? '🟢 Exceptional' : s >= 60 ? '🟢 Strong' : s >= 45 ? '🟡 Moderate' : '🔴 Needs Focus';
+    const dimensionRows = Object.entries(dimensionScores).map(([name, score]) => ({
+      name,
+      score,
+      barWidth: Math.min(score, 100),
+      zone: zoneFor(score),
+    }));
+
+    // Training ROI potential label
+    const trainingROIPotential = trainingROI >= 80 ? 'High' : trainingROI >= 60 ? 'Moderate' : 'Developing';
+
+    const templateData = {
+      candidateName:  esc(testTaker?.name || 'N/A'),
+      candidateEmail: esc(testTaker?.email || 'N/A'),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+
+      coachabilityIndex: ci,
+      band:              esc(band),
+      grade,
+      percentile,
+      promotionReadiness: esc(promotionReadiness),
+      promotionReadinessScore,
+      trainingROI,
+      trainingROIPotential,
+      archetype:         esc(archetype),
+      bandDescription:   esc(bandDescription),
+      strongestDimension: esc(strongestDimension),
+      weakestDimension:  esc(weakestDimension),
+      summary:           esc(summary),
+
+      // Ring offset for main score
+      ciOffset: ringOffset(ci),
+
+      // Radar axis scores
+      coachabilityScore:  radarScores['Coachability'] || 0,
+      learningScore:      radarScores['Learning Orientation'] || 0,
+      unlearningScore:    radarScores['Unlearning Ability'] || 0,
+      techScore:          radarScores['Technology Adaptability'] || 0,
+      reflectionScore:    radarScores['Reflection & Self-awareness'] || 0,
+      growthScore:        radarScores['Growth Drive'] || 0,
+
+      // Ring offsets for axes
+      coachabilityOffset:  ringOffset(radarScores['Coachability'] || 0),
+      learningOffset:      ringOffset(radarScores['Learning Orientation'] || 0),
+      unlearningOffset:    ringOffset(radarScores['Unlearning Ability'] || 0),
+      techOffset:          ringOffset(radarScores['Technology Adaptability'] || 0),
+      reflectionOffset:    ringOffset(radarScores['Reflection & Self-awareness'] || 0),
+      growthOffset:        ringOffset(radarScores['Growth Drive'] || 0),
+
+      dimensionRows,
+      greenFlags,
+      amberFlags,
+
+      ...getAttemptMetrics(testTaker),
+    };
+
+    const template = readTemplate('pcla-comprehensive.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('PCLA PDF generation error:', err);
+    throw err;
+  }
+};
+
 module.exports = {
   generateDiscReportPdf,
   generateBig5ReportPdf,
@@ -1274,7 +1488,10 @@ module.exports = {
   generateQuickSummaryPdf,
   generateGenericReportPdf,
   generateHoganReportPdf,
+  generateSjtReportPdf,
+  generatePclaReportPdf,
   savePdfToDisk,
   getCachedPdf,
   deleteCachedPdfs,
 };
+

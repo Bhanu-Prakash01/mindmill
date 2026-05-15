@@ -26,9 +26,9 @@ router.post('/', createGroup);
 router.put('/:id', idParamValidation, updateGroup);
 router.delete('/:id', idParamValidation, deleteGroup);
 
-// Team members (admin-only)
-router.post('/:id/members', isAdmin, idParamValidation, addMembers);
-router.delete('/:id/members', isAdmin, idParamValidation, removeMembers);
+// Team members (creator or moderator)
+router.post('/:id/members', idParamValidation, addMembers);
+router.delete('/:id/members', idParamValidation, removeMembers);
 
 // Contacts (owner or admin)
 router.post('/:id/contacts', idParamValidation, addContacts);

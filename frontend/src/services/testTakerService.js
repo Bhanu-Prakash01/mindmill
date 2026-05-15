@@ -45,6 +45,11 @@ export const testTakerService = {
     return response.data.data;
   },
 
+  bulkInviteFromGroup: async (data) => {
+    const response = await api.post('/invites/bulk-group', data);
+    return response.data;
+  },
+
   downloadTemplate: async () => {
     const response = await api.get('/invites/template', {
       responseType: 'blob'

@@ -13,10 +13,19 @@ const getTickets = asyncHandler(async (req, res) => {
 
   // Filter based on role
   if (req.user.role === 'superadmin') {
-    // SuperAdmin sees all tickets
+    // SuperAdmin sees all tickets (org user, org admin, individual)
   } else if (req.user.role === 'admin') {
-    // Admin sees tickets from their organization
+    // Admin sees their own tickets + tickets from non-admin org users.
+    // Other admin tickets are managed by superadmin only.
+    const adminUserIds = await User.find({
+      organization: req.user.organization._id,
+      role: 'admin'
+    }).distinct('_id');
     query.organization = req.user.organization._id;
+    query.$or = [
+      { user: req.user._id },
+      { user: { $nin: adminUserIds } }
+    ];
   } else {
     // User sees only their own tickets
     query.user = req.user._id;
@@ -72,8 +81,25 @@ const getTicket = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Access denied');
     }
   } else if (req.user.role === 'admin') {
-    if (ticket.organization._id.toString() !== req.user.organization._id.toString()) {
+    // Admin: must have org, ticket must belong to admin's org,
+    // and ticket must be created by a regular user (not admin) — unless it's their own ticket
+    if (!ticket.organization) {
       throw new ApiError(403, 'Access denied');
+    }
+    const orgId = typeof ticket.organization === 'object' && ticket.organization._id
+      ? ticket.organization._id.toString()
+      : ticket.organization.toString();
+    if (orgId !== req.user.organization._id.toString()) {
+      throw new ApiError(403, 'Access denied');
+    }
+    const ticketUserId = typeof ticket.user === 'object' && ticket.user._id
+      ? ticket.user._id.toString()
+      : ticket.user.toString();
+    if (ticketUserId !== req.user._id.toString()) {
+      const creator = await User.findById(ticket.user);
+      if (!creator || creator.role !== 'user') {
+        throw new ApiError(403, 'Access denied');
+      }
     }
   }
 
@@ -145,8 +171,18 @@ const addResponse = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Cannot add internal note');
     }
   } else if (req.user.role === 'admin') {
+    // Admin: must have org, must belong to admin's org, creator must be 'user' (unless self)
+    if (!ticket.organization) {
+      throw new ApiError(403, 'Access denied');
+    }
     if (ticket.organization.toString() !== req.user.organization._id.toString()) {
       throw new ApiError(403, 'Access denied');
+    }
+    if (ticket.user.toString() !== req.user._id.toString()) {
+      const creator = await User.findById(ticket.user);
+      if (!creator || creator.role !== 'user') {
+        throw new ApiError(403, 'Access denied');
+      }
     }
   }
 
@@ -189,7 +225,15 @@ const updateStatus = asyncHandler(async (req, res) => {
   // Check permissions
   if (req.user.role !== 'superadmin') {
     if (req.user.role === 'admin') {
+      if (!ticket.organization) {
+        throw new ApiError(403, 'Access denied');
+      }
       if (ticket.organization.toString() !== req.user.organization._id.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
+      // Admin can only update status of user-created tickets
+      const creator = await User.findById(ticket.user);
+      if (!creator || creator.role !== 'user') {
         throw new ApiError(403, 'Access denied');
       }
     } else {
@@ -234,7 +278,15 @@ const assignTicket = asyncHandler(async (req, res) => {
   // Check permissions
   if (req.user.role !== 'superadmin') {
     if (req.user.role === 'admin') {
+      if (!ticket.organization) {
+        throw new ApiError(403, 'Access denied');
+      }
       if (ticket.organization.toString() !== req.user.organization._id.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
+      // Admin can only assign user-created tickets
+      const creator = await User.findById(ticket.user);
+      if (!creator || creator.role !== 'user') {
         throw new ApiError(403, 'Access denied');
       }
     } else {
@@ -265,6 +317,44 @@ const assignTicket = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get current user's own tickets only (regardless of role)
+ * @route   GET /api/support/my-tickets
+ * @access  Private
+ */
+const getMyTickets = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, status, priority, category } = req.query;
+
+  let query = { user: req.user._id };
+
+  if (status) query.status = status;
+  if (priority) query.priority = priority;
+  if (category) query.category = category;
+
+  const tickets = await SupportTicket.find(query)
+    .populate('user', 'firstName lastName email')
+    .populate('organization', 'name slug')
+    .populate('assignedTo', 'firstName lastName')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+
+  const count = await SupportTicket.countDocuments(query);
+
+  res.json({
+    success: true,
+    data: {
+      tickets,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit),
+        limit: parseInt(limit)
+      }
+    }
+  });
+});
+
+/**
  * @desc    Get ticket statistics
  * @route   GET /api/support/stats
  * @access  Private (Admin, SuperAdmin)
@@ -274,6 +364,14 @@ const getStats = asyncHandler(async (req, res) => {
 
   if (req.user.role === 'admin') {
     query.organization = req.user.organization._id;
+    // Admin stats should only count user-created tickets (not admin-created)
+    const adminUserIds = await User.find({
+      organization: req.user.organization._id,
+      role: 'admin'
+    }).distinct('_id');
+    if (adminUserIds.length > 0) {
+      query.user = { $nin: adminUserIds };
+    }
   }
 
   const stats = await SupportTicket.aggregate([
@@ -333,6 +431,7 @@ const getCoordinators = asyncHandler(async (req, res) => {
 
 module.exports = {
   getTickets,
+  getMyTickets,
   getTicket,
   createTicket,
   addResponse,

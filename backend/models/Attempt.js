@@ -74,7 +74,8 @@ const attemptSchema = new mongoose.Schema({
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
-    required: [true, 'Organization is required']
+    required: false,
+    default: null
   },
   isPublicAttempt: {
     type: Boolean,
@@ -193,6 +194,11 @@ const attemptSchema = new mongoose.Schema({
   },
   // For Hogan personality assessments
   hoganResults: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  // For Executive Situational Judgement (ESJI) assessments
+  sjtResults: {
     type: mongoose.Schema.Types.Mixed,
     default: null
   },

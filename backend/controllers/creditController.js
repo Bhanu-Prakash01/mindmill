@@ -83,6 +83,29 @@ const getCredits = asyncHandler(async (req, res) => {
 
   const organization = await Organization.findById(req.user.organization);
 
+  // Handle individual users (no org)
+  if (!organization && req.user.accountType === 'individual') {
+    const recentRequests = await CreditRequest.find({ requestedForUser: req.user._id })
+      .populate('requestedBy', 'firstName lastName')
+      .populate('approvedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return res.json({
+      success: true,
+      data: {
+        credits: {
+          total: req.user.personalCredits?.total || 0,
+          used: req.user.personalCredits?.used || 0,
+          remaining: Math.max(0, (req.user.personalCredits?.total || 0) - (req.user.personalCredits?.used || 0)),
+          locked: 0,
+          batches: []
+        },
+        recentRequests
+      }
+    });
+  }
+
   if (!organization) {
     throw new ApiError(404, 'Organization not found');
   }
@@ -111,37 +134,51 @@ const getCredits = asyncHandler(async (req, res) => {
 const requestCredits = asyncHandler(async (req, res) => {
   const { creditsRequested, reason } = req.body;
 
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    throw new ApiError(403, 'Only admins can request credits');
+  const isIndividual = req.user.accountType === 'individual' && !req.user.organization;
+
+  if (!isIndividual && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    throw new ApiError(403, 'Only admins or individual users can request credits');
   }
 
-  const organization = await Organization.findById(req.user.organization);
+  let creditRequest;
 
-  if (!organization) {
-    throw new ApiError(404, 'Organization not found');
-  }
-
-  const creditRequest = await CreditRequest.create({
-    organization: organization._id,
-    requestedBy: req.user._id,
-    creditsRequested,
-    reason
-  });
-
-  await creditRequest.populate('requestedBy', 'firstName lastName');
-
-  // Notify admin via email
-  try {
-    await sendCreditRequestNotification({
-      adminEmail: 'rahulguha@mindmil.com',
-      requesterName: `${req.user.firstName} ${req.user.lastName}`,
-      organizationName: organization.name,
+  if (isIndividual) {
+    // --- Individual user credit request (no org) ---
+    creditRequest = await CreditRequest.create({
+      organization: null,
+      requestedForUser: req.user._id,
+      requestedBy: req.user._id,
+      requestType: 'individual',
       creditsRequested,
       reason
     });
-  } catch (emailError) {
-    console.error('Failed to send credit request notification:', emailError);
+  } else {
+    // --- Org admin credit request ---
+    const organization = await Organization.findById(req.user.organization);
+    if (!organization) throw new ApiError(404, 'Organization not found');
+
+    creditRequest = await CreditRequest.create({
+      organization: organization._id,
+      requestedBy: req.user._id,
+      requestType: 'organization',
+      creditsRequested,
+      reason
+    });
+
+    try {
+      await sendCreditRequestNotification({
+        adminEmail: 'rahulguha@mindmil.com',
+        requesterName: `${req.user.firstName} ${req.user.lastName}`,
+        organizationName: organization.name,
+        creditsRequested,
+        reason
+      });
+    } catch (emailError) {
+      console.error('Failed to send credit request notification:', emailError);
+    }
   }
+
+  await creditRequest.populate('requestedBy', 'firstName lastName');
 
   res.status(201).json({
     success: true,
@@ -175,6 +212,7 @@ const getCreditRequests = asyncHandler(async (req, res) => {
   const requests = await CreditRequest.find(query)
     .populate('organization', 'name slug')
     .populate('requestedBy', 'firstName lastName email')
+    .populate('requestedForUser', 'firstName lastName email accountType')
     .populate('approvedBy', 'firstName lastName')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
@@ -237,21 +275,30 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
   creditRequest.adminNotes = notes;
   await creditRequest.save();
 
-  // Add credits to organization with batch tracking
-  const organization = await Organization.findById(creditRequest.organization._id);
-  organization.credits.total += granted;
-  
-  // Add to credit batches for expiry tracking
-  if (finalExpiryDate) {
-    organization.credits.batches.push({
-      amount: granted,
-      purchasedAt: new Date(),
-      expiresAt: finalExpiryDate,
-      used: 0
-    });
+  if (creditRequest.requestType === 'individual' && creditRequest.requestedForUser) {
+    // --- Credit goes to individual User.personalCredits ---
+    const individualUser = await User.findById(creditRequest.requestedForUser);
+    if (!individualUser) throw new ApiError(404, 'Individual user not found');
+    individualUser.personalCredits.total = (individualUser.personalCredits.total || 0) + granted;
+    await individualUser.save();
+  } else {
+    // --- Credit goes to Organization ---
+    const organization = await Organization.findById(
+      creditRequest.organization?._id || creditRequest.organization
+    );
+    if (organization) {
+      organization.credits.total += granted;
+      if (finalExpiryDate) {
+        organization.credits.batches.push({
+          amount: granted,
+          purchasedAt: new Date(),
+          expiresAt: finalExpiryDate,
+          used: 0
+        });
+      }
+      await organization.save();
+    }
   }
-  
-  await organization.save();
 
   await creditRequest.populate('approvedBy', 'firstName lastName');
 
@@ -285,24 +332,32 @@ const revokeCreditRequest = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'No credits were granted for this request');
   }
 
-  const organization = await Organization.findById(creditRequest.organization._id);
-  if (!organization) {
-    throw new ApiError(404, 'Organization not found');
-  }
-
-  organization.credits.total = Math.max(0, organization.credits.total - creditRequest.creditsGranted);
-
-  if (creditRequest.expiryDate) {
-    const batchIndex = organization.credits.batches.findIndex(
-      b => b.amount === creditRequest.creditsGranted &&
-           new Date(b.expiresAt).getTime() === new Date(creditRequest.expiryDate).getTime()
-    );
-    if (batchIndex !== -1) {
-      organization.credits.batches.splice(batchIndex, 1);
+  if (creditRequest.requestType === 'individual' && creditRequest.requestedForUser) {
+    // Revoke from individual User.personalCredits
+    const individualUser = await User.findById(creditRequest.requestedForUser);
+    if (individualUser) {
+      individualUser.personalCredits.total = Math.max(0, (individualUser.personalCredits.total || 0) - creditRequest.creditsGranted);
+      await individualUser.save();
     }
-  }
+  } else {
+    const organization = await Organization.findById(
+      creditRequest.organization?._id || creditRequest.organization
+    );
+    if (!organization) throw new ApiError(404, 'Organization not found');
 
-  await organization.save();
+    organization.credits.total = Math.max(0, organization.credits.total - creditRequest.creditsGranted);
+
+    if (creditRequest.expiryDate) {
+      const batchIndex = organization.credits.batches.findIndex(
+        b => b.amount === creditRequest.creditsGranted &&
+             new Date(b.expiresAt).getTime() === new Date(creditRequest.expiryDate).getTime()
+      );
+      if (batchIndex !== -1) {
+        organization.credits.batches.splice(batchIndex, 1);
+      }
+    }
+    await organization.save();
+  }
 
   creditRequest.status = 'revoked';
   creditRequest.adminNotes = notes || creditRequest.adminNotes;
@@ -434,13 +489,16 @@ const getCreditUsage = asyncHandler(async (req, res) => {
 const getMyCreditRequests = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status } = req.query;
 
-  let query = {
-    organization: req.user.organization._id
-  };
+  const isIndividual = req.user.accountType === 'individual' && !req.user.organization;
 
-  if (status) {
-    query.status = status;
+  let query;
+  if (isIndividual) {
+    query = { requestedForUser: req.user._id };
+  } else {
+    query = { organization: req.user.organization._id || req.user.organization };
   }
+
+  if (status) query.status = status;
 
   const requests = await CreditRequest.find(query)
     .populate('requestedBy', 'firstName lastName email')

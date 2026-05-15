@@ -217,11 +217,10 @@ const Login = () => {
             <button
               type="button"
               onClick={handleFillSuperadmin}
-              className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                superadminFilled
-                  ? 'bg-green-100 text-green-700 border border-green-200'
-                  : 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200'
-              }`}
+              className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${superadminFilled
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200'
+                }`}
             >
               <Shield className="w-4 h-4" />
               {superadminFilled ? 'Credentials Filled!' : 'Use SuperAdmin Credentials'}
@@ -304,15 +303,26 @@ const Login = () => {
 
           <Link to="/forgot-password" className="block text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-4">Forgot Password?</Link>
 
+          {!orgSlug && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <Link
+                to="/register"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-indigo-200 text-indigo-600 text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+              >
+                Try a Free Assessment
+              </Link>
+              <p className="mt-2 text-xs text-gray-400 text-center">No credit card required</p>
+            </div>
+          )}
+
           {orgSlug && (
             <button
               type="button"
               onClick={handleFillSuperadmin}
-              className={`w-full mt-3 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                superadminFilled
-                  ? 'bg-green-50 text-green-600 border border-green-200'
-                  : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
-              }`}
+              className={`w-full mt-3 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${superadminFilled
+                ? 'bg-green-50 text-green-600 border border-green-200'
+                : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                }`}
             >
               <Shield className="w-4 h-4" />
               {superadminFilled ? 'Credentials Filled!' : 'SuperAdmin Login'}
@@ -446,9 +456,11 @@ const Login = () => {
       </div>
 
       {/* Footer */}
-      <p className="mt-8 text-center text-sm text-gray-500 ">
+      <p className="mt-6 text-center text-sm text-gray-500">
         Protected by industry-standard security
       </p>
+
+
     </div>
   );
 };

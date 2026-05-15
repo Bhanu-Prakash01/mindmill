@@ -2,6 +2,20 @@ const { Group, User, Organization } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 
 /**
+ * Check if user is creator or moderator of a group (or superadmin)
+ * Handles both populated and non-populated group fields
+ */
+const isCreatorOrModerator = (group, user) => {
+  if (user.role === 'superadmin') return true;
+
+  const createdBy = group.createdBy?._id || group.createdBy;
+  const moderator = group.moderator?._id || group.moderator;
+
+  return (createdBy?.toString() === user._id.toString()) ||
+         (moderator?.toString() === user._id.toString());
+};
+
+/**
  * @desc    Get all groups (admin sees all org groups, user sees own groups)
  * @route   GET /api/groups
  * @access  Private (All authenticated users)
@@ -17,8 +31,8 @@ const getGroups = asyncHandler(async (req, res) => {
       query.organization = organization;
     }
   } else {
-    // All non-superadmin users see ONLY their own groups
-    query.createdBy = req.user._id;
+    // Users see groups where they are creator OR moderator
+    query.$or = [{ createdBy: req.user._id }, { moderator: req.user._id }];
   }
 
   if (groupType) {
@@ -26,10 +40,22 @@ const getGroups = asyncHandler(async (req, res) => {
   }
 
   if (search) {
-    query.$or = [
+    const searchOr = [
       { name: { $regex: search, $options: 'i' } },
       { description: { $regex: search, $options: 'i' } }
     ];
+
+    // Merge with existing $or (permission check) using $and
+    if (query.$or) {
+      const permissionOr = query.$or;
+      delete query.$or;
+      query.$and = [
+        { $or: permissionOr },
+        { $or: searchOr }
+      ];
+    } else {
+      query.$or = searchOr;
+    }
   }
 
   const groups = await Group.find(query)
@@ -74,7 +100,7 @@ const getGroup = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role !== 'superadmin' && group.createdBy._id?.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -141,7 +167,7 @@ const updateGroup = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -211,8 +237,8 @@ const addMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Group not found');
   }
 
-  // Only creator or superadmin can manage members
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  // Only creator or moderator can manage members
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -256,7 +282,7 @@ const removeMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Group not found');
   }
 
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -297,7 +323,7 @@ const addContacts = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -339,7 +365,7 @@ const removeContact = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 
@@ -368,7 +394,7 @@ const updateContact = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.user.role !== 'superadmin' && group.createdBy.toString() !== req.user._id.toString()) {
+  if (!isCreatorOrModerator(group, req.user)) {
     throw new ApiError(403, 'Access denied');
   }
 

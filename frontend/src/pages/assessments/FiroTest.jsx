@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   Loader2,
   AlertCircle,
@@ -18,6 +19,7 @@ const FiroTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refreshUser } = useAuth();
   
   const isPublicAccess = !!token;
 
@@ -242,8 +244,12 @@ const FiroTest = () => {
           });
           navigate(`/thank-you?${params.toString()}`);
         } else {
-          const prefix = orgSlug ? `/o/${orgSlug}` : '';
-          navigate(`${prefix}/reports/firo/${currentAttemptIdRef.current}`);
+          await refreshUser();
+          if (orgSlug) {
+            navigate(`/o/${orgSlug}/reports/firo/${currentAttemptIdRef.current}`);
+          } else {
+            navigate('/individual/reports');
+          }
         }
       } else {
         throw new Error(data?.message || 'Submit failed');
@@ -261,7 +267,7 @@ const FiroTest = () => {
     try {
       await attemptService.abandonAttempt(currentAttemptIdRef.current);
       toast.success('Test abandoned');
-      navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/dashboard/user');
+      navigate(orgSlug ? `/o/${orgSlug}/dashboard/user` : '/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to quit test');
     } finally {

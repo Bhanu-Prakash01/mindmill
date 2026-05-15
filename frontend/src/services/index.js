@@ -3,6 +3,7 @@ export { userService } from './userService';
 export { assessmentService } from './assessmentService';
 export { attemptService } from './attemptService';
 export { reportService } from './reportService';
+export { resourceService } from './resourceService';
 export { creditService } from './creditService';
 export { supportService } from './supportService';
 export { organizationService } from './organizationService';

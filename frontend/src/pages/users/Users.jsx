@@ -41,6 +41,7 @@ const EMPTY_FORM = {
   status: 'active',
   deactivationDate: '',
   deactivationReason: '',
+  organizationId: '',
   organizationName: '',
   organizationSlug: '',
   organizationDescription: '',
@@ -65,6 +66,8 @@ const UserManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [userType, setUserType] = useState('individual');
+  const [createNewOrg, setCreateNewOrg] = useState(false);
   const [bulkUploadModal, setBulkUploadModal] = useState(false);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -80,9 +83,25 @@ const UserManagement = () => {
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
 
-useEffect(() => {
+  useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && showAddModal) {
+        setShowAddModal(false);
+        setFormData(EMPTY_FORM);
+        setEditingUser(null);
+        setShowPasswordReset(false);
+        setNewPassword('');
+        setUserType('individual');
+        setCreateNewOrg(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showAddModal]);
 
   const fetchData = async () => {
     try {
@@ -100,43 +119,63 @@ useEffect(() => {
     }
   };
 
- const handleCreateUser = async (e) => {
- e.preventDefault();
- try {
- const isInactive = formData.status === 'inactive';
-      await userService.createUser({
-        ...formData,
-        isActive: !isInactive,
-        deactivationDate: isInactive ? formData.deactivationDate || null : null,
-        deactivationReason: isInactive ? formData.deactivationReason || null : null,
-      });
- setShowAddModal(false);
- setFormData(EMPTY_FORM);
- fetchData();
- } catch (error) {
- console.error('Error creating user:', error);
- alert(error.response?.data?.message || 'Failed to create user');
- }
- };
+  const handleCreateUser = async (e) => {
+  e.preventDefault();
+  try {
+  const isInactive = formData.status === 'inactive';
+  const payload = {
+    ...formData,
+    isActive: !isInactive,
+    deactivationDate: isInactive ? formData.deactivationDate || null : null,
+    deactivationReason: isInactive ? formData.deactivationReason || null : null,
+  };
+  if (userType === 'individual') {
+    delete payload.organizationId;
+    delete payload.organizationName;
+    delete payload.organizationSlug;
+    delete payload.organizationDescription;
+    delete payload.organizationCredits;
+  }
+  await userService.createUser(payload);
+  setShowAddModal(false);
+  setFormData(EMPTY_FORM);
+  setUserType('individual');
+  setCreateNewOrg(false);
+  fetchData();
+  } catch (error) {
+  console.error('Error creating user:', error);
+  alert(error.response?.data?.message || 'Failed to create user');
+  }
+  };
 
- const handleUpdateUser = async (e) => {
- e.preventDefault();
- try {
- const isInactive = formData.status === 'inactive';
- await userService.updateUser(editingUser._id, {
- ...formData,
- isActive: !isInactive,
- deactivationDate: isInactive ? formData.deactivationDate || null : null,
- deactivationReason: isInactive ? formData.deactivationReason || null : null,
- });
- setEditingUser(null);
- setFormData(EMPTY_FORM);
- fetchData();
- } catch (error) {
- console.error('Error updating user:', error);
- alert(error.response?.data?.message || 'Failed to update user');
- }
- };
+  const handleUpdateUser = async (e) => {
+  e.preventDefault();
+  try {
+  const isInactive = formData.status === 'inactive';
+  const payload = {
+    ...formData,
+    isActive: !isInactive,
+    deactivationDate: isInactive ? formData.deactivationDate || null : null,
+    deactivationReason: isInactive ? formData.deactivationReason || null : null,
+  };
+  if (userType === 'individual') {
+    delete payload.organizationId;
+    delete payload.organizationName;
+    delete payload.organizationSlug;
+    delete payload.organizationDescription;
+    delete payload.organizationCredits;
+  }
+  await userService.updateUser(editingUser._id, payload);
+  setEditingUser(null);
+  setFormData(EMPTY_FORM);
+  setUserType('individual');
+  setCreateNewOrg(false);
+  fetchData();
+  } catch (error) {
+  console.error('Error updating user:', error);
+  alert(error.response?.data?.message || 'Failed to update user');
+  }
+  };
 
  const handleDeleteUser = async (id) => {
  if (!confirm('Are you sure you want to delete this user?')) return;
@@ -290,6 +329,7 @@ useEffect(() => {
 const openEditModal = (user) => {
     setEditingUser(user);
     const userOrg = user.organization;
+    const hasOrg = !!userOrg;
     setFormData({
       salutation: user.salutation || '',
       firstName: user.firstName,
@@ -306,11 +346,14 @@ const openEditModal = (user) => {
         ? new Date(user.deactivationDate).toISOString().split('T')[0]
         : '',
       deactivationReason: user.deactivationReason || '',
+      organizationId: hasOrg ? (userOrg._id || '') : '',
       organizationName: userOrg?.name || '',
       organizationSlug: userOrg?.slug || '',
       organizationDescription: userOrg?.description || '',
       organizationCredits: userOrg?.credits?.total || 0,
     });
+    setUserType(hasOrg ? 'organization' : 'individual');
+    setCreateNewOrg(false);
     setShowPasswordReset(false);
     setNewPassword('');
     setShowAddModal(true);
@@ -431,6 +474,8 @@ return (
             setEditingUser(null);
             setFormData(EMPTY_FORM);
             setShowAddModal(true);
+            setUserType('individual');
+            setCreateNewOrg(false);
           }}
           className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
@@ -832,7 +877,16 @@ return (
       </label>
       <select
         value={formData.role}
-        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+        onChange={(e) => {
+          const newRole = e.target.value;
+          setFormData({ ...formData, role: newRole });
+          if (newRole === 'admin') {
+            setUserType('organization');
+          } else {
+            setUserType('individual');
+            setCreateNewOrg(false);
+          }
+        }}
         className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
       >
         <option value="user">User</option>
@@ -871,59 +925,134 @@ return (
     )}
   </div>
 
-  {currentUser?.role === 'superadmin' && (editingUser || formData.role === 'admin') && (
+  {currentUser?.role === 'superadmin' && formData.role !== 'admin' && (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-700">User Type</label>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => { setUserType('organization'); setFormData(f => ({ ...f, organizationId: '' })); }}
+          className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+            userType === 'organization'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <Building2 className="w-4 h-4 inline mr-1.5" />
+          Organization User
+        </button>
+        <button
+          type="button"
+          onClick={() => { setUserType('individual'); setCreateNewOrg(false); }}
+          className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+            userType === 'individual'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <UserCheck className="w-4 h-4 inline mr-1.5" />
+          Individual User
+        </button>
+      </div>
+    </div>
+  )}
+
+  {currentUser?.role === 'superadmin' && formData.role === 'admin' && (
+    <input type="hidden" name="userType" value="organization" />
+  )}
+
+  {currentUser?.role === 'superadmin' && userType === 'organization' && (
     <div className="p-4 bg-indigo-50 rounded-lg space-y-4">
-      <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Organization Details</p>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Organization Name
-          </label>
-          <input
-            type="text"
-            value={formData.organizationName}
-            onChange={(e) => setFormData({ ...formData, organizationName: e.target.value, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-') })}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            placeholder="Acme Corp"
-          />
+      <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Organization</p>
+
+      {formData.role === 'admin' && (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setCreateNewOrg(false)}
+            className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              !createNewOrg
+                ? 'border-indigo-600 bg-white text-indigo-700 ring-1 ring-indigo-600'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            Tag Organization
+          </button>
+          <button
+            type="button"
+            onClick={() => { setCreateNewOrg(true); setFormData(f => ({ ...f, organizationId: '' })); }}
+            className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              createNewOrg
+                ? 'border-indigo-600 bg-white text-indigo-700 ring-1 ring-indigo-600'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            <Plus className="w-4 h-4 inline mr-1" />
+            New Organization
+          </button>
         </div>
+      )}
+
+      {!createNewOrg ? (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Organization Slug
-          </label>
-          <input
-            type="text"
-            value={formData.organizationSlug}
-            onChange={(e) => setFormData({ ...formData, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '') })}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Select Organization</label>
+          <select
+            value={formData.organizationId}
+            onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            placeholder="acme-corp"
-          />
+          >
+            <option value="">Choose an organization...</option>
+            {organizations.map(org => (
+              <option key={org._id} value={org._id}>{org.name}</option>
+            ))}
+          </select>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Credits
-          </label>
-          <input
-            type="number"
-            min={0}
-            value={formData.organizationCredits}
-            onChange={(e) => setFormData({ ...formData, organizationCredits: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea
-            value={formData.organizationDescription}
-            onChange={(e) => setFormData({ ...formData, organizationDescription: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            rows={2}
-            placeholder="Organization description..."
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Org Name</label>
+              <input
+                type="text"
+                value={formData.organizationName}
+                onChange={(e) => setFormData({ ...formData, organizationName: e.target.value, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-') })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Acme Corp"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+              <input
+                type="text"
+                value={formData.organizationSlug}
+                onChange={(e) => setFormData({ ...formData, organizationSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '') })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="acme-corp"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Credits</label>
+              <input
+                type="number" min={0}
+                value={formData.organizationCredits}
+                onChange={(e) => setFormData({ ...formData, organizationCredits: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={formData.organizationDescription}
+                onChange={(e) => setFormData({ ...formData, organizationDescription: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                rows={2} placeholder="Description..."
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )}
 
@@ -1083,7 +1212,7 @@ return (
    <div className="flex gap-3 pt-2">
    <button
    type="button"
-   onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setEditingUser(null); setShowPasswordReset(false); setNewPassword(''); }}
+    onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setEditingUser(null); setShowPasswordReset(false); setNewPassword(''); setUserType('individual'); setCreateNewOrg(false); }}
    className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 "
    >
   Cancel

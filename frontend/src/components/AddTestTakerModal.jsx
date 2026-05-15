@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, AlertCircle, CheckCircle, Loader2, Lock, Unlock } from 'lucide-react';
-import { assessmentService, testTakerService, organizationService } from '../services';
+import { assessmentService, testTakerService, organizationService, groupService } from '../services';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
@@ -21,16 +21,30 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
   const [success, setSuccess] = useState(null);
   const [myAllocation, setMyAllocation] = useState(null);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('single');
+
+  // Group flow state
+  const [groups, setGroups] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupDetails, setGroupDetails] = useState(null);
+  const [loadingGroupDetails, setLoadingGroupDetails] = useState(false);
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+  const [bulkResults, setBulkResults] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   useEscapeKey(onClose);
 
   // Calculate available slots
   const getSlotsRemaining = () => {
     if (isSuperAdmin) return Infinity;
     if (myAllocation?.allocated) {
-      return Math.max(0, myAllocation.testsRemaining - myAllocation.activeInvites);
+      return Math.max(0, myAllocation.testsRemaining);
     }
     if (selectedAssessment?.orgUnlockInfo) {
-      return Math.max(0, selectedAssessment.orgUnlockInfo.testsRemaining - (selectedAssessment.orgUnlockInfo.activeInvites || 0));
+      return Math.max(0, selectedAssessment.orgUnlockInfo.testsRemaining);
     }
     return null;
   };
@@ -45,6 +59,11 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
       fetchMyAllocation(passedAssessment._id);
     }
   }, [passedAssessment]);
+
+  // Fetch groups on mount
+  useEffect(() => {
+    fetchGroups();
+  }, []);
 
   const fetchMyAllocation = async (assessmentId) => {
     try {
@@ -127,6 +146,169 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
     }
   };
 
+  // ==================== Group Functions ====================
+
+  const fetchGroups = async () => {
+    try {
+      setLoadingGroups(true);
+      const response = await groupService.getGroups();
+      const allGroups = response.data?.groups || [];
+      setGroups(allGroups);
+    } catch (err) {
+      console.error('Error fetching groups:', err);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const handleGroupChange = async (e) => {
+    const groupId = e.target.value;
+    if (!groupId) {
+      setSelectedGroup(null);
+      setGroupDetails(null);
+      setSelectedContactIds([]);
+      setSelectedMemberIds([]);
+      return;
+    }
+
+    const group = groups.find(g => g._id === groupId);
+    setSelectedGroup(group);
+    setLoadingGroupDetails(true);
+    setSelectedContactIds([]);
+    setSelectedMemberIds([]);
+
+    try {
+      const res = await groupService.getGroup(groupId);
+      if (res.success) {
+        setGroupDetails(res.data?.group || null);
+      }
+    } catch (err) {
+      console.error('Error fetching group details:', err);
+    } finally {
+      setLoadingGroupDetails(false);
+    }
+  };
+
+  // Derive people list from selected group
+  const people = selectedGroup?.groupType === 'team'
+    ? (groupDetails?.members || [])
+    : (groupDetails?.contacts || []);
+
+  const getPersonId = (person) => person._id;
+  const getPersonName = (person) => {
+    if (selectedGroup?.groupType === 'team') {
+      return `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Unknown';
+    }
+    return person.name || 'Unknown';
+  };
+  const getPersonEmail = (person) => {
+    if (selectedGroup?.groupType === 'team') {
+      return person.email || '';
+    }
+    return person.email || '';
+  };
+
+  const selectedCount = selectedContactIds.length + selectedMemberIds.length;
+  const totalCount = people.length;
+  const allSelected = totalCount > 0 && selectedCount === totalCount;
+
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked;
+    if (checked) {
+      if (selectedGroup?.groupType === 'team') {
+        setSelectedMemberIds(people.map(p => getPersonId(p)));
+      } else {
+        setSelectedContactIds(people.map(p => getPersonId(p)));
+      }
+    } else {
+      setSelectedContactIds([]);
+      setSelectedMemberIds([]);
+    }
+  };
+
+  const togglePerson = (person) => {
+    const id = getPersonId(person);
+    if (selectedGroup?.groupType === 'team') {
+      setSelectedMemberIds(prev =>
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedContactIds(prev =>
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      );
+    }
+  };
+
+  const isPersonSelected = (person) => {
+    const id = getPersonId(person);
+    if (selectedGroup?.groupType === 'team') {
+      return selectedMemberIds.includes(id);
+    }
+    return selectedContactIds.includes(id);
+  };
+
+  const handleBulkSubmit = async () => {
+    if (!selectedAssessment || !selectedGroup) return;
+
+    setBulkLoading(true);
+    setError(null);
+    setBulkResults(null);
+    setSuccess(null);
+
+    try {
+      const payload = {
+        assessmentId: selectedAssessment._id,
+        groupId: selectedGroup._id,
+        selectedContactIds,
+        selectedMemberIds
+      };
+
+      if (form.expiresAt) {
+        payload.expiresAt = form.expiresAt;
+      }
+
+      const response = await testTakerService.bulkInviteFromGroup(payload);
+
+      if (response.success) {
+        setBulkResults(response.data);
+        if (response.data.failed === 0 && response.data.skipped === 0) {
+          setSuccess('All invitations sent successfully!');
+          setTimeout(() => {
+            onSuccess?.();
+          }, 2000);
+        } else {
+          setSuccess(`Invitations processed: ${response.data.successful} created, ${response.data.skipped} skipped, ${response.data.failed} failed`);
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send bulk invitations');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const renderStatusBadge = (status) => {
+    const styles = {
+      created: 'bg-green-100 text-green-700',
+      duplicate: 'bg-amber-100 text-amber-700',
+      failed: 'bg-red-100 text-red-700',
+      no_slots: 'bg-red-100 text-red-700'
+    };
+    const labels = {
+      created: 'Created',
+      duplicate: 'Duplicate',
+      failed: 'Failed',
+      no_slots: 'No Slots'
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
+  // ==================== Render ====================
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
@@ -141,6 +323,30 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
             className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab Bar */}
+        <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab('single')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'single'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Single Invite
+          </button>
+          <button
+            onClick={() => setActiveTab('fromGroup')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'fromGroup'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            From Group
           </button>
         </div>
 
@@ -229,114 +435,305 @@ const AddTestTakerModal = ({ assessment: passedAssessment, onClose, onSuccess })
           </div>
         ) : null}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className={`space-y-4 ${hasNoSlots ? 'opacity-40 pointer-events-none relative' : ''}`}>
-          {hasNoSlots && (
-            <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
-              <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium">
-                No slots available
+        {/* ===== Single Invite Tab ===== */}
+        {activeTab === 'single' && (
+          <form onSubmit={handleSubmit} className={`space-y-4 ${hasNoSlots ? 'opacity-40 pointer-events-none relative' : ''}`}>
+            {hasNoSlots && (
+              <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
+                <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium">
+                  No slots available
+                </div>
               </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Test Taker Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={form.testTakerName}
+                onChange={(e) => setForm({ ...form, testTakerName: e.target.value })}
+                placeholder="Full name of the test taker"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Test Taker Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={form.testTakerName}
-              onChange={(e) => setForm({ ...form, testTakerName: e.target.value })}
-              placeholder="Full name of the test taker"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address *
-            </label>
-            <input
-              type="email"
-              required
-              value={form.testTakerEmail}
-              onChange={(e) => setForm({ ...form, testTakerEmail: e.target.value })}
-              placeholder="test.taker@example.com"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number *
-            </label>
-            <input
-              type="tel"
-              required
-              value={form.testTakerPhone}
-              onChange={(e) => setForm({ ...form, testTakerPhone: e.target.value })}
-              placeholder="+91 9876543210"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Expire Date (Optional)
-            </label>
-            <input
-              type="datetime-local"
-              value={form.expiresAt}
-              onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">Leave empty to use default 30 days</p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                required
+                value={form.testTakerEmail}
+                onChange={(e) => setForm({ ...form, testTakerEmail: e.target.value })}
+                placeholder="test.taker@example.com"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-          )}
 
-          {/* Success */}
-          {success && (
-            <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-lg p-3">
-              <CheckCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{success}</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                required
+                value={form.testTakerPhone}
+                onChange={(e) => setForm({ ...form, testTakerPhone: e.target.value })}
+                placeholder="+91 9876543210"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-          )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !selectedAssessment || hasNoSlots}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:bg-gray-400 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expire Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={form.expiresAt}
+                onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave empty to use default 30 days</p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Success */}
+            {success && (
+              <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-lg p-3">
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm">{success}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !selectedAssessment || hasNoSlots}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:bg-gray-400 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send Invitation
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ===== From Group Tab ===== */}
+        {activeTab === 'fromGroup' && (
+          <div className="space-y-4">
+            {/* Group Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Group
+              </label>
+              {loadingGroups ? (
+                <div className="flex items-center gap-2 text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending...
-                </>
+                  Loading groups...
+                </div>
+              ) : groups.length === 0 ? (
+                <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                  No groups available. Create a group first.
+                </p>
               ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Send Invitation
-                </>
+                <select
+                  value={selectedGroup?._id || ''}
+                  onChange={handleGroupChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Choose a group...</option>
+                  {groups.map(g => (
+                    <option key={g._id} value={g._id}>
+                      {g.name} ({g.groupType === 'team' ? 'Team' : 'Contacts'})
+                    </option>
+                  ))}
+                </select>
               )}
-            </button>
+            </div>
+
+            {/* People List */}
+            {selectedGroup && (
+              <div>
+                {loadingGroupDetails ? (
+                  <div className="flex items-center gap-2 text-gray-500 py-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading group members...
+                  </div>
+                ) : people.length === 0 ? (
+                  <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                    This group has no {selectedGroup.groupType === 'team' ? 'members' : 'contacts'}.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Select {selectedGroup.groupType === 'team' ? 'Members' : 'Contacts'}
+                      </label>
+                      <span className="text-xs text-gray-500">
+                        {selectedCount} of {totalCount} selected
+                      </span>
+                    </div>
+
+                    {/* Select All */}
+                    <label className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg mb-2 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={handleSelectAll}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Select All</span>
+                    </label>
+
+                    {/* Scrollable People List */}
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                      {people.map(person => (
+                        <label
+                          key={getPersonId(person)}
+                          className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isPersonSelected(person)}
+                            onChange={() => togglePerson(person)}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {getPersonName(person)}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {getPersonEmail(person)}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Expire Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expire Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={form.expiresAt}
+                onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave empty to use default 30 days</p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Success */}
+            {success && (
+              <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-lg p-3">
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm">{success}</span>
+              </div>
+            )}
+
+            {/* Results Table */}
+            {bulkResults && bulkResults.results && bulkResults.results.length > 0 && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Invitation Results</h4>
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Name</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Email</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {bulkResults.results.map((r, i) => (
+                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-3 py-2 text-gray-900">{r.name}</td>
+                          <td className="px-3 py-2 text-gray-500">{r.email}</td>
+                          <td className="px-3 py-2">{renderStatusBadge(r.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {bulkResults.successful} successful
+                  {bulkResults.skipped > 0 && `, ${bulkResults.skipped} skipped`}
+                  {bulkResults.failed > 0 && `, ${bulkResults.failed} failed`}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkSubmit}
+                disabled={bulkLoading || !selectedAssessment || !selectedGroup || selectedCount === 0 || hasNoSlots}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:bg-gray-400 flex items-center justify-center gap-2"
+              >
+                {bulkLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Invite Selected ({selectedCount})
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

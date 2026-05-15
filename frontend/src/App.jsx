@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 
@@ -24,6 +24,8 @@ import IndividualReports from './pages/individual/IndividualReports';
 import IndividualCredits from './pages/individual/IndividualCredits';
 import IndividualSupport from './pages/individual/IndividualSupport';
 import IndividualProfile from './pages/individual/IndividualProfile';
+import AdminResources from './pages/resources/AdminResources';
+import UserResources from './pages/resources/UserResources';
 
 // Users
 import Users from './pages/users/Users';
@@ -65,6 +67,7 @@ import HoganReport from './pages/reports/HoganReport';
 import FiroReport from './pages/reports/FiroReport';
 import SimpleReport from './pages/reports/SimpleReport';
 import SharedReport from './pages/reports/SharedReport';
+import PclaReport from './pages/reports/PclaReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -104,7 +107,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
  return <Navigate to="/" replace />;
  }
 
- return children;
+ return children || <Outlet />;
 };
 
 // SuperAdmin Dashboard Redirect (at root)
@@ -229,6 +232,7 @@ const AppRoutes = () => {
       <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/sjt/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/pcla/:attemptId" element={<PclaReport />} />
       <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
       <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
       <Route path="/reports/:id" element={<ReportDetail />} />
@@ -261,6 +265,7 @@ const AppRoutes = () => {
     <Route path="/support" element={<Support />} />
     <Route path="/support/:id" element={<TicketDetail />} />
     <Route path="/settings" element={<Settings />} />
+    <Route path="/resources" element={<AdminResources />} />
     </Route>
 
    {/* Root redirect */}
@@ -279,8 +284,9 @@ const AppRoutes = () => {
      <Route path="/individual/reports" element={<IndividualReports />} />
      <Route path="/individual/credits" element={<IndividualCredits />} />
      <Route path="/individual/support" element={<IndividualSupport />} />
-     <Route path="/individual/profile" element={<IndividualProfile />} />
-   </Route>
+      <Route path="/individual/profile" element={<IndividualProfile />} />
+      <Route path="/individual/resources" element={<UserResources />} />
+    </Route>
 
    {/* Individual Test-Taking Routes (no sidebar — full-screen pages) */}
    <Route path="/assessments/:id/terms" element={<ProtectedRoute><TestTermsAndConditions /></ProtectedRoute>} />
@@ -548,21 +554,53 @@ const AppRoutes = () => {
      }
      />
      <Route
-     path="reports/firo/:attemptId"
-     element={
-     <ProtectedRoute>
-     <FiroReport />
-     </ProtectedRoute>
-     }
-     />
-     <Route
-     path="reports/sjt/:attemptId"
-     element={
-     <ProtectedRoute>
-     <SimpleReport />
-     </ProtectedRoute>
-     }
-     />
+      path="reports/firo/:attemptId"
+      element={
+      <ProtectedRoute>
+      <FiroReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/situational/:attemptId"
+      element={
+      <ProtectedRoute>
+      <SimpleReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/cognitive/:attemptId"
+      element={
+      <ProtectedRoute>
+      <SimpleReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/aptitude/:attemptId"
+      element={
+      <ProtectedRoute>
+      <SimpleReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/sjt/:attemptId"
+      element={
+      <ProtectedRoute>
+      <SimpleReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/pcla/:attemptId"
+      element={
+      <ProtectedRoute>
+      <PclaReport />
+      </ProtectedRoute>
+      }
+      />
      <Route
      path="reports/big5/comprehensive/:attemptId"
     element={
@@ -610,12 +648,20 @@ const AppRoutes = () => {
 
    {/* Settings */}
    <Route
-   path="settings"
-   element={
-   <ProtectedRoute>
-   <Settings />
-   </ProtectedRoute>
-   }
+    path="settings"
+    element={
+    <ProtectedRoute>
+    <Settings />
+    </ProtectedRoute>
+    }
+   />
+   <Route
+    path="resources"
+    element={
+    <ProtectedRoute>
+     <UserResources />
+    </ProtectedRoute>
+    }
    />
    </Route>
    </Route>

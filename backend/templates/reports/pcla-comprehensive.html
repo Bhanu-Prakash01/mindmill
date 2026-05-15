@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:13px;}
+.page{width:210mm;min-height:297mm;background:#fff;margin:0 auto;page-break-after:always;position:relative;overflow:hidden;}
+.page:last-child{page-break-after:avoid;}
+
+/* COVER */
+.cover{background:linear-gradient(145deg,#064E3B 0%,#065F46 50%,#0F172A 100%);color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:0;}
+.cover-top{padding:48px 48px 0;}
+.brand-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:6px 16px;margin-bottom:40px;}
+.brand-badge span{font-size:11px;font-weight:600;color:#6EE7B7;letter-spacing:1.5px;text-transform:uppercase;}
+.cover-title{font-size:36px;font-weight:800;line-height:1.1;color:#fff;margin-bottom:12px;}
+.cover-title em{color:#6EE7B7;font-style:normal;}
+.cover-sub{font-size:12px;color:#94A3B8;margin-bottom:40px;line-height:1.6;}
+.cover-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:40px;}
+.meta-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;}
+.meta-label{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.meta-val{font-size:14px;font-weight:600;color:#fff;}
+
+/* SCORE HERO */
+.score-hero{background:linear-gradient(135deg,#059669,#10B981);border-radius:16px;padding:28px;display:flex;align-items:center;gap:32px;margin:0 48px 32px;}
+.score-ring{position:relative;width:120px;height:120px;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-ring .ring-bg{fill:none;stroke:rgba(255,255,255,.2);stroke-width:10;}
+.score-ring .ring-fg{fill:none;stroke:#fff;stroke-width:10;stroke-linecap:round;stroke-dasharray:339;}
+.score-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+.score-num{font-size:26px;font-weight:800;color:#fff;}
+.score-pct{font-size:11px;color:rgba(255,255,255,.7);}
+.score-info{flex:1;}
+.score-band{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;}
+.score-desc{font-size:12px;color:rgba(255,255,255,.8);margin-bottom:12px;line-height:1.5;}
+.score-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11px;color:#fff;font-weight:500;}
+
+/* SECTIONS */
+.section{padding:28px 48px;}
+.section-title{font-size:11px;font-weight:700;color:#059669;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,#E2E8F0,transparent);}
+
+/* RADAR AXES */
+.radar-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.axis-row{display:flex;align-items:center;gap:12px;padding:12px;background:#F0FDF4;border-radius:10px;border:1px solid #A7F3D0;}
+.axis-ring{position:relative;width:52px;height:52px;flex-shrink:0;}
+.axis-ring svg{transform:rotate(-90deg);}
+.axis-ring .r-bg{fill:none;stroke:#E2E8F0;stroke-width:6;}
+.axis-ring .r-fg{fill:none;stroke-width:6;stroke-linecap:round;stroke-dasharray:201;}
+.axis-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:700;color:#1E293B;}
+.axis-name{font-size:12px;font-weight:600;color:#334155;}
+.axis-score-text{font-size:11px;color:#64748B;margin-top:2px;}
+
+/* DIMENSION TABLE */
+.dim-table{width:100%;border-collapse:collapse;}
+.dim-table th{font-size:10px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;text-align:left;border-bottom:2px solid #E2E8F0;}
+.dim-table td{padding:8px 12px;border-bottom:1px solid #F1F5F9;font-size:12px;color:#334155;vertical-align:middle;}
+.dim-bar-wrap{background:#F1F5F9;border-radius:4px;height:6px;width:120px;}
+.dim-bar{height:6px;border-radius:4px;background:linear-gradient(90deg,#059669,#10B981);}
+
+/* FLAGS */
+.flags-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.flag-col{border-radius:12px;padding:20px;}
+.flag-col.green{background:#F0FDF4;border:1px solid #BBF7D0;}
+.flag-col.amber{background:#FFFBEB;border:1px solid #FDE68A;}
+.flag-heading{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+.flag-col.green .flag-heading{color:#16A34A;}
+.flag-col.amber .flag-heading{color:#D97706;}
+.flag-item{font-size:11px;color:#374151;margin-bottom:6px;padding-left:14px;position:relative;line-height:1.4;}
+.flag-item::before{content:'';position:absolute;left:0;top:5px;width:5px;height:5px;border-radius:50%;}
+.flag-col.green .flag-item::before{background:#16A34A;}
+.flag-col.amber .flag-item::before{background:#D97706;}
+
+/* ROI BARS */
+.fit-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.fit-label{font-size:12px;color:#334155;width:240px;flex-shrink:0;}
+.fit-bar-wrap{flex:1;background:#F1F5F9;border-radius:4px;height:8px;}
+.fit-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#059669,#10B981);}
+.fit-pct{font-size:11px;font-weight:600;color:#334155;width:36px;text-align:right;}
+
+/* VERDICT */
+.verdict-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.verdict-card{text-align:center;padding:20px;background:#F8FAFC;border-radius:12px;border:1px solid #E2E8F0;}
+.verdict-card .v-label{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.verdict-card .v-val{font-size:14px;font-weight:700;color:#1E293B;}
+.verdict-card .v-big{font-size:32px;font-weight:800;color:#059669;}
+
+/* ARCHETYPE */
+.archetype-box{background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1px solid #6EE7B7;border-radius:16px;padding:24px;margin-bottom:20px;}
+.arch-label{font-size:10px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.arch-name{font-size:20px;font-weight:800;color:#064E3B;}
+.arch-desc{font-size:12px;color:#374151;margin-top:8px;line-height:1.6;}
+
+/* FOOTER */
+.footer{position:absolute;bottom:0;left:0;right:0;padding:16px 48px;background:#F8FAFC;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
+.footer span{font-size:10px;color:#94A3B8;}
+
+/* PAGE HEADER */
+.page-header{padding:24px 48px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.page-header .ph-title{font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;}
+.page-header .ph-candidate{font-size:12px;font-weight:600;color:#334155;}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page cover">
+  <div class="cover-top">
+    <div class="brand-badge"><span>MindMill · PCLA™</span></div>
+    <div class="cover-title">Professional Coachability<br/>&amp; Learning <em>Agility</em> Index</div>
+    <div class="cover-sub">Learning Mindset · Adaptability · Reinvention Capacity · Coaching ROI Potential<br/>Assessment Type: PCLA™ · 35 Scenario-Based Questions · India Corporate Benchmark</div>
+    <div class="cover-meta-grid">
+      <div class="meta-card"><div class="meta-label">Candidate Name</div><div class="meta-val">{{candidateName}}</div></div>
+      <div class="meta-card"><div class="meta-label">Assessment Date</div><div class="meta-val">{{assessmentDate}}</div></div>
+      <div class="meta-card"><div class="meta-label">Norm Group</div><div class="meta-val">India Corporate Benchmark</div></div>
+      <div class="meta-card"><div class="meta-label">Contact</div><div class="meta-val">{{candidateEmail}}</div></div>
+    </div>
+  </div>
+  <div class="score-hero">
+    <div class="score-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="ring-bg" cx="60" cy="60" r="54"/>
+        <circle class="ring-fg" cx="60" cy="60" r="54" style="stroke-dashoffset:{{ciOffset}}"/>
+      </svg>
+      <div class="score-center"><div class="score-num">{{coachabilityIndex}}</div><div class="score-pct">/ 100</div></div>
+    </div>
+    <div class="score-info">
+      <div class="score-band">{{band}}</div>
+      <div class="score-desc">Percentile: {{percentile}}th · Grade: {{grade}} · {{promotionReadiness}}</div>
+      <div class="score-chips">
+        <span class="chip">CI: {{coachabilityIndex}}%</span>
+        <span class="chip">Percentile: {{percentile}}</span>
+        <span class="chip">Training ROI: {{trainingROI}}%</span>
+        <span class="chip">Grade: {{grade}}</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Professional Coachability &amp; Learning Agility Index (PCLA™) · MindMill Assessments</span><span>Confidential</span></div>
+</div>
+
+<!-- PAGE 2: RADAR + DIMENSION TABLE -->
+<div class="page">
+  <div class="page-header"><span class="ph-title">Learning Agility Radar</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">7-Dimension Coachability Radar</div>
+    <div class="radar-grid">
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#059669;stroke-dashoffset:{{coachabilityOffset}}"/></svg><div class="axis-center">{{coachabilityScore}}</div></div>
+        <div><div class="axis-name">Coachability</div><div class="axis-score-text">{{coachabilityScore}}% — Receptivity to feedback &amp; direction</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#8B5CF6;stroke-dashoffset:{{learningOffset}}"/></svg><div class="axis-center">{{learningScore}}</div></div>
+        <div><div class="axis-name">Learning Orientation</div><div class="axis-score-text">{{learningScore}}% — Curiosity to learn beyond comfort</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#F59E0B;stroke-dashoffset:{{unlearningOffset}}"/></svg><div class="axis-center">{{unlearningScore}}</div></div>
+        <div><div class="axis-name">Unlearning Ability</div><div class="axis-score-text">{{unlearningScore}}% — Letting go of old habits</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#06B6D4;stroke-dashoffset:{{techOffset}}"/></svg><div class="axis-center">{{techScore}}</div></div>
+        <div><div class="axis-name">Technology Adaptability</div><div class="axis-score-text">{{techScore}}% — Openness to AI &amp; digital tools</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#EC4899;stroke-dashoffset:{{reflectionOffset}}"/></svg><div class="axis-center">{{reflectionScore}}</div></div>
+        <div><div class="axis-name">Reflection &amp; Self-awareness</div><div class="axis-score-text">{{reflectionScore}}% — Learns from mistakes</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="52" height="52" viewBox="0 0 52 52"><circle class="r-bg" cx="26" cy="26" r="22"/><circle class="r-fg" cx="26" cy="26" r="22" style="stroke:#EF4444;stroke-dashoffset:{{growthOffset}}"/></svg><div class="axis-center">{{growthScore}}</div></div>
+        <div><div class="axis-name">Growth Drive</div><div class="axis-score-text">{{growthScore}}% — Intentional career growth</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Dimension Heat Map</div>
+    <table class="dim-table">
+      <thead><tr><th>Dimension</th><th>Score</th><th>Performance Bar</th><th>Zone</th></tr></thead>
+      <tbody>
+        {{#each dimensionRows}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td><strong>{{this.score}}%</strong></td>
+          <td><div class="dim-bar-wrap"><div class="dim-bar" style="width:{{this.barWidth}}%"></div></div></td>
+          <td>{{this.zone}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  <div class="footer"><span>PCLA™ · MindMill</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 3: ARCHETYPE + FLAGS + PEAK/DEV DIMENSIONS -->
+<div class="page">
+  <div class="page-header"><span class="ph-title">Coachability Signal Analysis</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Learning Personality Archetype</div>
+    <div class="archetype-box">
+      <div class="arch-label">Dominant Archetype</div>
+      <div class="arch-name">{{archetype}}</div>
+      <div class="arch-desc">{{bandDescription}}</div>
+    </div>
+    <div class="flags-grid">
+      <div class="flag-col green">
+        <div class="flag-heading">✔ Green Flags — High Coachability Signals</div>
+        {{#each greenFlags}}<div class="flag-item">{{this}}</div>{{/each}}
+      </div>
+      <div class="flag-col amber">
+        <div class="flag-heading">⚠ Amber Flags — Development Watch Areas</div>
+        {{#each amberFlags}}<div class="flag-item">{{this}}</div>{{/each}}
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Strongest &amp; Development Dimension</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;">
+        <div style="font-size:10px;color:#16A34A;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Peak Coachability Dimension</div>
+        <div style="font-size:16px;font-weight:700;color:#15803D;">{{strongestDimension}}</div>
+        <div style="font-size:11px;color:#4B5563;margin-top:4px;">Highest coachability signal in this profile</div>
+      </div>
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:20px;">
+        <div style="font-size:10px;color:#EA580C;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Priority Development Area</div>
+        <div style="font-size:16px;font-weight:700;color:#C2410C;">{{weakestDimension}}</div>
+        <div style="font-size:11px;color:#4B5563;margin-top:4px;">Focus coaching investment here for maximum ROI</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PCLA™ · MindMill</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 4: TRAINING ROI + FINAL VERDICT -->
+<div class="page">
+  <div class="page-header"><span class="ph-title">Training ROI &amp; Development Verdict</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Training ROI Meter</div>
+    <div class="fit-row"><span class="fit-label">Leadership Coaching ROI</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{trainingROI}}%"></div></div><span class="fit-pct">{{trainingROI}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Digital Upskilling ROI</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{techScore}}%"></div></div><span class="fit-pct">{{techScore}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Executive Coaching ROI</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{coachabilityScore}}%"></div></div><span class="fit-pct">{{coachabilityScore}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Cross-functional Learning ROI</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{learningScore}}%"></div></div><span class="fit-pct">{{learningScore}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Role Expansion Readiness</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{promotionReadinessScore}}%"></div></div><span class="fit-pct">{{promotionReadinessScore}}%</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Final Coachability Verdict</div>
+    <div class="verdict-grid">
+      <div class="verdict-card"><div class="v-label">Coachability Grade</div><div class="v-big">{{grade}}</div></div>
+      <div class="verdict-card"><div class="v-label">Training ROI Potential</div><div class="v-val">{{trainingROIPotential}}</div></div>
+      <div class="verdict-card"><div class="v-label">Promotion Readiness</div><div class="v-val">{{promotionReadiness}}</div></div>
+      <div class="verdict-card"><div class="v-label">Coachability Band</div><div class="v-val" style="font-size:12px;">{{band}}</div></div>
+      <div class="verdict-card"><div class="v-label">Percentile Rank</div><div class="v-big" style="font-size:24px;">{{percentile}}</div></div>
+      <div class="verdict-card"><div class="v-label">Archetype</div><div class="v-val" style="font-size:11px;">{{archetype}}</div></div>
+    </div>
+    <div style="margin-top:20px;background:linear-gradient(135deg,#ECFDF5,#F0FDF4);border:1px solid #6EE7B7;border-radius:16px;padding:24px;">
+      <div style="font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Executive Summary</div>
+      <div style="font-size:13px;color:#374151;line-height:1.7;">{{summary}}</div>
+    </div>
+    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:#F0FDF4;border-radius:12px;padding:20px;border:1px solid #BBF7D0;">
+        <div style="font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Coach's Prescription — Immediate</div>
+        <div style="font-size:12px;color:#374151;line-height:1.8;">✔ Assign stretch projects<br/>✔ Pair with mentor / executive coach<br/>✔ Put into digital learning pathways<br/>✔ Give cross-functional exposure</div>
+      </div>
+      <div style="background:#EFF6FF;border-radius:12px;padding:20px;border:1px solid #BFDBFE;">
+        <div style="font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">6–24 Month Development Plan</div>
+        <div style="font-size:12px;color:#374151;line-height:1.8;">✔ Leadership coaching<br/>✔ Enterprise exposure<br/>✔ Strategic project ownership<br/>✔ HiPo acceleration program</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Professional Coachability &amp; Learning Agility Index (PCLA™) · MindMill Assessments · Confidential</span><span>{{assessmentDate}}</span></div>
+</div>
+
+</body>
+</html>

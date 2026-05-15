@@ -14,6 +14,7 @@ const {
 } = require('../controllers/inviteController');
 const {
   bulkUploadInvites,
+  bulkInviteFromGroup,
   exportTemplate,
   exportInvites
 } = require('../controllers/bulkInviteController');
@@ -26,6 +27,9 @@ router.post('/', createInvite);
 
 // Bulk upload invites from CSV/XLSX
 router.post('/bulk-upload', upload.single('file'), bulkUploadInvites);
+
+// Bulk invite from group
+router.post('/bulk-group', bulkInviteFromGroup);
 
 // Export template CSV
 router.get('/template', exportTemplate);

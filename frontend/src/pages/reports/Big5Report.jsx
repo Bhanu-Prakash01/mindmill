@@ -15,6 +15,21 @@ import {
   Copy,
   Check
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Cell
+} from 'recharts';
 
 const Big5Report = () => {
  const { attemptId, orgSlug } = useParams();
@@ -160,10 +175,10 @@ const Big5Report = () => {
  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
  <p className="text-red-600 ">{error}</p>
  <button
- onClick={() => navigate(orgSlug ? `/o/${orgSlug}/` : '/')}
- className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg"
- >
- Go to Dashboard
+  onClick={() => navigate(orgSlug ? `/o/${orgSlug}/reports` : '/reports')}
+  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg"
+  >
+  Go to Reports
  </button>
  </div>
  </div>
@@ -217,11 +232,11 @@ const Big5Report = () => {
  <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
  <div className="flex items-center justify-between h-16">
  <button
- onClick={() => navigate(orgSlug ? `/o/${orgSlug}/` : '/')}
- className="flex items-center gap-2 text-gray-600 hover:text-gray-900 "
- >
- <ArrowLeft className="w-5 h-5" />
- Back to Dashboard
+  onClick={() => navigate(orgSlug ? `/o/${orgSlug}/reports` : '/reports')}
+  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 "
+  >
+  <ArrowLeft className="w-5 h-5" />
+  Back to Reports
  </button>
 
   <div className="flex items-center gap-3">

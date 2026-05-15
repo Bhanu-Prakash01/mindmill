@@ -12,6 +12,8 @@ const {
   generateMbtiReportPdf,
   generateQuickSummaryPdf,
   generateHoganReportPdf,
+  generateSjtReportPdf,
+  generatePclaReportPdf,
   getCachedPdf,
   savePdfToDisk,
 } = require('./pdfService');
@@ -214,9 +216,16 @@ const downloadPdf = async (report, testTaker, assessmentType, downloadType) => {
       if (isComprehensive) {
         pdfBuffer = await generateHoganReportPdf(report, testTaker);
       } else {
-        // Hogan doesn't have a summary variant, default to generic summary
         pdfBuffer = await generateQuickSummaryPdf('hogan', report, testTaker);
       }
+      break;
+
+    case AssessmentType.SJT:
+      pdfBuffer = await generateSjtReportPdf(report, testTaker);
+      break;
+
+    case AssessmentType.PCLA:
+      pdfBuffer = await generatePclaReportPdf(report, testTaker);
       break;
       
     default:

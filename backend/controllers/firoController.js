@@ -81,19 +81,31 @@ const submitFiro = asyncHandler(async (req, res) => {
   attempt.firoResults = firoResults;
   attempt.answeredQuestions = total;
 
-  // Deduct test slot from assessment's unlock pool
+  // Deduct test slot or free trial/credits (for individual users)
   if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
     const { User } = require('../models');
     const user = await User.findById(attempt.user);
     if (user?.role !== 'superadmin') {
       attempt.creditDeducted = true;
-      const orgId = attempt.organization.toString();
-      const unlockEntry = assessment.unlockedBy?.find(
-        u => u.organization.toString() === orgId
-      );
-      if (unlockEntry) {
-        unlockEntry.testsUsed += 1;
-        await assessment.save();
+      const isIndividualUser = user?.accountType === 'individual' && !user?.organization;
+      if (isIndividualUser) {
+        if (!user.freeTrialUsed) {
+          user.freeTrialUsed = true;
+          user.freeTrialAssessmentId = attempt.assessment;
+          user.freeTrialAttemptId = attempt._id;
+        } else {
+          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+        }
+        await user.save();
+      } else {
+        const orgId = attempt.organization.toString();
+        const unlockEntry = assessment.unlockedBy?.find(
+          u => u.organization.toString() === orgId
+        );
+        if (unlockEntry) {
+          unlockEntry.testsUsed += 1;
+          await assessment.save();
+        }
       }
     }
   }

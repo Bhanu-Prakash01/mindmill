@@ -11,7 +11,9 @@ const {
   getDemoUsers,
   demoLogin,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  registerFreeTrial,
+  getFreeTrialAssessments
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { authValidation } = require('../middleware/validationMiddleware');
@@ -21,6 +23,10 @@ const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter
 router.get('/demo/organizations', getDemoOrganizations);
 router.get('/demo/organizations/:slug/users', getDemoUsers);
 router.post('/demo/login', authLimiter, demoLogin);
+
+// Free trial registration routes (public)
+router.get('/free-trial/assessments', getFreeTrialAssessments);
+router.post('/register', authLimiter, registerFreeTrial);
 
 // Public routes
 router.post('/login', authLimiter, authValidation.login, login);

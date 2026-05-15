@@ -32,10 +32,18 @@ const submitMbti = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'This is not an MBTI assessment');
   }
 
-  // Validate responses (MBTI standard is 32 questions, 8 per dimension)
+  // Validate and normalize responses
+  // Frontend sends responses as an object {1: val, 2: val, ...}
+  // The scoring service (mbtiScoringService) already handles this {order: answer} object format natively
   const totalQuestionsCount = assessment.questions?.length || 0;
-  if (!responses || !Array.isArray(responses) || responses.length !== totalQuestionsCount) {
-    throw new ApiError(400, `Invalid responses. Expected ${totalQuestionsCount} question responses.`);
+
+  if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
+    throw new ApiError(400, 'Invalid responses format. Expected {questionOrder: answer} object.');
+  }
+
+  const answeredCount = Object.keys(responses).length;
+  if (answeredCount !== totalQuestionsCount) {
+    throw new ApiError(400, `Invalid responses. Expected ${totalQuestionsCount} question responses, got ${answeredCount}.`);
   }
 
   // Get or create attempt
@@ -49,7 +57,7 @@ const submitMbti = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'No active attempt found. Please start the assessment first.');
   }
 
-  // Calculate MBTI scores
+  // Calculate MBTI scores — pass the {order: answer} object directly
   const mbtiResults = scoreMBTI(responses);
 
   // Update attempt with results
@@ -59,19 +67,33 @@ const submitMbti = asyncHandler(async (req, res) => {
   attempt.mbtiResults = mbtiResults;
   attempt.answeredQuestions = totalQuestionsCount;
 
-  // Deduct test slot from assessment's unlock pool
+  // Deduct test slot or free trial/credits (for individual users)
   if (!attempt.creditDeducted && !attempt.isPublicAttempt) {
     const { User } = require('../models');
     const user = await User.findById(attempt.user);
     if (user?.role !== 'superadmin') {
       attempt.creditDeducted = true;
-      const orgId = attempt.organization.toString();
-      const unlockEntry = assessment.unlockedBy?.find(
-        u => u.organization.toString() === orgId
-      );
-      if (unlockEntry) {
-        unlockEntry.testsUsed += 1;
-        await assessment.save();
+      const isIndividualUser = user?.accountType === 'individual' && !user?.organization;
+      if (isIndividualUser) {
+        if (!user.freeTrialUsed) {
+          user.freeTrialUsed = true;
+          user.freeTrialAssessmentId = attempt.assessment;
+          user.freeTrialAttemptId = attempt._id;
+        } else {
+          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+        }
+        await user.save();
+      } else {
+        const orgId = attempt.organization?.toString();
+        if (orgId) {
+          const unlockEntry = assessment.unlockedBy?.find(
+            u => u.organization.toString() === orgId
+          );
+          if (unlockEntry) {
+            unlockEntry.testsUsed += 1;
+            await assessment.save();
+          }
+        }
       }
     }
   }
@@ -297,7 +319,7 @@ const downloadMbtiReport = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Attempt not found');
   }
 
-  if (attempt.user && req.user && attempt.user.toString() !== req.user._id.toString() &&
+  if (attempt.user && req.user && attempt.user._id.toString() !== req.user._id.toString() &&
       req.user.role !== 'admin' &&
       req.user.role !== 'superadmin') {
     throw new ApiError(403, 'Access denied');

@@ -8,7 +8,18 @@ const creditRequestSchema = new mongoose.Schema({
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
-    required: [true, 'Organization is required']
+    default: null  // null for individual user requests
+  },
+  requestedForUser: {
+    // For individual (no-org) credit requests — points to the User
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  requestType: {
+    type: String,
+    enum: ['organization', 'individual'],
+    default: 'organization'
   },
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,

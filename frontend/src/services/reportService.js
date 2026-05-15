@@ -1,4 +1,4 @@
-import api from './api';
+import api, { publicApi } from './api';
 
 export const reportService = {
   getReports: async (params = {}) => {
@@ -17,7 +17,7 @@ export const reportService = {
   },
 
   getSharedReport: async (token) => {
-    const response = await api.get(`/reports/shared/${token}`);
+    const response = await publicApi.get(`/reports/shared/${token}`);
     return response.data;
   },
 

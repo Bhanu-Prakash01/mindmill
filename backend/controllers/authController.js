@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { User } = require('../models');
+const { User, Assessment, Organization } = require('../models');
 const { generateToken } = require('../config/jwt');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 const { sendPasswordResetEmail } = require('../services/emailService');
@@ -24,8 +24,14 @@ const login = asyncHandler(async (req, res) => {
       throw new ApiError(401, 'Invalid email or password for this organization');
     }
   } else {
-    // No org context: allow superadmin login only
-    user = await User.findOne({ email, role: 'superadmin' })
+    // No org context: allow superadmin OR individual account login
+    user = await User.findOne({
+      email,
+      $or: [
+        { role: 'superadmin' },
+        { accountType: 'individual', organization: null }
+      ]
+    })
       .select('+password')
       .populate('organization');
 
@@ -68,9 +74,12 @@ const login = asyncHandler(async (req, res) => {
         lastName: user.lastName,
         fullName: user.fullName,
         role: user.role,
+        accountType: user.accountType,
         organization: user.organization,
         avatar: user.avatar,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        freeTrialUsed: user.freeTrialUsed,
+        personalCredits: user.personalCredits
       },
       token
     }
@@ -95,12 +104,17 @@ const getMe = asyncHandler(async (req, res) => {
         lastName: user.lastName,
         fullName: user.fullName,
         role: user.role,
+        accountType: user.accountType,
         organization: user.organization,
         avatar: user.avatar,
         phone: user.phone,
         jobTitle: user.jobTitle,
         lastLogin: user.lastLogin,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        freeTrialUsed: user.freeTrialUsed,
+        freeTrialAssessmentId: user.freeTrialAssessmentId,
+        freeTrialAttemptId: user.freeTrialAttemptId,
+        personalCredits: user.personalCredits
       }
     }
   });
@@ -438,6 +452,206 @@ const demoLogin = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get available assessments for free trial selection
+ * @route   GET /api/auth/free-trial/assessments
+ * @access  Public
+ */
+const getFreeTrialAssessments = asyncHandler(async (req, res) => {
+  const assessments = await Assessment.find({
+    isActive: true,
+    isPublished: true
+    // No organization filter — same catalog available to everyone
+  })
+    .select('title description category subCategory timeBound bannerImage difficulty totalQuestions isMuted')
+    .sort({ category: 1, title: 1 })
+    .limit(20);
+
+  res.json({
+    success: true,
+    data: { assessments }
+  });
+});
+
+/**
+ * @desc    Register a free trial account (organization or individual)
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
+const registerFreeTrial = asyncHandler(async (req, res) => {
+  const {
+    accountType,          // 'organization' | 'individual'
+    firstName,
+    lastName,
+    email,
+    password,
+    selectedAssessmentId, // chosen free-trial assessment
+    // Organization fields
+    organizationName,
+    industry,
+    companySize,
+    website,
+    phone
+  } = req.body;
+
+  if (!accountType || !['organization', 'individual'].includes(accountType)) {
+    throw new ApiError(400, 'Account type must be "organization" or "individual"');
+  }
+  if (!firstName || !email || !password) {
+    throw new ApiError(400, 'First name, email, and password are required');
+  }
+  if (!selectedAssessmentId) {
+    throw new ApiError(400, 'Please select a free trial assessment');
+  }
+
+  // Verify selected assessment exists and is available
+  const assessment = await Assessment.findOne({
+    _id: selectedAssessmentId,
+    isActive: true,
+    isPublished: true,
+    organization: null
+  });
+  if (!assessment) {
+    throw new ApiError(404, 'Selected assessment not found or unavailable');
+  }
+
+  let user;
+  let org;
+
+  if (accountType === 'organization') {
+    // --- ORGANIZATION FLOW ---
+    if (!organizationName) {
+      throw new ApiError(400, 'Organization name is required');
+    }
+
+    // Generate a unique slug from org name
+    const baseSlug = organizationName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 40);
+
+    let slug = baseSlug;
+    let slugAttempt = 0;
+    while (await Organization.findOne({ slug })) {
+      slugAttempt++;
+      slug = `${baseSlug}-${slugAttempt}`;
+    }
+
+    // Check email not already taken in this (soon-to-be-created) org context
+    // For org admin: email must be globally unique among org admins
+    const existingOrgAdmin = await User.findOne({ email: email.toLowerCase(), accountType: 'organization' });
+    if (existingOrgAdmin) {
+      throw new ApiError(409, 'An account with this email already exists');
+    }
+
+    // Create the organization
+    org = await Organization.create({
+      name: organizationName.trim(),
+      slug,
+      subdomain: slug,
+      description: `${organizationName} — registered via free trial`,
+      publicProfile: {
+        industry: industry || '',
+        companySize: companySize || '',
+        website: website || ''
+      },
+      subscription: {
+        plan: 'free',
+        status: 'active',
+        startDate: new Date()
+      },
+      isActive: true
+    });
+
+    // Create the admin user linked to this org
+    user = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName?.trim() || '',
+      email: email.toLowerCase().trim(),
+      password,
+      role: 'admin',
+      accountType: 'organization',
+      organization: org._id,
+      phone: phone || null,
+      freeTrialUsed: false,
+      freeTrialAssessmentId: assessment._id,
+      registeredAt: new Date(),
+      isActive: true
+    });
+
+    // Link admin back to org
+    org.admin = user._id;
+    await org.save();
+
+    // Populate org for token response
+    await user.populate('organization');
+
+  } else {
+    // --- INDIVIDUAL FLOW ---
+    // Email must be globally unique for individual accounts
+    const existing = await User.findOne({ email: email.toLowerCase(), organization: null });
+    if (existing) {
+      throw new ApiError(409, 'An account with this email already exists');
+    }
+
+    user = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName?.trim() || '',
+      email: email.toLowerCase().trim(),
+      password,
+      role: 'user',
+      accountType: 'individual',
+      organization: null,
+      phone: phone || null,
+      freeTrialUsed: false,
+      freeTrialAssessmentId: assessment._id,
+      personalCredits: { total: 0, used: 0 },
+      registeredAt: new Date(),
+      isActive: true
+    });
+  }
+
+  // Generate JWT token
+  const token = generateToken({
+    userId: user._id,
+    email: user.email,
+    role: user.role
+  });
+
+  // Persist token in response the same way login does
+  res.status(201).json({
+    success: true,
+    message: 'Account created successfully! Your free trial is ready.',
+    data: {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        accountType: user.accountType,
+        organization: user.organization || null,
+        freeTrialUsed: user.freeTrialUsed,
+        freeTrialAssessmentId: user.freeTrialAssessmentId,
+        avatar: user.avatar || null,
+        lastLogin: null
+      },
+      freeTrialAssessment: {
+        id: assessment._id,
+        title: assessment.title,
+        category: assessment.category,
+        subCategory: assessment.subCategory
+      },
+      orgSlug: org?.slug || null,
+      token
+    }
+  });
+});
+
 module.exports = {
   login,
   getMe,
@@ -449,5 +663,7 @@ module.exports = {
   getDemoUsers,
   forgotPassword,
   resetPassword,
-  demoLogin
+  demoLogin,
+  registerFreeTrial,
+  getFreeTrialAssessments
 };

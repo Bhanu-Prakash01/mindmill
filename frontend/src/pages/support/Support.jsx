@@ -208,17 +208,17 @@ const Support = () => {
  ? createForm.message
  : createForm.selectedIssues.join('; ')
  };
- await supportService.createTicket(payload);
- setShowCreateModal(false);
- setCreateForm({
- subject: '',
- message: '',
- category: 'general',
- priority: 'medium',
- selectedIssues: [],
- });
- setShowDescribeField(false);
- fetchTickets();
+  await supportService.createTicket(payload);
+  setShowCreateModal(false);
+  setCreateForm({
+  subject: '',
+  message: '',
+  category: 'general',
+  priority: 'medium',
+  selectedIssues: [],
+  });
+  setShowDescribeField(false);
+  fetchTickets();
 } catch (error) {
   console.error('Error creating ticket:', error);
   toast.error(error.response?.data?.message || 'Failed to create ticket');

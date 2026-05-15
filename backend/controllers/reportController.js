@@ -73,7 +73,7 @@ const getReports = asyncHandler(async (req, res) => {
   let reports = await Report.find({ ...query, _id: { $in: validReportIds } })
     .populate('user', 'firstName lastName email')
     .populate('conductedBy', 'firstName lastName email')
-    .populate('assessment', 'title category')
+    .populate('assessment', 'title category subCategory')
     .populate('attempt', 'status percentage completedAt timeSpent testTakerName testTakerEmail testTakerPhone')
     .sort({ generatedAt: -1 })
     .limit(limit * 1)
@@ -117,14 +117,17 @@ const getReport = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role === 'user') {
-    if (report.user._id.toString() !== req.user._id.toString()) {
+    const reportUserId = report.user?._id?.toString() || report.user?.toString();
+    if (reportUserId && reportUserId !== req.user._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
     if (!report.visibleToUser) {
       throw new ApiError(403, 'Report is not visible to you');
     }
   } else if (req.user.role === 'admin') {
-    if (report.organization.toString() !== req.user.organization._id.toString()) {
+    const reportOrgId = report.organization?.toString?.();
+    const userOrgId = req.user.organization?._id?.toString?.() || req.user.organization?.toString?.();
+    if (reportOrgId && userOrgId && reportOrgId !== userOrgId) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -246,7 +249,9 @@ const toggleVisibility = asyncHandler(async (req, res) => {
 
   // Check permissions
   if (req.user.role !== 'superadmin') {
-    if (report.organization.toString() !== req.user.organization._id.toString()) {
+    const reportOrgId = report.organization?.toString?.();
+    const userOrgId = req.user.organization?._id?.toString?.() || req.user.organization?.toString?.();
+    if (reportOrgId && userOrgId && reportOrgId !== userOrgId) {
       throw new ApiError(403, 'Access denied');
     }
   }
@@ -316,6 +321,8 @@ const generateReportPdf = async (report, testTaker, type) => {
     if (reportType === 'firo' || reportType === 'firo-b' || reportType === 'firo_b') return AssessmentType.FIRO;
     if (reportType === 'mbti') return AssessmentType.MBTI;
     if (reportType === 'hogan') return AssessmentType.HOGAN;
+    if (reportType === 'sjt') return AssessmentType.SJT;
+    if (reportType === 'pcla' || reportType === 'coachability') return AssessmentType.PCLA;
     if (reportType === 'psychometric' || reportType === 'personality') {
       // Check if it's a DISC assessment by looking at assessment's subCategory
       const assessCat = (report.assessment?.subCategory || report.assessment?.category || '').toLowerCase();
@@ -360,7 +367,8 @@ const downloadReport = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role === 'user') {
-    if (report.user._id.toString() !== req.user._id.toString()) {
+    const reportUserId = report.user?._id?.toString() || report.user?.toString();
+    if (reportUserId && reportUserId !== req.user._id.toString()) {
       throw new ApiError(403, 'Access denied');
     }
     if (!report.visibleToUser) {

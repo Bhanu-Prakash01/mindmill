@@ -81,13 +81,13 @@ export const assessmentService = {
   return response.data;
  },
 
- updateQuestion: async (assessmentId, questionId, data) => {
-  const response = await api.put(`/assessments/${assessmentId}/questions/${questionId}`, data);
+  updateQuestion: async (assessmentId, questionId, data) => {
+  const response = await api.put(`/questions/${questionId}`, data);
   return response.data;
  },
 
- deleteQuestion: async (assessmentId, questionId) => {
-  const response = await api.delete(`/assessments/${assessmentId}/questions/${questionId}`);
+  deleteQuestion: async (assessmentId, questionId) => {
+  const response = await api.delete(`/questions/${questionId}`);
   return response.data;
  },
 

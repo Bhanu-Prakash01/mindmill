@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import {
  Clock,
  AlertCircle,
@@ -20,8 +21,9 @@ const TakeTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refreshUser } = useAuth();
 
- const isPublicAccess = !!token;
+  const isPublicAccess = !!token;
  const assessmentId = isPublicAccess ? undefined : id;
  const attemptId = isPublicAccess ? urlAttemptId : null;
 
@@ -340,7 +342,8 @@ if (!document.fullscreenElement) {
       }
 
       await attemptService.submitAttempt(attempt._id, submitBody);
-      
+      await refreshUser();
+
       const params = new URLSearchParams({
         assessment: assessment?.title || 'Assessment',
         type: assessment?.category || 'standard',

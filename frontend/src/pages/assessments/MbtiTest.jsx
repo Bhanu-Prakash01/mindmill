@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { assessmentService, attemptService } from '../../services';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,7 @@ const MbtiTest = () => {
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { refreshUser } = useAuth();
   
   const isPublicAccess = !!token;
   const assessmentId = isPublicAccess ? undefined : id;
@@ -281,8 +283,12 @@ const MbtiTest = () => {
           });
           navigate(`/thank-you?${params.toString()}`);
         } else {
-          const prefix = orgSlug ? `/o/${orgSlug}` : '';
-          navigate(`${prefix}/reports/mbti/${data.data.attempt._id}`);
+          await refreshUser();
+          if (orgSlug) {
+            navigate(`/o/${orgSlug}/reports/mbti/${data.data.attempt._id}`);
+          } else {
+            navigate('/individual/reports');
+          }
         }
       } else {
         throw new Error(data.message);
@@ -299,8 +305,11 @@ const MbtiTest = () => {
     try {
       const response = await attemptService.abandonAttempt(currentAttemptId);
       toast.success(response.message || 'Test abandoned');
-      const prefix = orgSlug ? `/o/${orgSlug}` : '';
-      navigate(`${prefix}/dashboard/user`);
+      if (orgSlug) {
+        navigate(`/o/${orgSlug}/dashboard/user`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to quit test');
       setSubmitting(false);

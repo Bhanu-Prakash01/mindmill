@@ -69,8 +69,23 @@ export const supportService = {
  return response.data;
  },
 
- seedDefaultQueries: async () => {
- const response = await api.post('/settings/standard-queries/seed');
- return response.data;
- },
+  seedDefaultQueries: async () => {
+    const response = await api.post('/settings/standard-queries/seed');
+    return response.data;
+  },
+
+  getComplaintTypes: async () => {
+    const response = await api.get('/settings/complaint-types');
+    return response.data;
+  },
+
+  createComplaintType: async (data) => {
+    const response = await api.post('/settings/complaint-types', data);
+    return response.data;
+  },
+
+  deleteComplaintType: async (id) => {
+    const response = await api.delete(`/settings/complaint-types/${id}`);
+    return response.data;
+  },
 };

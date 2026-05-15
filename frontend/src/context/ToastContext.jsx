@@ -28,6 +28,8 @@ const ToastItem = ({ id, type, message, onClose }) => {
     setTimeout(() => onClose(id), 300);
   }, [id, onClose]);
 
+  const timeoutRef = useRef(null);
+
   useEffect(() => {
     if (type === 'success' || type === 'info') {
       timeoutRef.current = setTimeout(handleClose, 4000);

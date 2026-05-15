@@ -30,6 +30,31 @@ const userSchema = new mongoose.Schema({
     enum: ['superadmin', 'admin', 'user'],
     default: 'user'
   },
+  accountType: {
+    type: String,
+    enum: ['organization', 'individual'],
+    default: 'organization'
+  },
+  // Free trial tracking
+  freeTrialUsed: {
+    type: Boolean,
+    default: false
+  },
+  freeTrialAssessmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Assessment',
+    default: null
+  },
+  freeTrialAttemptId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Attempt',
+    default: null
+  },
+  // Personal credits wallet (for individual accountType users only)
+  personalCredits: {
+    total: { type: Number, default: 0 },
+    used: { type: Number, default: 0 }
+  },
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
@@ -97,6 +122,11 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   resetPasswordExpire: {
+    type: Date,
+    default: null
+  },
+  // Registration source
+  registeredAt: {
     type: Date,
     default: null
   }
