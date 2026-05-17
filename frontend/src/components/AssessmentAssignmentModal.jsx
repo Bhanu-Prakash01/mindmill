@@ -234,7 +234,7 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
 
         {/* Stats Bar */}
         <div className="flex items-center justify-between px-6 py-3 bg-indigo-50 border-b border-indigo-100">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 md:gap-6">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-indigo-500" />
               <span className="text-sm font-semibold text-gray-900">{stats.totalMembers}</span>
@@ -342,30 +342,30 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                       {isUserSelected(user._id) && (
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Slots:</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) - 1); }}
-                              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <input
-                              type="number"
-                              min={0}
-                              value={memberSlots[user._id] ?? 0}
-                              onChange={(e) => setSlotValue(user._id, parseInt(e.target.value) || 0)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-14 text-center font-bold border border-gray-200 rounded-lg py-1"
-                            />
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) + 1); }}
-                              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
+                            <div className="flex items-center gap-1 flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) - 1); }}
+                                className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <input
+                                type="number"
+                                min={0}
+                                value={memberSlots[user._id] ?? 0}
+                                onChange={(e) => setSlotValue(user._id, parseInt(e.target.value) || 0)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-14 text-center font-bold border border-gray-200 rounded-lg py-1"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSlotValue(user._id, (memberSlots[user._id] || 0) + 1); }}
+                                className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
                         </div>
                       )}
                     </div>
@@ -448,29 +448,29 @@ const AssessmentAssignmentModal = ({ assessment, onClose, onSuccess }) => {
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setSlotValue(userId, slotVal - 1)}
-                              disabled={slotVal <= (alloc?.testsDistributed || 0)}
-                              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 disabled:opacity-30"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <input
-                              type="number"
-                              min={alloc?.testsDistributed || 0}
-                              value={slotVal}
-                              onChange={(e) => setSlotValue(userId, parseInt(e.target.value) || 0)}
-                              className="w-14 text-center font-bold border border-gray-200 rounded-lg py-1"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setSlotValue(userId, slotVal + 1)}
-                              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
+                          <div className="flex items-center gap-1 flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSlotValue(userId, slotVal - 1)}
+                                disabled={slotVal <= (alloc?.testsDistributed || 0)}
+                                className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100 disabled:opacity-30"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <input
+                                type="number"
+                                min={alloc?.testsDistributed || 0}
+                                value={slotVal}
+                                onChange={(e) => setSlotValue(userId, parseInt(e.target.value) || 0)}
+                                className="w-14 text-center font-bold border border-gray-200 rounded-lg py-1"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSlotValue(userId, slotVal + 1)}
+                                className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-100"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                           </div>
                           {hasPendingChange && (
                             <button onClick={() => handleUpdateSlots(userId)} disabled={saving} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg">
