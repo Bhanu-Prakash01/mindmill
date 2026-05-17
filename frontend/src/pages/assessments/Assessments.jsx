@@ -610,7 +610,7 @@ Unlock Assessment
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                   {isAdmin ? (
                     user?.role === 'superadmin' ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <Link
                           to={`${orgPrefix}/assessments/${assessment._id}`}
                           className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -671,7 +671,7 @@ Unlock Assessment
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <button
                           onClick={() => setAssignmentModal({ show: true, assessment })}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

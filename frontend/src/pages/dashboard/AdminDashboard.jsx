@@ -142,7 +142,7 @@ const AdminDashboard = () => {
 
  {/* Credits Alert */}
  {creditsLow && (
- <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
+  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4 flex-wrap">
  <div className="p-3 bg-amber-100 rounded-lg">
  <AlertCircle className="w-6 h-6 text-amber-600 " />
  </div>
@@ -450,7 +450,7 @@ const AdminDashboard = () => {
  const colors = { O: 'bg-violet-500', C: 'bg-emerald-500', E: 'bg-amber-500', A: 'bg-pink-500', N: 'bg-red-500' };
  return (
  <div key={trait} className="flex items-center gap-4">
- <span className="w-32 text-sm text-gray-600 ">{traitNames[trait]}</span>
+  <span className="w-24 sm:w-32 text-sm text-gray-600 ">{traitNames[trait]}</span>
  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
  <div
  className={`h-full ${colors[trait]} rounded-full`}
@@ -471,7 +471,7 @@ const AdminDashboard = () => {
  <h4 className="text-sm font-medium text-gray-700 mb-4">
  Overall Level Distribution
  </h4>
- <div className="grid grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
  <div className="text-center p-4 bg-blue-50 rounded-lg">
  <p className="text-2xl font-bold text-blue-600 ">
  {big5Analytics.levelDistribution.Low}

@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { supportService } from '../../services';
-import { HelpCircle, Mail, MessageSquare, Send, CheckCircle, Loader2, Clock, ArrowRight } from 'lucide-react';
+import { HelpCircle, Mail, MessageSquare, Send, CheckCircle, Loader2, Clock, ArrowRight, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+
+const FAQ_ITEMS = [
+  { q: 'How do I purchase credits?', a: 'Go to the Credits page and click "Request Credits". Fill in the number of credits you need and a reason. Once approved, you can use them for assessments.' },
+  { q: 'How long does credit approval take?', a: 'Credit requests are typically approved within 24 hours after payment confirmation.' },
+  { q: 'How do I take an assessment?', a: 'Navigate to the Assessments page, choose an available assessment, and click "Start Assessment". Follow the on-screen instructions.' },
+  { q: 'Where can I view my reports?', a: 'Completed assessment reports are available on the Reports page. You can view, download, or share them.' },
+  { q: 'How do I contact support?', a: 'You can either send an email to support@mindmill.in or submit a ticket using the form below. Our team will respond within 24 hours.' },
+];
 
 const IndividualSupport = () => {
+  const navigate = useNavigate();
   const toast = useToast();
   const [complaintTypes, setComplaintTypes] = useState([]);
   const [form, setForm] = useState({ subject: '', message: '', category: 'general', priority: 'medium' });
   const [sending, setSending] = useState(false);
+  const [showFaq, setShowFaq] = useState(false);
 
   const [tickets, setTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
@@ -84,16 +95,40 @@ const IndividualSupport = () => {
             <a href="mailto:support@mindmill.in" className="text-xs text-indigo-600 hover:underline">support@mindmill.in</a>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setShowFaq(!showFaq)}
+          className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:border-gray-200 hover:shadow-md transition-all text-left w-full"
+        >
           <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
             <MessageSquare className="w-5 h-5 text-green-600" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="font-semibold text-gray-900 text-sm">FAQ</p>
             <p className="text-xs text-gray-500">Check common questions</p>
           </div>
-        </div>
+          {showFaq ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        </button>
       </div>
+
+      {/* FAQ Section */}
+      {showFaq && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-100">
+            {FAQ_ITEMS.map((item, i) => (
+              <details key={i} className="group">
+                <summary className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors [&::-webkit-details-marker]:hidden">
+                  <span className="text-sm font-medium text-gray-900 pr-4">{item.q}</span>
+                  <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="px-6 pb-4">
+                  <p className="text-sm text-gray-600">{item.a}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
         <h2 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
@@ -111,7 +146,7 @@ const IndividualSupport = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
               <select
@@ -175,7 +210,11 @@ const IndividualSupport = () => {
         ) : (
           <div className="divide-y divide-gray-100">
             {tickets.map((ticket) => (
-              <div key={ticket._id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+              <button
+                key={ticket._id}
+                onClick={() => navigate(`/individual/support/${ticket._id}`)}
+                className="w-full px-6 py-4 hover:bg-gray-50 transition-colors text-left"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{ticket.subject}</p>
@@ -194,7 +233,7 @@ const IndividualSupport = () => {
                     <ArrowRight className="w-4 h-4 text-gray-300" />
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

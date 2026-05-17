@@ -22,7 +22,8 @@ import {
   Trash2,
   Download,
   FileImage,
-  File
+  File,
+  Banknote
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 import RichTextArea from '../../components/RichTextArea';
@@ -73,9 +74,19 @@ const Settings = () => {
  const [saving, setSaving] = useState(false);
  const [message, setMessage] = useState(null);
  const [organization, setOrganization] = useState(null);
- const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
- // Profile form
+  // Bank details form (SuperAdmin)
+  const [bankForm, setBankForm] = useState({
+    upiId: '',
+    accountHolderName: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    branchName: ''
+  });
+
+  // Profile form
  const [profileForm, setProfileForm] = useState({
  firstName: '',
  lastName: '',
@@ -137,16 +148,38 @@ const Settings = () => {
  avatar: user.avatar || '',
  });
  }
- if (isAdmin) {
- fetchOrganization();
- }
- }, [user]);
+  if (isAdmin) {
+    fetchOrganization();
+  }
+  if (user?.role === 'superadmin') {
+    fetchBankDetails();
+  }
+  }, [user]);
 
- const fetchOrganization = async () => {
- try {
- setLoading(true);
- const response = await organizationService.getMyOrganization();
- const org = response.data?.organization;
+  const fetchBankDetails = async () => {
+    try {
+      const res = await organizationService.getBankDetails();
+      const bd = res.data?.bankDetails;
+      if (bd) {
+        setBankForm({
+          upiId: bd.upiId || '',
+          accountHolderName: bd.accountHolderName || '',
+          bankName: bd.bankName || '',
+          accountNumber: bd.accountNumber || '',
+          ifscCode: bd.ifscCode || '',
+          branchName: bd.branchName || '',
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching bank details:', err);
+    }
+  };
+
+  const fetchOrganization = async () => {
+    try {
+      setLoading(true);
+      const response = await organizationService.getMyOrganization();
+      const org = response.data?.organization;
  setOrganization(org);
  if (org) {
  setOrgForm({
@@ -289,6 +322,19 @@ const handleProfileUpdate = async (e) => {
     return File;
   };
 
+  const handleBankUpdate = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await organizationService.updateBankDetails(bankForm);
+      showMessage('Payment details updated successfully');
+    } catch (error) {
+      showMessage(error.response?.data?.message || 'Failed to update payment details', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleOrgUpdate = async (e) => {
  e.preventDefault();
  setSaving(true);
@@ -367,11 +413,12 @@ const getAvatarDisplay = () => {
   );
  };
 
- const tabs = [
- { id: 'profile', label: 'Profile', icon: User },
- { id: 'password', label: 'Password', icon: Lock },
- ...(isAdmin ? [{ id: 'organization', label: 'Organization', icon: Building2 }] : []),
- ];
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'password', label: 'Password', icon: Lock },
+    ...(isAdmin ? [{ id: 'organization', label: 'Organization', icon: Building2 }] : []),
+    ...(user?.role === 'superadmin' ? [{ id: 'bank', label: 'Payment Details', icon: Banknote }] : []),
+  ];
 
   return (
   <>
@@ -473,7 +520,7 @@ const getAvatarDisplay = () => {
   {/* Option 2: Cartoon Avatar Styles */}
   <div>
   <p className="text-sm font-medium text-gray-700 mb-2">Cartoon Avatars:</p>
-  <div className="grid grid-cols-8 gap-2">
+  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
   {PRESET_CARTOONS.map((cartoon) => (
    <button
    key={cartoon.id}
@@ -503,7 +550,7 @@ const getAvatarDisplay = () => {
   {/* Option 3: Color Presets */}
   <div>
   <p className="text-sm font-medium text-gray-700 mb-2">Color Presets:</p>
-  <div className="grid grid-cols-8 gap-2">
+  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
   {PRESET_COLORS.map((color) => (
   <button
   key={color}
@@ -854,7 +901,7 @@ const getAvatarDisplay = () => {
   {/* Preset Banners */}
   <div>
   <p className="text-xs text-gray-500 mb-2">Select a preset:</p>
-  <div className="grid grid-cols-5 gap-2">
+  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
   {[
   { id: 'gradient-to-r from-indigo-500 to-purple-500', style: 'linear-gradient(to right, #6366f1, #8b5cf6)' },
   { id: 'gradient-to-r from-blue-500 to-cyan-500', style: 'linear-gradient(to right, #3b82f6, #06b6d4)' },
@@ -1047,7 +1094,7 @@ const getAvatarDisplay = () => {
               <Eye className="w-3.5 h-3.5" />
             </button>
             <a
-              href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${doc.url}`}
+              href={fileUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
@@ -1135,7 +1182,7 @@ const getAvatarDisplay = () => {
               <Eye className="w-3.5 h-3.5" />
             </button>
             <a
-              href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${doc.url}`}
+              href={fileUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
@@ -1253,11 +1300,100 @@ const getAvatarDisplay = () => {
  {saving ? 'Saving...' : 'Save Changes'}
  </button>
  </form>
- )}
- </div>
+  )}
+
+  {/* Payment Details (SuperAdmin only) */}
+  {activeTab === 'bank' && user?.role === 'superadmin' && (
+    <form onSubmit={handleBankUpdate} className="space-y-6 max-w-lg">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Payment Details</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Bank account and UPI details shown to users when they request credits.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">UPI ID</label>
+        <input
+          type="text"
+          value={bankForm.upiId}
+          onChange={(e) => setBankForm({ ...bankForm, upiId: e.target.value })}
+          placeholder="e.g. example@upi"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+        <input
+          type="text"
+          value={bankForm.accountHolderName}
+          onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+          placeholder="e.g. John Doe"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+          <input
+            type="text"
+            value={bankForm.bankName}
+            onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+            placeholder="e.g. State Bank of India"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
+          <input
+            type="text"
+            value={bankForm.branchName}
+            onChange={(e) => setBankForm({ ...bankForm, branchName: e.target.value })}
+            placeholder="e.g. Main Branch"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+          <input
+            type="text"
+            value={bankForm.accountNumber}
+            onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+            placeholder="e.g. 42323602768"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+          <input
+            type="text"
+            value={bankForm.ifscCode}
+            onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })}
+            placeholder="e.g. SBIN0015281"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 uppercase"
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+      >
+        <Save className="w-4 h-4 mr-2" />
+        {saving ? 'Saving...' : 'Save Changes'}
+      </button>
+    </form>
+  )}
   </div>
-  </div>
-  </div>
+   </div>
+   </div>
+   </div>
 
   {previewFile && (
     <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
