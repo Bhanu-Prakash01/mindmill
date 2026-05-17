@@ -208,7 +208,7 @@ const Login = () => {
       </div>
 
       {/* Login Form */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8">
+      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-4 sm:p-6 lg:p-8">
         {!orgSlug && !orgLoading && (
           <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200">
             <p className="text-sm text-amber-700">
@@ -457,7 +457,7 @@ const Login = () => {
 
       {/* Footer */}
       <p className="mt-6 text-center text-sm text-gray-500">
-        Protected by industry-standard security
+        Built with enterprise-level security architecture
       </p>
 
 

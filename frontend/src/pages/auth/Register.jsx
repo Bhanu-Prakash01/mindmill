@@ -166,7 +166,7 @@ const Register = () => {
 
           {/* STEP 0 — Account Type */}
           {step === 0 && (
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-2">What describes you best?</h2>
               <p className="text-gray-500 text-sm mb-6">Choose how you'll use MindMill</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -217,7 +217,7 @@ const Register = () => {
 
           {/* STEP 1 — Details Form */}
           {step === 1 && (
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-1">
                 {accountType === 'organization' ? 'Organization & Admin Details' : 'Your Details'}
               </h2>
@@ -227,7 +227,7 @@ const Register = () => {
                 {accountType === 'organization' && (
                   <>
                     <InputField label="Organization Name *" id="orgName" placeholder="Acme Corp" value={form.organizationName} onChange={set('organizationName')} error={fieldErrors.organizationName} />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Industry</label>
                         <select value={form.industry} onChange={set('industry')} className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
@@ -250,7 +250,7 @@ const Register = () => {
                   </>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <InputField label="First Name *" id="firstName" placeholder="Alex" value={form.firstName} onChange={set('firstName')} error={fieldErrors.firstName} />
                   <InputField label="Last Name" id="lastName" placeholder="Johnson" value={form.lastName} onChange={set('lastName')} />
                 </div>
@@ -279,7 +279,7 @@ const Register = () => {
 
           {/* STEP 2 — Pick Assessment */}
           {step === 2 && (
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-5 h-5 text-indigo-500" />
                 <h2 className="text-xl font-bold text-gray-900">Choose Your Free Assessment</h2>
@@ -352,7 +352,7 @@ const Register = () => {
 
           {/* Footer Nav */}
           {step < 3 && (
-            <div className="px-8 pb-8 flex items-center justify-between gap-4">
+            <div className="px-4 pb-4 sm:px-8 sm:pb-8 flex items-center justify-between gap-4">
               <div>
                 {step > 0 && (
                   <button onClick={handleBack} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all">

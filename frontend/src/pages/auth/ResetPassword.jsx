@@ -56,7 +56,7 @@ const ResetPassword = () => {
       </div>
 
       {/* Card */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8">
+      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-4 sm:p-6 lg:p-8">
         {success ? (
           /* Success State */
           <div className="text-center">
