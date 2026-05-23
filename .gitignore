@@ -42,3 +42,6 @@ backend/uploads/
 
 *.pdf
 autodesk_backup_code.txt
+
+# OpenCode session files
+.omo/

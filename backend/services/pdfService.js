@@ -11,6 +11,8 @@ const {
   getDISCStaticData,
   getBig5StaticData,
   getFIROStaticData,
+  generateBig5GrowthAreas,
+  generateSjtExecutiveSignals,
   DISC_TRAITS,
   BIG5_TRAITS,
 } = require('./llmReportService');
@@ -532,7 +534,7 @@ const generateBig5ReportPdf = async (report, testTaker, options = {}) => {
 
       /* lists */
       strengths:         staticData.strengths,
-      growthAreas:       staticData.wellbeingStrategies || staticData.wellbeingStrengths || [],
+      growthAreas:       staticData.wellbeingStrategies || staticData.wellbeingStrengths || staticData.growthAreas || [],
       careerPaths:       staticData.careerPaths,
       interviewTips:     staticData.interviewTips,
       wellbeingStrengths: staticData.wellbeingStrengths,
@@ -834,6 +836,15 @@ scores = [
 
     strengths = sd.strengths?.slice(0, 4) || [];
     growthAreas = sd.growthAreas?.slice(0, 4) || [];
+    // Groq fallback if static growth areas still empty
+    if (growthAreas.length === 0 && sd.scores) {
+      try {
+        growthAreas = await generateBig5GrowthAreas(sd.scores, testTaker);
+        console.log(`[Big5 Summary] Groq fallback generated ${growthAreas.length} growth areas`);
+      } catch (e) {
+        console.warn('[Big5 Summary] Groq fallback failed:', e.message);
+      }
+    }
     motivators = sd.motivators?.slice(0, 4) || [];
     careerPaths = sd.careerPaths?.slice(0, 4) || [];
   }
@@ -1362,6 +1373,20 @@ const generateSjtReportPdf = async (report, testTaker, options = {}) => {
       if (score >= 80)      greenFlags.push(fm.green);
       else if (score >= 60) amberFlags.push(fm.amber);
       else                  redFlags.push(fm.red);
+    }
+    // Groq fallback if radar-based flags empty (e.g. radar data missing from stored results)
+    if (greenFlags.length === 0 && amberFlags.length === 0 && redFlags.length === 0 && situationalIndex > 0) {
+      try {
+        const groqFlags = await generateSjtExecutiveSignals(situationalIndex, dimensionScores, testTaker);
+        if (groqFlags) {
+          if (Array.isArray(groqFlags.greenFlags)) greenFlags.push(...groqFlags.greenFlags);
+          if (Array.isArray(groqFlags.amberFlags)) amberFlags.push(...groqFlags.amberFlags);
+          if (Array.isArray(groqFlags.redFlags))   redFlags.push(...groqFlags.redFlags);
+          console.log('[SJT] Groq fallback generated flags:', { green: greenFlags.length, amber: amberFlags.length, red: redFlags.length });
+        }
+      } catch (e) {
+        console.warn('[SJT] Groq flags fallback failed:', e.message);
+      }
     }
 
     const composure   = radar['Composure']           || 0;

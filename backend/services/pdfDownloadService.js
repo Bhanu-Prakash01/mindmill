@@ -158,8 +158,8 @@ const downloadPdf = async (report, testTaker, assessmentType, downloadType) => {
     };
   }
   
-  // Check file-based cache (from pdfService)
-  const fileCached = getCachedPdf(reportId, assessmentType);
+  // Check file-based cache (from pdfService) — include downloadType to avoid summary/comprehensive collision
+  const fileCached = getCachedPdf(reportId, `${assessmentType}_${downloadType}`);
   if (fileCached) {
     const { generatePdfFilename } = require('../utils/pdfTypes');
     const userName = testTaker?.name || testTaker?.firstName || '';
@@ -243,8 +243,8 @@ const downloadPdf = async (report, testTaker, assessmentType, downloadType) => {
     throw new Error(`Failed to generate PDF for ${assessmentType} ${downloadType} report`);
   }
   
-  // Save to caches
-  savePdfToDisk(pdfBuffer, reportId, assessmentType);
+  // Save to caches — include downloadType so summary/comprehensive don't collide
+  savePdfToDisk(pdfBuffer, reportId, `${assessmentType}_${downloadType}`);
   savePdfToMemoryCache(reportId, assessmentType, downloadType, pdfBuffer);
   
   // Generate filename

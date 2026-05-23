@@ -712,6 +712,7 @@ const getBig5StaticData = (reportData) => {
     interviewTips: interviewTipsMap[topTrait] || interviewTipsMap.Conscientiousness,
     wellbeingStrengths: wellbeingStrengthsMap[topTrait] || wellbeingStrengthsMap.Conscientiousness,
     wellbeingStrategies: wellbeingStrategiesMap[topTrait] || wellbeingStrategiesMap.Conscientiousness,
+    growthAreas: wellbeingStrategiesMap[topTrait] || wellbeingStrategiesMap.Conscientiousness,
     shortTermGoals: shortTermBig5[topTrait] || shortTermBig5.Conscientiousness,
     longTermGoals: longTermBig5[topTrait] || longTermBig5.Conscientiousness,
   };
@@ -1194,6 +1195,52 @@ const generateSJTNarratives = async (reportData, testTaker) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// GROQ FALLBACK — fill missing content sections
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Generate Growth Opportunities for Big5 via Groq when static data is empty
+ */
+const generateBig5GrowthAreas = async (scores, testTaker) => {
+  const name = testTaker?.name || 'This candidate';
+  const topTrait = Object.entries(scores).reduce((a, b) => a[1] >= b[1] ? a : b)[0];
+  try {
+    const text = await callLLM(
+      `You are an executive coach writing growth/development items for a Big Five (OCEAN) report.
+Return ONLY a JSON array of exactly 4 concise development opportunities (10-15 words each), no labels, no numbering.
+Example format: ["Item one...", "Item two...", "Item three...", "Item four..."]`,
+      `${name} has a Big Five profile with top trait "${topTrait}" and scores: Openness=${scores.Openness}%, Conscientiousness=${scores.Conscientiousness}%, Extraversion=${scores.Extraversion}%, Agreeableness=${scores.Agreeableness}%, Neuroticism=${scores.Neuroticism}%.
+Write 4 growth areas that are specific, actionable, and tied to these scores.`,
+      400
+    );
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed) && parsed.length >= 3) return parsed.slice(0, 4);
+  } catch {}
+  return [];
+};
+
+/**
+ * Generate Executive Signals (green/amber/red flags) for SJT via Groq when radar-based flags are empty
+ */
+const generateSjtExecutiveSignals = async (situationalIndex, dimensionScores, testTaker) => {
+  const name = testTaker?.name || 'This candidate';
+  try {
+    const text = await callLLM(
+      `You are an executive assessor writing behavioral signals for an ESJI (Executive Situational Judgement Index) report.
+Return a JSON object with exactly 2 "greenFlags", 2 "amberFlags", and 2 "redFlags".
+Each flag must be a concise item (8-15 words) describing a specific leadership quality or risk.
+Format: {"greenFlags": [...], "amberFlags": [...], "redFlags": [...]}`,
+      `${name} scored ${situationalIndex}/100 on the ESJI. Dimension scores: ${Object.entries(dimensionScores || {}).map(([k,v]) => `${k}=${v}`).join(', ')}.
+Generate 2 green flags (strengths), 2 amber flags (watch items), and 2 red flags (risks) specific to this profile.`,
+      400
+    );
+    const parsed = JSON.parse(text);
+    if (parsed && Array.isArray(parsed.greenFlags)) return parsed;
+  } catch {}
+  return null;
+};
+
 module.exports = {
   generateDISCNarratives,
   generateBig5Narratives,
@@ -1203,6 +1250,8 @@ module.exports = {
   getDISCStaticData,
   getBig5StaticData,
   getFIROStaticData,
+  generateBig5GrowthAreas,
+  generateSjtExecutiveSignals,
   DISC_TRAITS,
   BIG5_TRAITS,
   PATTERN_PROFILES,

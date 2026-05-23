@@ -68,6 +68,9 @@ const Reports = () => {
 
   const handleDownload = async (id, type) => {
     try {
+      const reportName = downloadModalData?.assessment?.title || downloadModalData?.type?.toUpperCase() || 'Report';
+      const typeLabel = type === 'summary' ? 'Summary' : 'Comprehensive';
+      toast.info(`Downloading ${reportName} (${typeLabel})...`);
       await reportService.downloadReport(id, type);
       setDownloadModalData(null);
     } catch (error) {
