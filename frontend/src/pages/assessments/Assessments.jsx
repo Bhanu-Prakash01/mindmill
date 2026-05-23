@@ -73,7 +73,6 @@ const CATEGORY_META = {
     inspiredBy: 'Psychometric Assessment',
     description:
       'Psychometric assessments are standardized tools used to objectively measure an individual\'s mental capabilities, personality traits, and behavioral style. They provide employers with reliable data to support hiring decisions, talent development, and team building—going beyond what interviews alone can reveal.',
-    acknowledgement: 'Based on validated psychometric measurement standards',
   },
   personality: {
     image: '/assessment_big5.png',
@@ -520,7 +519,7 @@ Unlock Assessment
                     </p>
                   )}
                   {assessment.audience && (
-                    <p className="text-xs text-gray-500 leading-relaxed truncate">
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
                       <span className="font-semibold text-gray-700">Audience:</span> {assessment.audience}
                     </p>
                   )}

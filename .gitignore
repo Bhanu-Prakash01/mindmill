@@ -39,6 +39,6 @@ backend/uploads/
 
 # Large binaries from root
 *.pptx
-*.png
+
 *.pdf
 autodesk_backup_code.txt
