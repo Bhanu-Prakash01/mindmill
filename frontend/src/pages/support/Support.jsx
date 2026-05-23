@@ -57,6 +57,11 @@ const Support = () => {
   useEffect(() => {
   if (tickets.length > 0) {
     const sortedTickets = [...tickets].sort((a, b) => {
+      if (user?.role === 'superadmin') {
+        if (a.escalated && !b.escalated) return -1;
+        if (!a.escalated && b.escalated) return 1;
+      }
+      
       let fieldA, fieldB;
       
       switch (sortField) {
@@ -118,8 +123,13 @@ const Support = () => {
   : await supportService.getMyTickets();
   let ticketData = response.data?.tickets || [];
   
-  // Sort tickets based on sortField and sortDirection
+  // Sort tickets: escalated first for superadmin, then by field
   ticketData.sort((a, b) => {
+    if (user?.role === 'superadmin') {
+      if (a.escalated && !b.escalated) return -1;
+      if (!a.escalated && b.escalated) return 1;
+    }
+    
     let fieldA, fieldB;
     
     // Map UI sort fields to actual data fields

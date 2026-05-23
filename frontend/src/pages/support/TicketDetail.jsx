@@ -411,8 +411,8 @@ const TicketDetail = () => {
  </div>
  )}
 
-  {/* Escalation - Admin Only */}
-  {isAdmin && (
+  {/* Escalation - Org Admin can escalate; SuperAdmin can de-escalate */}
+  {(user.role === 'admin' || ticket.escalated) && (
     <div className={`rounded-xl border p-6 ${ticket.escalated ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-900">SuperAdmin Escalation</h3>
