@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Hogan Personality Inventory Report — {{candidateName}}</title>
+  <title>{{assessmentName}} — {{candidateName}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -100,9 +100,9 @@
         <div class="cv-orb cv-orb-2"></div>
         <div class="cv-orb cv-orb-3"></div>
         <div class="cover-top">
-          <div class="cv-brand">Mindmil <span>· Assessments</span></div>
+          <div class="cv-brand" style="display:flex;align-items:center;gap:8px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:22px;">{{/if}}Mindmil <span>· Assessments</span></div>
           <div class="cv-lbl">Psychometric Assessment Report</div>
-          <div class="cv-title">Hogan Personality Inventory</div>
+          <div class="cv-title">{{assessmentName}}</div>
           <div class="cv-subtitle">Comprehensive Assessment Report</div>
         </div>
         <div class="cv-candidate">
@@ -133,9 +133,9 @@
     <div class="inner-page">
       <div class="ph">
         <div class="ph-left">
-          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-logo" style="display:flex;align-items:center;gap:5px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:14px;">{{/if}}Mindmil <span>· Assessments</span></div>
           <div class="ph-sep"></div>
-          <div class="ph-title">Hogan Personality Inventory</div>
+          <div class="ph-title">{{assessmentName}}</div>
         </div>
         <div class="ph-right">
           <div class="ph-name">{{candidateName}}</div>
@@ -189,9 +189,9 @@
     <div class="inner-page">
       <div class="ph">
         <div class="ph-left">
-          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-logo" style="display:flex;align-items:center;gap:5px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:14px;">{{/if}}Mindmil <span>· Assessments</span></div>
           <div class="ph-sep"></div>
-          <div class="ph-title">Hogan Personality Inventory</div>
+          <div class="ph-title">{{assessmentName}}</div>
         </div>
         <div class="ph-right">
           <div class="ph-name">{{candidateName}}</div>
@@ -220,9 +220,9 @@
     <div class="inner-page">
       <div class="ph">
         <div class="ph-left">
-          <div class="ph-logo">Mindmil <span>· Assessments</span></div>
+          <div class="ph-logo" style="display:flex;align-items:center;gap:5px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:14px;">{{/if}}Mindmil <span>· Assessments</span></div>
           <div class="ph-sep"></div>
-          <div class="ph-title">Hogan Personality Inventory</div>
+          <div class="ph-title">{{assessmentName}}</div>
         </div>
         <div class="ph-right">
           <div class="ph-name">{{candidateName}}</div>

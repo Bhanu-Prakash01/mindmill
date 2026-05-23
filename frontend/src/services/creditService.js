@@ -1,7 +1,12 @@
 import api from './api';
 
 export const creditService = {
- getCreditRequests: async (params = {}) => {
+  getCredits: async () => {
+    const response = await api.get('/credits');
+    return response.data;
+  },
+
+  getCreditRequests: async (params = {}) => {
   const response = await api.get('/credits/requests', { params });
   return response.data;
  },

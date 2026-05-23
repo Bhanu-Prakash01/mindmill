@@ -33,7 +33,7 @@ const creditRequestSchema = new mongoose.Schema({
   },
   reason: {
     type: String,
-    required: [true, 'Reason is required']
+    default: ''
   },
   status: {
     type: String,

@@ -34,12 +34,17 @@ export const supportService = {
  return response.data;
  },
 
- assignTicket: async (id, userId) => {
- const response = await api.put(`/support/tickets/${id}/assign`, { userId });
- return response.data;
- },
+  assignTicket: async (id, userId) => {
+  const response = await api.put(`/support/tickets/${id}/assign`, { userId });
+  return response.data;
+  },
 
- getCoordinators: async () => {
+  escalateTicket: async (id, escalate = true) => {
+    const response = await api.put(`/support/tickets/${id}/escalate`, { escalate });
+    return response.data;
+  },
+
+  getCoordinators: async () => {
  const response = await api.get('/support/coordinators');
  return response.data;
  },

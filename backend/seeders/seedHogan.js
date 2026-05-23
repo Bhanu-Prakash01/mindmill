@@ -4,9 +4,12 @@ const { Assessment, Question, User, Organization } = require('../models');
 const { hoganQuestions, HOGAN_CONFIG } = require('./hoganQuestions');
 
 const seedHogan = async () => {
+  const isStandalone = mongoose.connection.readyState === 0;
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
-    console.log('Connected to MongoDB');
+    if (isStandalone) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
+      console.log('Connected to MongoDB');
+    }
 
     let organization = await Organization.findOne({ slug: 'default-org' });
     
@@ -19,7 +22,8 @@ const seedHogan = async () => {
       console.log('Created default organization');
     }
 
-    let adminUser = await User.findOne({ email: 'admin@mindmill.com' });
+    let adminUser = await User.findOne({ email: 'admin@mindmill.com' }) ||
+                    await User.findOne({ role: 'superadmin' });
     
     if (!adminUser) {
       adminUser = await User.create({
@@ -147,8 +151,10 @@ There are no right or wrong answers. Answer honestly based on how you typically 
   } catch (error) {
     console.error('Error seeding Hogan:', error);
   } finally {
-    await mongoose.disconnect();
-    console.log('\nDisconnected from MongoDB');
+    if (isStandalone) {
+      await mongoose.disconnect();
+      console.log('\nDisconnected from MongoDB');
+    }
   }
 };
 

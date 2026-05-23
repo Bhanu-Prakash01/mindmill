@@ -134,7 +134,8 @@ const Settings = () => {
   companySize: '',
   });
 
- const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isOrgAdmin = user?.role === 'admin';
 
  useEffect(() => {
  if (user) {
@@ -148,9 +149,9 @@ const Settings = () => {
  avatar: user.avatar || '',
  });
  }
-  if (isAdmin) {
-    fetchOrganization();
-  }
+   if (isOrgAdmin) {
+     fetchOrganization();
+   }
   if (user?.role === 'superadmin') {
     fetchBankDetails();
   }
@@ -225,6 +226,9 @@ const handleProfileUpdate = async (e) => {
       city: profileForm.city,
       avatar: profileForm.avatar,
     };
+    if (user?.role === 'superadmin') {
+      dataToUpdate.email = profileForm.email;
+    }
     const response = await authService.updateProfile(dataToUpdate);
     const updatedUser = response.data?.user;
     if (updatedUser) {
@@ -416,7 +420,7 @@ const getAvatarDisplay = () => {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'password', label: 'Password', icon: Lock },
-    ...(isAdmin ? [{ id: 'organization', label: 'Organization', icon: Building2 }] : []),
+    ...(isOrgAdmin ? [{ id: 'organization', label: 'Branding', icon: Building2 }] : []),
     ...(user?.role === 'superadmin' ? [{ id: 'bank', label: 'Payment Details', icon: Banknote }] : []),
   ];
 
@@ -520,7 +524,7 @@ const getAvatarDisplay = () => {
   {/* Option 2: Cartoon Avatar Styles */}
   <div>
   <p className="text-sm font-medium text-gray-700 mb-2">Cartoon Avatars:</p>
-  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+  <div className="grid grid-cols-8 gap-2">
   {PRESET_CARTOONS.map((cartoon) => (
    <button
    key={cartoon.id}
@@ -550,7 +554,7 @@ const getAvatarDisplay = () => {
   {/* Option 3: Color Presets */}
   <div>
   <p className="text-sm font-medium text-gray-700 mb-2">Color Presets:</p>
-  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+  <div className="grid grid-cols-8 gap-2">
   {PRESET_COLORS.map((color) => (
   <button
   key={color}
@@ -607,19 +611,25 @@ const getAvatarDisplay = () => {
  </div>
  </div>
 
- {/* Email - Display Only */}
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Email
- </label>
- <input
- type="email"
- value={profileForm.email}
- disabled
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
- />
- <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
- </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Email
+  </label>
+  <input
+  type="email"
+  value={profileForm.email}
+  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+  disabled={user?.role !== 'superadmin'}
+  className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+    user?.role === 'superadmin' 
+      ? 'bg-white text-gray-900' 
+      : 'bg-gray-50 text-gray-500 cursor-not-allowed'
+  }`}
+  />
+  {user?.role !== 'superadmin' && (
+    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+  )}
+  </div>
 
  {/* Phone - Display Only */}
  <div>
@@ -662,31 +672,8 @@ const getAvatarDisplay = () => {
  />
  </div>
 
- {/* Coordinator Toggle - Admin Only */}
- {isAdmin && user?.role === 'admin' && (
- <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
- <div>
- <h3 className="text-sm font-medium text-gray-900 ">Coordinator Role</h3>
- <p className="text-sm text-gray-500 ">Can be assigned to handle support tickets</p>
- </div>
- <input
- type="checkbox"
- checked={user?.isCoordinator || false}
- onChange={async (e) => {
- try {
- await authService.updateProfile({ isCoordinator: e.target.checked });
- updateUser({ isCoordinator: e.target.checked });
- showMessage(e.target.checked ? 'Enabled coordinator role' : 'Disabled coordinator role');
- } catch (error) {
- showMessage('Failed to update coordinator status', 'error');
- }
- }}
- className="w-4 h-4 text-indigo-600 rounded"
- />
- </div>
- )}
 
- <button
+  <button
  type="submit"
  disabled={saving}
  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
@@ -814,12 +801,12 @@ const getAvatarDisplay = () => {
   )}
 
   {/* Organization Settings */}
-  {activeTab === 'organization' && isAdmin && (
+  {activeTab === 'organization' && isOrgAdmin && (
   <form onSubmit={handleOrgUpdate} className="space-y-6 max-w-lg">
   <div className="flex items-start justify-between">
   <div>
-  <h2 className="text-lg font-semibold text-gray-900 ">Organization Settings</h2>
-  <p className="text-sm text-gray-500 ">Manage your organization profile</p>
+  <h2 className="text-lg font-semibold text-gray-900 ">Branding Settings</h2>
+  <p className="text-sm text-gray-500 ">Manage your organization branding</p>
   </div>
   {organization?.slug && (
   <Link
@@ -835,9 +822,9 @@ const getAvatarDisplay = () => {
   </div>
 
   <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-  Organization Logo
-  </label>
+<label className="block text-sm font-medium text-gray-700 mb-1">
+   Logo
+   </label>
   <div className="flex items-center gap-4">
   <div className="w-16 h-16 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
   {organization?.logo ? (
@@ -901,7 +888,7 @@ const getAvatarDisplay = () => {
   {/* Preset Banners */}
   <div>
   <p className="text-xs text-gray-500 mb-2">Select a preset:</p>
-  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+  <div className="grid grid-cols-5 gap-2">
   {[
   { id: 'gradient-to-r from-indigo-500 to-purple-500', style: 'linear-gradient(to right, #6366f1, #8b5cf6)' },
   { id: 'gradient-to-r from-blue-500 to-cyan-500', style: 'linear-gradient(to right, #3b82f6, #06b6d4)' },

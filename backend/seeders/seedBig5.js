@@ -9,10 +9,12 @@ const { Assessment, Question, User, Organization } = require('../models');
 const { big5Questions } = require('./big5Questions');
 
 const seedBig5 = async () => {
+  const isStandalone = mongoose.connection.readyState === 0;
   try {
-    // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
-    console.log('Connected to MongoDB');
+    if (isStandalone) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
+      console.log('Connected to MongoDB');
+    }
 
     // Find or create a default organization
     let organization = await Organization.findOne({ slug: 'default-org' });
@@ -27,7 +29,8 @@ const seedBig5 = async () => {
     }
 
     // Find or create an admin user
-    let adminUser = await User.findOne({ email: 'admin@mindmill.com' });
+    let adminUser = await User.findOne({ email: 'admin@mindmill.com' }) ||
+                    await User.findOne({ role: 'superadmin' });
     
     if (!adminUser) {
       adminUser = await User.create({
@@ -156,8 +159,10 @@ There are no right or wrong answers. Answer based on your natural tendencies, no
   } catch (error) {
     console.error('Error seeding Big5:', error);
   } finally {
-    await mongoose.disconnect();
-    console.log('\nDisconnected from MongoDB');
+    if (isStandalone) {
+      await mongoose.disconnect();
+      console.log('\nDisconnected from MongoDB');
+    }
   }
 };
 

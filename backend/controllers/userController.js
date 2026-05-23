@@ -112,6 +112,10 @@ const createUser = asyncHandler(async (req, res) => {
   let userOrganization = req.user.organization;
 
   if (req.user.role === 'superadmin') {
+    if (role === 'admin' && !organizationId && !organizationName) {
+      throw new ApiError(400, 'Admin users must be tagged to an organization. Select an existing organization or create a new one.');
+    }
+
     if (organizationId) {
       userOrganization = await Organization.findById(organizationId);
       if (!userOrganization) {
@@ -162,6 +166,12 @@ const createUser = asyncHandler(async (req, res) => {
 
   await user.populate('organization');
 
+  // If a new organization was created for an admin, set them as the org admin
+  if (userOrganization && organizationName && role === 'admin') {
+    userOrganization.admin = user._id;
+    await userOrganization.save();
+  }
+
   res.status(201).json({
     success: true,
     message: userOrganization && organizationName ? 'Admin and organization created successfully' : 'User created successfully',
@@ -178,7 +188,8 @@ const updateUser = asyncHandler(async (req, res) => {
   const { 
     firstName, lastName, phone, phoneCountryCode, salutation, jobTitle, isActive, role, city, company, 
     isEmailVerified, deactivationDate, deactivationReason,
-    organizationId, organizationName, organizationSlug, organizationDescription, organizationCredits
+    organizationId, organizationName, organizationSlug, organizationDescription, organizationCredits,
+    email
   } = req.body;
 
   let user = await User.findById(req.params.id);
@@ -210,14 +221,39 @@ const updateUser = asyncHandler(async (req, res) => {
       updateData.role = role;
     }
 
+    if (email && req.user.role === 'superadmin') {
+      const orgId = user.organization ? user.organization : null;
+      const existingUser = await User.findOne({ 
+        email: email.toLowerCase().trim(),
+        organization: orgId,
+        _id: { $ne: user._id }
+      });
+      
+      if (existingUser) {
+        throw new ApiError(400, 'Email already exists in this organization');
+      }
+      
+      updateData.email = email.toLowerCase().trim();
+    }
+
     // SuperAdmin can reassign or remove organization
     if (req.user.role === 'superadmin' && organizationId !== undefined) {
       if (organizationId) {
         const org = await Organization.findById(organizationId);
         if (!org) throw new ApiError(404, 'Organization not found');
         updateData.organization = org._id;
+
+        // If user is admin, set them as org admin
+        if (user.role === 'admin') {
+          await Organization.findByIdAndUpdate(user.organization, { admin: null });
+          org.admin = user._id;
+          await org.save();
+        }
       } else {
         updateData.organization = null;
+        if (user.role === 'admin' && user.organization) {
+          await Organization.findByIdAndUpdate(user.organization, { admin: null });
+        }
       }
     }
 

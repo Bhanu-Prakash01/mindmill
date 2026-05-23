@@ -12,8 +12,7 @@ import {
   Loader2,
   Maximize2,
   XCircle,
-  Bug,
-  Zap
+  Bug
 } from 'lucide-react';
 
 const Big5Test = () => {
@@ -38,7 +37,6 @@ const Big5Test = () => {
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
-  const [devMode, setDevMode] = useState(false);
   const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const currentAttemptIdRef = useRef(currentAttemptId);
@@ -125,6 +123,24 @@ const Big5Test = () => {
   document.removeEventListener('fullscreenchange', handleFullscreenChange);
   };
   }, []);
+
+  // ── Dev Mode ──────────────────────────────────────────────
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
+
+  const autoFillAnswers = () => {
+    if (!questions.length) return;
+    const filled = {};
+    questions.forEach((_, idx) => {
+      filled[idx + 1] = Math.floor(Math.random() * 5) + 1;
+    });
+    setResponses(filled);
+  };
+
+  useEffect(() => {
+    if (isDevMode && !loading && questions.length > 0) {
+      autoFillAnswers();
+    }
+  }, [isDevMode, loading, questions]);
 
   const fetchAssessment = async () => {
   try {
@@ -337,26 +353,10 @@ const getProgress = () => {
   return Math.round((answered / 50) * 100);
   };
 
-  // Dev Mode: Fill all answers randomly (1-5 rating scale)
-  const fillAllAnswersBig5 = () => {
-    const newResponses = {};
-    
-    for (let i = 1; i <= 50; i++) {
-      const randomRating = Math.floor(Math.random() * 5) + 1;
-      newResponses[i] = randomRating;
-    }
-    
-    setResponses(prev => ({ ...prev, ...newResponses }));
-    console.log('Dev Mode: Big5 answers filled!');
-  };
 
-  const toggleDevMode = () => {
-    if (!devMode) {
-      fillAllAnswersBig5();
-    }
-    setDevMode(!devMode);
-  };
 
+
+  
   if (loading) {
  return (
  <div className="min-h-screen flex items-center justify-center">
@@ -442,40 +442,40 @@ const getProgress = () => {
      Fullscreen
    </button>
 
-   <button
-     onClick={toggleDevMode}
-     className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-       devMode 
-         ? 'bg-green-500 text-white hover:bg-green-600' 
-         : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-     }`}
-     title="Dev Mode: Auto-fill all answers"
-   >
-     {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
-     {devMode ? 'Dev Mode ON' : 'Dev Mode'}
-   </button>
   </div>
  </div>
  </div>
 </header>
 
-  {/* Dev Mode Banner */}
-  {devMode && (
-    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-      <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Bug className="w-4 h-4" />
-          <span>DEV MODE ACTIVE - All Big5 answers auto-filled</span>
+      {/* Dev Mode Banner */}
+      {isDevMode && (
+        <div className="bg-amber-50 border-b-2 border-amber-400">
+          <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <Bug className="w-4 h-4" />
+              <span className="font-semibold">DEV MODE</span>
+              <span className="text-amber-600">— Answers auto-filled for testing</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={autoFillAnswers}
+                className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-medium transition-colors"
+              >
+                Re-fill All
+              </button>
+              <button
+                onClick={() => {
+                  autoFillAnswers();
+                  setTimeout(() => handleSubmit(), 100);
+                }}
+                className="text-xs px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium transition-colors"
+              >
+                Auto-fill &amp; Submit
+              </button>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => setDevMode(false)}
-          className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
-        >
-          Turn OFF
-        </button>
-      </div>
-    </div>
-  )}
+      )}
 
   {/* Main Content */}
  <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

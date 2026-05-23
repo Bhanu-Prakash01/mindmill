@@ -266,7 +266,8 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
     finalExpiryDate = new Date(Date.now() + expiryInDays * 24 * 60 * 60 * 1000);
   }
 
-  // Update credit request
+  const remainder = creditRequest.creditsRequested - granted;
+
   creditRequest.status = 'approved';
   creditRequest.approvedBy = req.user._id;
   creditRequest.approvedAt = new Date();
@@ -274,6 +275,18 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
   creditRequest.expiryDate = finalExpiryDate;
   creditRequest.adminNotes = notes;
   await creditRequest.save();
+
+  if (remainder > 0) {
+    await CreditRequest.create({
+      organization: creditRequest.organization?._id || creditRequest.organization,
+      requestedForUser: creditRequest.requestedForUser,
+      requestType: creditRequest.requestType,
+      requestedBy: creditRequest.requestedBy,
+      creditsRequested: remainder,
+      reason: `${creditRequest.reason} (remaining from partial approval)`,
+      status: 'pending'
+    });
+  }
 
   if (creditRequest.requestType === 'individual' && creditRequest.requestedForUser) {
     // --- Credit goes to individual User.personalCredits ---
@@ -304,7 +317,9 @@ const approveCreditRequest = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Credit request approved successfully',
+    message: remainder > 0
+      ? `Approved ${granted} credits. ${remainder} credits remain pending for review.`
+      : 'Credit request approved successfully',
     data: { creditRequest }
   });
 });

@@ -15,7 +15,9 @@ const {
   deleteOrganization,
   reassignAdmin,
   uploadProfileDocument,
-  deleteProfileDocument
+  deleteProfileDocument,
+  getBankDetails,
+  updateBankDetails
 } = require('../controllers/organizationController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { optionalAuth } = require('../middleware/authMiddleware');
@@ -23,8 +25,9 @@ const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
 const { organizationValidation, idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 const { uploadLogo, uploadBanner, uploadDoc } = require('../config/multer');
 
-// Public route for viewing organization profile
+// Public routes
 router.get('/public/:slug', getPublicProfile);
+router.get('/bank-details', getBankDetails);
 
 // Protected routes
 router.use(authMiddleware);
@@ -38,6 +41,7 @@ router.post('/', isSuperAdmin, organizationValidation.create, createOrganization
 router.post('/:id/credits', isSuperAdmin, idParamValidation, addCredits);
 router.patch('/:id/admin', isSuperAdmin, idParamValidation, reassignAdmin);
 router.delete('/:id', isSuperAdmin, idParamValidation, deleteOrganization);
+router.put('/bank-details', isSuperAdmin, updateBankDetails);
 
 // Admin and SuperAdmin routes
 router.get('/:id', idParamValidation, getOrganization);

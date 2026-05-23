@@ -8,6 +8,7 @@ const {
   addResponse,
   updateStatus,
   assignTicket,
+  escalateTicket,
   getStats,
   getCoordinators
 } = require('../controllers/supportController');
@@ -29,5 +30,6 @@ router.post('/tickets/:id/respond', idParamValidation, addResponse);
 
 router.put('/tickets/:id/status', isAdmin, idParamValidation, updateStatus);
 router.put('/tickets/:id/assign', isAdmin, idParamValidation, assignTicket);
+router.put('/tickets/:id/escalate', isAdmin, idParamValidation, escalateTicket);
 
 module.exports = router;

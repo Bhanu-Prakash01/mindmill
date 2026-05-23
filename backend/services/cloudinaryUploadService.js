@@ -65,11 +65,12 @@ function uploadFile(file, options = {}) {
  * Delete a file from Cloudinary by public_id.
  *
  * @param {string} publicId - The public_id of the file to delete
+ * @param {Object} [options] - Additional destroy options (e.g., { resource_type: 'raw' })
  * @returns {Promise<Object>} Cloudinary deletion result (e.g., { result: 'ok' })
  */
-async function deleteFile(publicId) {
+async function deleteFile(publicId, options = {}) {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, options);
     return result;
   } catch (error) {
     console.error(`[cloudinaryUploadService] Error deleting ${publicId}:`, error.message);

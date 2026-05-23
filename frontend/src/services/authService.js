@@ -1,11 +1,19 @@
 import api from './api';
 
+const setTokenAndUser = (data) => {
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('user', JSON.stringify(data.user));
+};
+
 export const authService = {
- login: async (email, password) => {
-  const response = await api.post('/auth/login', { email, password });
+ login: async (email, password, orgSlug) => {
+  const headers = {};
+  if (orgSlug) {
+    headers['X-Org-Slug'] = orgSlug;
+  }
+  const response = await api.post('/auth/login', { email, password }, { headers });
   if (response.data.success) {
-  localStorage.setItem('token', response.data.data.token);
-  localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  setTokenAndUser(response.data.data);
   }
   return response.data;
  },
@@ -21,13 +29,12 @@ export const authService = {
  },
 
  demoLogin: async (email, orgSlug) => {
-  const response = await api.post('/auth/demo/login', { email, orgSlug });
-  if (response.data.success) {
-  localStorage.setItem('token', response.data.data.token);
-  localStorage.setItem('user', JSON.stringify(response.data.data.user));
-  }
-  return response.data;
- },
+   const response = await api.post('/auth/demo/login', { email, orgSlug });
+   if (response.data.success) {
+   setTokenAndUser(response.data.data);
+   }
+   return response.data;
+  },
 
 logout: async () => {
     localStorage.removeItem('token');
@@ -74,10 +81,20 @@ logout: async () => {
 
   registerFreeTrial: async (registrationData) => {
     const response = await api.post('/auth/register', registrationData);
-    if (response.data.success) {
+    return response.data;
+  },
+
+  verifyEmailOtp: async (email, otp) => {
+    const response = await api.post('/auth/verify-email-otp', { email, otp });
+    if (response.data.success && response.data.data?.token) {
       localStorage.setItem('token', response.data.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.data.user));
     }
+    return response.data;
+  },
+
+  resendVerificationOtp: async (email) => {
+    const response = await api.post('/auth/resend-verification-otp', { email });
     return response.data;
   },
 

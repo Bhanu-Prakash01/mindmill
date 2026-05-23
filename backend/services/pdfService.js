@@ -5,13 +5,17 @@ const path      = require('path');
 const {
   generateDISCNarratives,
   generateBig5Narratives,
+  generateFIRONarratives,
+  generatePCLANarratives,
+  generateSJTNarratives,
   getDISCStaticData,
   getBig5StaticData,
-  generateFIRONarratives,
   getFIROStaticData,
   DISC_TRAITS,
   BIG5_TRAITS,
 } = require('./llmReportService');
+
+const { getReportAssessmentName } = require('../utils/pdfTypes');
 
 // ─────────────────────────────────────────────────────────────────
 // UTILITY
@@ -261,39 +265,47 @@ const generatePdfFromHtml = async (html) => {
   }
 };
 
-const REPORTS_DIR = path.join(__dirname, '../uploads/reports');
+const { uploadFile, deleteFile } = require('./cloudinaryUploadService');
 
-const ensureReportsDir = () => {
-  if (!fs.existsSync(REPORTS_DIR)) {
-    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+const pdfBufferCache = new Map();
+const pdfCloudIndex = new Map();
+
+const savePdfToDisk = async (buffer, reportId, type) => {
+  const key = `${reportId}_${type}`;
+  pdfBufferCache.set(key, buffer);
+
+  try {
+    const publicId = `report_${reportId}_${type}`;
+    const result = await uploadFile(buffer, {
+      folder: 'mindmill/reports/',
+      publicId,
+    });
+    pdfCloudIndex.set(key, { url: result.url, publicId: result.publicId });
+    return result.url;
+  } catch (err) {
+    console.error('[pdfService] Cloudinary upload failed:', err.message);
+    return null;
   }
 };
 
-const savePdfToDisk = async (buffer, reportId, type) => {
-  ensureReportsDir();
-  const filename = `${reportId}_${type}_${Date.now()}.pdf`;
-  const filepath = path.join(REPORTS_DIR, filename);
-  fs.writeFileSync(filepath, buffer);
-  return filepath;
-};
-
 const getCachedPdf = (reportId, type) => {
-  ensureReportsDir();
-  const files = fs.readdirSync(REPORTS_DIR).filter(f => f.startsWith(`${reportId}_${type}_`));
-  if (files.length === 0) return null;
-  const latestFile = files
-    .map(f => ({ name: f, ts: parseInt(f.split('_').pop(), 10) }))
-    .sort((a, b) => b.ts - a.ts)[0].name;
-  const filepath = path.join(REPORTS_DIR, latestFile);
-  return fs.readFileSync(filepath);
+  const key = `${reportId}_${type}`;
+  return pdfBufferCache.get(key) || null;
 };
 
-const deleteCachedPdfs = (reportId) => {
-  ensureReportsDir();
-  const files = fs.readdirSync(REPORTS_DIR).filter(f => f.startsWith(`${reportId}_`));
-  files.forEach(f => {
-    fs.unlinkSync(path.join(REPORTS_DIR, f));
-  });
+const deleteCachedPdfs = async (reportId) => {
+  for (const key of pdfBufferCache.keys()) {
+    if (key.startsWith(`${reportId}_`)) {
+      pdfBufferCache.delete(key);
+    }
+  }
+
+  for (const [key, entry] of pdfCloudIndex.entries()) {
+    if (key.startsWith(`${reportId}_`)) {
+      await deleteFile(entry.publicId, { resource_type: 'raw' }).catch(() => {});
+      pdfCloudIndex.delete(key);
+    }
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -336,11 +348,15 @@ const generateDiscReportPdf = async (report, testTaker, options = {}) => {
     const deepProfileHtml = paras(narratives.deepProfile);
     const developmentHtml = narratives.developmentNarrative?.split(/\n\n/)?.[0] || '';
 
+    const assessmentName = getReportAssessmentName(report, 'disc');
+
     const templateData = {
       /* meta */
       candidateName:  esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+
+      assessmentName: esc(assessmentName),
 
       /* pattern */
       pattern,
@@ -348,8 +364,8 @@ const generateDiscReportPdf = async (report, testTaker, options = {}) => {
       patternArchetype: esc(staticData.patternArchetype),
       dominantName:     esc(dTrait.name),
       secondaryName:    esc(sTrait.name || secondary),
-      dominantColor:    dTrait.color,
-      dominantGradient: dTrait.gradient,
+      dominantColor:    '#0EA5E9',
+      dominantGradient: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
 
       /* scores */
       dScore: scores.D,
@@ -479,14 +495,18 @@ const generateBig5ReportPdf = async (report, testTaker, options = {}) => {
       Neuroticism:       toPercentile(scores.Neuroticism),
     };
 
+    const assessmentName = getReportAssessmentName(report, 'big5');
+
     const templateData = {
       /* meta */
       candidateName:  esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
 
+      assessmentName: esc(assessmentName),
+
       /* top trait */
-      topTraitColor: topTraitInfo.color,
+      topTraitColor: '#0EA5E9',
       topTraitName:  esc(topTraitInfo.fullName),
 
       /* scores — use percentiles (0-100) for display, not raw (0-40) */
@@ -600,10 +620,14 @@ const generateFiroReportPdf = async (report, testTaker, options = {}) => {
     const staticData = getFIROStaticData(firoData);
     const { scores, fulfillment, career, leadership } = staticData;
 
+    const assessmentName = getReportAssessmentName(report, 'firo');
+
     const templateData = {
       candidateName:  esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+
+      assessmentName: esc(assessmentName),
 
       /* Score matrix */
       eI: scores.eI,
@@ -679,7 +703,9 @@ const generateQuickSummaryPdf = async (type, report, testTaker) => {
   const name = testTaker?.name || 'Candidate';
   const email = testTaker?.email || 'N/A';
   
-  let title, subtitle, themeColor, themeGradient;
+  let title, subtitle;
+  const themeColor = '#0EA5E9'; // Sky Blue
+  const themeGradient = 'linear-gradient(135deg, #0EA5E9, #38BDF8)'; // Sky Blue-to-Light Sky
   let scores = [];
   let strengths = [], growthAreas = [], motivators = [], careerPaths = [];
 
@@ -687,14 +713,12 @@ const generateQuickSummaryPdf = async (type, report, testTaker) => {
     const sd = getDISCStaticData(report);
     title = sd.patternName;
     subtitle = "DISC Behavioral Archetype: " + sd.patternArchetype;
-    themeColor = '#F59E0B'; // Amber
-    themeGradient = 'linear-gradient(135deg, #F59E0B, #FCD34D)';
     
     scores = Object.entries(sd.scores).map(([k, v]) => ({
       label: k,
       name: k === 'D' ? 'Dominance' : k === 'I' ? 'Influence' : k === 'S' ? 'Steadiness' : 'Conscientiousness',
       percentage: v,
-color: DISC_TRAITS[k]?.color || themeColor,
+      color: themeColor,
       text: `${v}%`
     }));
     
@@ -704,38 +728,57 @@ color: DISC_TRAITS[k]?.color || themeColor,
     careerPaths = sd.careerPaths?.slice(0, 4) || [];
 
   } else if (isFiro) {
-    const sd = getFIROStaticData(report);
-    title = "Behavioral Profile";
-    subtitle = "Fundamental Interpersonal Relations Orientation";
-    themeColor = '#3B82F6'; // Blue
-    themeGradient = 'linear-gradient(135deg, #3B82F6, #93C5FD)';
-    
-    const firoColors = { Inclusion: '#8B5CF6', Control: '#F59E0B', Affection: '#10B981' };
+    // Use dedicated FIRO summary template
+    const rawReport = report?.toObject ? report.toObject() : report;
+    let firoData;
+    if (rawReport.dimensions?.FIRO?.dimensions) {
+      firoData = { dimensions: rawReport.dimensions.FIRO.dimensions, totals: rawReport.dimensions.FIRO.totals };
+    } else if (rawReport.attempt?.firoResults?.dimensions) {
+      firoData = { dimensions: rawReport.attempt.firoResults.dimensions, totals: rawReport.attempt.firoResults.totals };
+    } else if (rawReport.firoResults?.dimensions) {
+      firoData = { dimensions: rawReport.firoResults.dimensions, totals: rawReport.firoResults.totals };
+    } else {
+      firoData = rawReport;
+    }
+    const sd = getFIROStaticData(firoData);
     const max = 18;
-    
-    scores = [
-      { name: 'Inclusion', score: sd.scores.inclusionTotal, label: 'I' },
-      { name: 'Control', score: sd.scores.controlTotal, label: 'C' },
-      { name: 'Affection', score: sd.scores.affectionTotal, label: 'A' },
-    ].map(item => ({
-      label: item.label,
-      name: item.name,
-      percentage: (item.score / max) * 100,
-      color: firoColors[item.name],
-      text: `${item.score} / 18`
-    }));
 
-    // Generate pseudo strengths/growth for summary from the dimensions
-    if (sd.dimensions) {
-if (sd.dimensions.Expressed) {
-         strengths.push(`Inclusion (Expressed): ${sd.dimensions.Expressed.Inclusion.level} - ${sd.dimensions.Expressed.Inclusion.description}`);
-         strengths.push(`Control (Expressed): ${sd.dimensions.Expressed.Control.level} - ${sd.dimensions.Expressed.Control.description}`);
-      }
-if (sd.dimensions.Wanted) {
-         motivators.push(`Inclusion (Wanted): ${sd.dimensions.Wanted.Inclusion.level} - ${sd.dimensions.Wanted.Inclusion.description}`);
-         careerPaths.push(`Control (Wanted): ${sd.dimensions.Wanted.Control.level} - ${sd.dimensions.Wanted.Control.description}`);
-       }
-     }
+    const templateData = {
+      assessmentName: esc(getReportAssessmentName(report, 'firo')),
+      candidateName: esc(name),
+      candidateEmail: esc(email),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      ...getAttemptMetrics(testTaker),
+
+      /* Score matrix */
+      eI: sd.scores.eI, wI: sd.scores.wI,
+      eC: sd.scores.eC, wC: sd.scores.wC,
+      eA: sd.scores.eA, wA: sd.scores.wA,
+      inclusionTotal: sd.scores.inclusionTotal,
+      controlTotal: sd.scores.controlTotal,
+      affectionTotal: sd.scores.affectionTotal,
+      totalExpressed: sd.scores.totalExpressed || (sd.scores.eI + sd.scores.eC + sd.scores.eA),
+      totalWanted: sd.scores.totalWanted || (sd.scores.wI + sd.scores.wC + sd.scores.wA),
+      overallTotal: sd.scores.overallTotal || (sd.scores.inclusionTotal + sd.scores.controlTotal + sd.scores.affectionTotal),
+      inclusionPct: Math.round((sd.scores.inclusionTotal / max) * 100),
+      controlPct: Math.round((sd.scores.controlTotal / max) * 100),
+      affectionPct: Math.round((sd.scores.affectionTotal / max) * 100),
+
+      /* Fulfillment */
+      inclusionFulfillment: (sd.fulfillment?.Inclusion || []).slice(0, 3).map(esc),
+      controlFulfillment: (sd.fulfillment?.Control || []).slice(0, 3).map(esc),
+      affectionFulfillment: (sd.fulfillment?.Affection || []).slice(0, 3).map(esc),
+
+      /* Executive summary */
+      executiveSummary: `Your FIRO-B profile shows ${sd.scores.inclusionTotal}/18 for Inclusion, ${sd.scores.controlTotal}/18 for Control, and ${sd.scores.affectionTotal}/18 for Affection. Your highest expressed need is ${sd.leadership?.highestExpressed || 'Inclusion'}, which drives your primary interpersonal behavior pattern.`,
+
+      /* Growth areas from career tips */
+      growthAreas: (sd.career?.inclusionTips || []).slice(0, 2).map(esc),
+    };
+
+    const template = readTemplate('firo-summary.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
 
   } else if (isMbti) {
     // Normalize MBTI from any shape: attempt.mbtiResults, report.dimensions.MBTI, or wrapped attempt
@@ -754,8 +797,6 @@ if (sd.dimensions.Wanted) {
 
     title = mbtiType;
     subtitle = "Myers-Briggs Type: " + typeDesc.name;
-    themeColor = '#8B5CF6'; // Purple
-    themeGradient = 'linear-gradient(135deg, #8B5CF6, #A78BFA)';
     
     const pctEI = mbti.EI ?? 50;
     const pctSN = mbti.SN ?? 50;
@@ -774,14 +815,11 @@ scores = [
     growthAreas = (td.growthAreas[mbtiType] || td.growthAreas.INTJ).slice(0, 4);
     motivators = (td.motivators[mbtiType] || td.motivators.INTJ).slice(0, 4);
     careerPaths = (td.careerPaths[mbtiType] || td.careerPaths.INTJ).slice(0, 4).map(c => c.title);
-
   } else {
     // BIG5
     const sd = getBig5StaticData(report);
     title = sd.topTraitName;
     subtitle = 'Big Five (OCEAN) Profile';
-    themeColor = '#10B981'; // Emerald/Teal
-    themeGradient = 'linear-gradient(135deg, #10B981, #6EE7B7)';
 
     const colors = { Openness:'#8B5CF6',Conscientiousness:'#3B82F6',Extraversion:'#F59E0B',Agreeableness:'#10B981',Neuroticism:'#EF4444' };
     const letters = { Openness:'O',Conscientiousness:'C',Extraversion:'E',Agreeableness:'A',Neuroticism:'N' };
@@ -801,7 +839,7 @@ scores = [
   }
 
   const templateData = {
-    assessmentName: isDisc ? 'DISC' : isFiro ? 'FIRO-B' : isMbti ? 'MBTI' : 'Big Five',
+    assessmentName: esc(getReportAssessmentName(report, type)),
     candidateName: esc(name),
     candidateEmail: esc(email),
     assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -1079,11 +1117,15 @@ const generateMbtiReportPdf = async (report, testTaker, options = {}) => {
     ];
     const workStyleTags = wsTagLabels.map((label, i) => ({ label, color: wsTagColors[i] }));
 
+    const assessmentName = getReportAssessmentName(report, 'mbti');
+
     const templateData = {
       /* meta */
       candidateName:  esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+
+      assessmentName: esc(assessmentName),
 
       /* type */
       mbtiType:        fallbackType,
@@ -1139,6 +1181,7 @@ const generateMbtiReportPdf = async (report, testTaker, options = {}) => {
 const generateGenericReportPdf = async (report) => {
   const name = report.testTakerName || (report.user ? `${report.user.firstName || ''} ${report.user.lastName || ''}`.trim() : null) || 'Candidate';
   const score = report.scores?.percentage || 0;
+  const assessmentName = getReportAssessmentName(report, 'Assessment');
   
   const html = `<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
@@ -1154,7 +1197,7 @@ body{font-family:'DM Sans',sans-serif;background:#0F172A;min-height:100vh;displa
 .footer{font-size:9px;color:#94A3B8;margin-top:24px;}
 </style></head><body>
 <div class="card">
-  <div class="brand">Mindmil · Standard Assessment</div>
+  <div class="brand">Mindmil · ${esc(assessmentName)}</div>
   <div class="big-name">${esc(name)}</div>
   <div class="sub">Assessment Report</div>
   <div class="scores" style="text-align:center;">
@@ -1245,10 +1288,13 @@ const generateHoganReportPdf = async (report, testTaker, options = {}) => {
     const dominantScale = HOGAN_SCALES[domKey]?.name || domKey || 'N/A';
     const secondaryScale = HOGAN_SCALES[secKey]?.name || secKey || 'N/A';
 
+    const assessmentName = getReportAssessmentName(report, 'hogan');
+
     const templateData = {
       candidateName: esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      assessmentName: esc(assessmentName),
       dominantScale,
       secondaryScale,
       scales,
@@ -1340,10 +1386,25 @@ const generateSjtReportPdf = async (report, testTaker, options = {}) => {
     const transformation  = Math.min(100, Math.max(0, situationalIndex - 8));
     const enterprise      = Math.min(100, Math.max(0, situationalIndex - 12));
 
+    // Generate LLM narratives (parallel) — skip for summary reports
+    const sjtPayload = { sjtResults: { situationalIndex, band, grade, percentile, radar, dimensionScores, strongestDimension: strongest, weakestDimension: weakest } };
+    const narratives = options.summary
+      ? { coverSummary: '', deepProfileHtml: '', leadershipHtml: '', developmentHtml: '', closingInsight: '' }
+      : await generateSJTNarratives(sjtPayload, testTaker);
+
+    const assessmentName = getReportAssessmentName(report, 'sjt');
+
     const templateData = {
       candidateName:    esc(testTaker?.name  || 'N/A'),
       candidateEmail:   esc(testTaker?.email || 'N/A'),
       assessmentDate:   new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }),
+      assessmentName:   esc(assessmentName),
+      /* LLM narratives (empty in summary mode) */
+      coverSummary:    esc(narratives.coverSummary),
+      deepProfileHtml: narratives.deepProfileHtml,
+      leadershipHtml:  narratives.leadershipHtml,
+      developmentHtml: narratives.developmentHtml,
+      closingInsight:  esc(narratives.closingInsight),
       situationalIndex,
       rawScore, maxRaw, percentile,
       band: esc(band), grade, promotionReadiness: esc(promotionReadiness),
@@ -1374,7 +1435,7 @@ const generateSjtReportPdf = async (report, testTaker, options = {}) => {
       ...getAttemptMetrics(testTaker),
     };
 
-    const template = readTemplate('sjt-comprehensive.html');
+    const template = readTemplate(options.summary ? 'sjt-summary.html' : 'sjt-comprehensive.html');
     const html     = render(template, templateData);
     return await generatePdfFromHtml(html);
   } catch (err) {
@@ -1414,6 +1475,11 @@ const generatePclaReportPdf = async (report, testTaker, options = {}) => {
     const radarScores = pclaResults.radarScores || {};
     const dimensionScores = pclaResults.dimensionScores || {};
 
+    // Generate LLM narratives (parallel) — skip for summary reports
+    const narratives = options.summary
+      ? { coverSummary: '', deepProfileHtml: '', leadershipHtml: '', developmentHtml: '', closingInsight: '' }
+      : await generatePCLANarratives(pclaResults, testTaker);
+
     // Build dimension rows for heat map
     const zoneFor = (s) => s >= 75 ? '🟢 Exceptional' : s >= 60 ? '🟢 Strong' : s >= 45 ? '🟡 Moderate' : '🔴 Needs Focus';
     const dimensionRows = Object.entries(dimensionScores).map(([name, score]) => ({
@@ -1426,10 +1492,20 @@ const generatePclaReportPdf = async (report, testTaker, options = {}) => {
     // Training ROI potential label
     const trainingROIPotential = trainingROI >= 80 ? 'High' : trainingROI >= 60 ? 'Moderate' : 'Developing';
 
+    const assessmentName = getReportAssessmentName(report, 'pcla');
+
     const templateData = {
       candidateName:  esc(testTaker?.name || 'N/A'),
       candidateEmail: esc(testTaker?.email || 'N/A'),
       assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      assessmentName: esc(assessmentName),
+
+      /* LLM narratives (empty in summary mode) */
+      coverSummary:    esc(narratives.coverSummary),
+      deepProfileHtml: narratives.deepProfileHtml,
+      leadershipHtml:  narratives.leadershipHtml,
+      developmentHtml: narratives.developmentHtml,
+      closingInsight:  esc(narratives.closingInsight),
 
       coachabilityIndex: ci,
       band:              esc(band),
@@ -1471,7 +1547,7 @@ const generatePclaReportPdf = async (report, testTaker, options = {}) => {
       ...getAttemptMetrics(testTaker),
     };
 
-    const template = readTemplate('pcla-comprehensive.html');
+    const template = readTemplate(options.summary ? 'pcla-summary.html' : 'pcla-comprehensive.html');
     const html = render(template, templateData);
     return await generatePdfFromHtml(html);
   } catch (err) {
@@ -1480,7 +1556,73 @@ const generatePclaReportPdf = async (report, testTaker, options = {}) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// ECTI REPORT
+// ─────────────────────────────────────────────────────────────────
+
+const generateEctiReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    const reportObj = report?.toObject ? report.toObject() : report;
+    const ectiResults = reportObj.ectiResults || reportObj.attempt?.ectiResults || {};
+
+    const percentage = ectiResults.percentage || reportObj.scores?.percentage || 0;
+    const band = ectiResults.band || reportObj.analysis?.personalityProfile || 'N/A';
+    const percentile = ectiResults.percentile || 0;
+    const summary = ectiResults.summary || reportObj.analysis?.summary || '';
+    const clusterScores = ectiResults.clusters || {};
+    const dimensionScores = ectiResults.dimensions || {};
+
+    // Build clusters array
+    const clusterColors = ['#4F46E5', '#2563EB', '#059669', '#F59E0B', '#DC2626'];
+    const clusters = Object.entries(clusterScores).map(([name, score], idx) => ({
+      name,
+      score,
+      color: clusterColors[idx % clusterColors.length],
+      offset: ringOffset(score),
+    }));
+
+    // Build dimension rows for heat map
+    const zoneFor = (s) => s >= 75 ? '🟢 Strong' : s >= 50 ? '🟡 Moderate' : '🔴 Developing';
+    const colorFor = (s) => s >= 75 ? '#4F46E5' : s >= 50 ? '#2563EB' : s >= 35 ? '#D97706' : '#DC2626';
+    const dimensionRows = Object.entries(dimensionScores).map(([name, score]) => ({
+      name,
+      score,
+      barWidth: Math.min(score, 100),
+      zone: zoneFor(score),
+      color: colorFor(score),
+    }));
+
+    const assessmentName = getReportAssessmentName(report, 'ecti');
+
+    const templateData = {
+      candidateName:  esc(testTaker?.name || 'N/A'),
+      candidateEmail: esc(testTaker?.email || 'N/A'),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      assessmentName: esc(assessmentName),
+
+      percentage,
+      percentageOffset: ringOffset(percentage),
+      band:              esc(band),
+      percentile,
+      summary:           esc(summary),
+
+      clusters,
+      dimensionRows,
+
+      ...getAttemptMetrics(testTaker),
+    };
+
+    const template = readTemplate('ecti-comprehensive.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('ECTI PDF generation error:', err);
+    throw err;
+  }
+};
+
 module.exports = {
+  generatePdfFromHtml,
   generateDiscReportPdf,
   generateBig5ReportPdf,
   generateFiroReportPdf,
@@ -1490,6 +1632,7 @@ module.exports = {
   generateHoganReportPdf,
   generateSjtReportPdf,
   generatePclaReportPdf,
+  generateEctiReportPdf,
   savePdfToDisk,
   getCachedPdf,
   deleteCachedPdfs,

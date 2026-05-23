@@ -80,7 +80,8 @@ const submitMbti = asyncHandler(async (req, res) => {
           user.freeTrialAssessmentId = attempt.assessment;
           user.freeTrialAttemptId = attempt._id;
         } else {
-          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+          const creditCost = assessment.getEffectiveCreditCost();
+          user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
         }
         await user.save();
       } else {

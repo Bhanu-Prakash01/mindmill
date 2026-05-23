@@ -121,6 +121,19 @@ const UserManagement = () => {
 
   const handleCreateUser = async (e) => {
   e.preventDefault();
+
+  if (formData.role === 'admin') {
+    if (createNewOrg) {
+      if (!formData.organizationName?.trim()) {
+        alert('Please enter an organization name for the new admin.');
+        return;
+      }
+    } else if (!formData.organizationId) {
+      alert('Please tag the admin to an organization. Select one from the list or choose "New Organization".');
+      return;
+    }
+  }
+
   try {
   const isInactive = formData.status === 'inactive';
   const payload = {
@@ -368,7 +381,7 @@ const filteredUsers = users.filter((user) => {
   const matchesStatus = filterStatus === 'all' ||
     (filterStatus === 'active' && user.isActive) ||
     (filterStatus === 'inactive' && !user.isActive);
-  const matchesOrg = filterOrg === 'all' || user.organization?._id === filterOrg;
+  const matchesOrg = filterOrg === 'all' || (filterOrg === 'individual' ? !user.organization : user.organization?._id === filterOrg);
   return matchesSearch && matchesRole && matchesStatus && matchesOrg;
 });
 
@@ -573,6 +586,7 @@ return (
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="all">All Organizations</option>
+                <option value="individual">Individual</option>
                 {organizations.map(org => (
                   <option key={org._id} value={org._id}>{org.name}</option>
                 ))}
@@ -608,7 +622,7 @@ return (
             <tbody className="divide-y divide-gray-200">
               {filteredUsers.map((user) => (
  <tr key={user._id} className="hover:bg-gray-50 ">
- <td className="hidden md:table-cell px-6 py-4">
+ <td className="px-6 py-4">
  <div className="flex items-center">
  <UserAvatar
   name={user.firstName}
@@ -629,14 +643,14 @@ return (
   </div>
 </div>
 </td>
-<td className="hidden md:table-cell px-6 py-4">
+<td className="px-6 py-4">
   <div className="text-sm text-gray-900 font-medium">{user.company || 'N/A'}</div>
 </td>
-<td className="hidden md:table-cell px-6 py-4">
-  <div className="text-sm text-gray-900 font-medium">{user.organization?.name || 'N/A'}</div>
+<td className="px-6 py-4">
+  <div className="text-sm text-gray-900 font-medium">{user.organization?.name || (user.accountType === 'individual' ? 'Individual' : 'N/A')}</div>
 </td>
-<td className="hidden md:table-cell px-6 py-4">{getRoleBadge(user.role)}</td>
- <td className="hidden md:table-cell px-6 py-4">
+<td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+ <td className="px-6 py-4">
  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
  user.isActive
  ? 'bg-green-100 text-green-700 '
@@ -645,10 +659,10 @@ return (
  {user.isActive ? 'Active' : 'Inactive'}
  </span>
  </td>
- <td className="hidden md:table-cell px-6 py-4 text-sm text-gray-500 ">
+ <td className="px-6 py-4 text-sm text-gray-500 ">
  {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
  </td>
- <td className="hidden md:table-cell px-6 py-4 text-right">
+ <td className="px-6 py-4 text-right">
  <div className="flex items-center justify-end gap-2">
  <button
  onClick={() => handleToggleStatus(user._id)}
@@ -680,75 +694,8 @@ return (
  </button>
  )}
  </div>
-  </td>
-  <td colSpan={7} className="block md:hidden p-3">
-    <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
-      <div className="flex justify-between items-start">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {user.salutation && `${user.salutation} `}{user.firstName}{user.lastName ? ` ${user.lastName}` : ''}
-          </div>
-          <div className="text-xs text-gray-500 flex items-center gap-1">
-            {user.email}
-            {user.isEmailVerified && (
-              <BadgeCheck className="w-3 h-3 text-green-500" title="Email verified" />
-            )}
-          </div>
-        </div>
-        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-          user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        }`}>
-          {user.isActive ? 'Active' : 'Inactive'}
-        </span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500">Company</span>
-        <span className="text-sm font-medium text-gray-900">{user.company || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500">Organization</span>
-        <span className="text-sm font-medium text-gray-900">{user.organization?.name || 'N/A'}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500">Role</span>
-        <span className="text-sm">{getRoleBadge(user.role)}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500">Last Login</span>
-        <span className="text-sm text-gray-900">{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</span>
-      </div>
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-        <button
-          onClick={() => handleToggleStatus(user._id)}
-          className={`p-2 rounded-lg transition-colors ${
-            user.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
-          }`}
-          title={user.isActive ? 'Deactivate' : 'Activate'}
-        >
-          {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={() => openEditModal(user)}
-          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-          title="Edit"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
-        {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && 
-          user._id !== currentUser?._id && 
-          !(currentUser?.role === 'admin' && (user.role === 'superadmin' || user.role === 'admin')) && (
-          <button
-            onClick={() => handleDeleteUser(user._id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  </td>
-  </tr>
+ </td>
+ </tr>
 ))}
             </tbody>
           </table>
@@ -806,13 +753,13 @@ return (
             <tbody className="divide-y divide-gray-200">
               {filteredOrganizations.map((org) => (
               <tr key={org._id} className="hover:bg-gray-50">
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm font-medium text-gray-900">{org.name}</div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm text-gray-500 font-mono">{org.slug}</div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   {org.admin ? (
                     <>
                       <div className="text-sm text-gray-900">{org.admin.firstName} {org.admin.lastName}</div>
@@ -822,24 +769,24 @@ return (
                     <div className="text-sm text-gray-400 italic">No admin assigned</div>
                   )}
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm font-medium text-indigo-600 flex items-center gap-1">
                     <CreditCard className="w-3 h-3" />
                     {org.credits?.total || 0}
                   </div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm text-orange-600">{org.credits?.used || 0}</div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm font-medium text-green-600">{org.credits?.total - org.credits?.used - (org.credits?.locked || 0)}</div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4">
+                <td className="px-6 py-4">
                   <div className="text-sm text-gray-500">
                     {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : 'N/A'}
                   </div>
                 </td>
-                <td className="hidden md:table-cell px-6 py-4 text-right">
+                <td className="px-6 py-4 text-right">
                   <button
                     onClick={() => openEditOrg(org)}
                     className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -848,57 +795,6 @@ return (
                     <Edit2 className="w-4 h-4" />
                   </button>
                 </td>
-              <td colSpan={8} className="block md:hidden p-3">
-                <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Organization</span>
-                    <span className="text-sm font-medium text-gray-900">{org.name}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Slug</span>
-                    <span className="text-sm text-gray-500 font-mono">{org.slug}</span>
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500">Admin</span>
-                    <div className="text-right">
-                      {org.admin ? (
-                        <div className="text-sm text-gray-900">{org.admin.firstName} {org.admin.lastName}</div>
-                      ) : (
-                        <div className="text-sm text-gray-400 italic">No admin assigned</div>
-                      )}
-                      {org.admin && <div className="text-xs text-gray-500">{org.admin.email}</div>}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Credits</span>
-                    <span className="text-sm font-medium text-indigo-600 flex items-center gap-1">
-                      <CreditCard className="w-3 h-3" />
-                      {org.credits?.total || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Used</span>
-                    <span className="text-sm text-orange-600">{org.credits?.used || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Available</span>
-                    <span className="text-sm font-medium text-green-600">{org.credits?.total - org.credits?.used - (org.credits?.locked || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Created</span>
-                    <span className="text-sm text-gray-500">{org.createdAt ? new Date(org.createdAt).toLocaleDateString() : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-end pt-2 border-t border-gray-100">
-                    <button
-                      onClick={() => openEditOrg(org)}
-                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </td>
               </tr>
             ))}
           </tbody>
@@ -1043,7 +939,7 @@ return (
     )}
   </div>
 
-  {currentUser?.role === 'superadmin' && formData.role !== 'admin' && (
+  {currentUser?.role === 'superadmin' && formData.role !== 'admin' && formData.role !== 'superadmin' && (
     <div className="space-y-3">
       <label className="block text-sm font-medium text-gray-700">User Type</label>
       <div className="flex gap-3">

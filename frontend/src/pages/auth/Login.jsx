@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { authService, organizationService } from '../../services';
-import { Eye, EyeOff, Loader2, Building2, Users, ChevronDown, ChevronUp, LogIn, Shield, User as UserIcon, Globe } from 'lucide-react';
+import { authService } from '../../services';
+import {
+  Eye, EyeOff, Loader2, Building2, User as UserIcon,
+  ChevronDown, Check, Search
+} from 'lucide-react';
+
+const LOGIN_MODE_ORG = 'org';
+const LOGIN_MODE_INDIVIDUAL = 'individual';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,108 +16,50 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [orgInfo, setOrgInfo] = useState(null);
-  const [orgLoading, setOrgLoading] = useState(false);
-  const [superadminFilled, setSuperadminFilled] = useState(false);
+  const [loginMode, setLoginMode] = useState(LOGIN_MODE_ORG);
 
-  // Demo organizations state
+  // Org selector
   const [organizations, setOrganizations] = useState([]);
-  const [selectedOrgSlug, setSelectedOrgSlug] = useState(null);
-  const [demoUsers, setDemoUsers] = useState([]);
-  const [demoOrgsLoading, setDemoOrgsLoading] = useState(false);
-  const [demoUsersLoading, setDemoUsersLoading] = useState(false);
-  const [loggingInDemo, setLoggingInDemo] = useState(null);
+  const [orgsLoading, setOrgsLoading] = useState(false);
+  const [orgSearch, setOrgSearch] = useState('');
+  const [selectedOrg, setSelectedOrg] = useState(null);
+  const [showOrgDropdown, setShowOrgDropdown] = useState(false);
 
-  const { login, demoLogin, user } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { orgSlug } = useParams();
 
-  // Fetch org info when on an org-scoped login page
+  // If on an org-scoped URL, pre-select that org
   useEffect(() => {
     if (orgSlug) {
-      setOrgLoading(true);
-      fetchOrgInfo();
+      fetchOrganizations().then(() => {
+        setSelectedOrg(orgSlug);
+        setLoginMode(LOGIN_MODE_ORG);
+      });
     }
   }, [orgSlug]);
 
-  // Fetch demo organizations on root login page
   useEffect(() => {
     if (!orgSlug) {
-      fetchDemoOrganizations();
+      fetchOrganizations();
     }
   }, [orgSlug]);
 
-  const fetchOrgInfo = async () => {
-    try {
-      const response = await organizationService.getPublicProfile(orgSlug);
-      setOrgInfo(response.data?.organization || response.data);
-    } catch (err) {
-      setOrgInfo(null);
-    } finally {
-      setOrgLoading(false);
-    }
-  };
-
-  const fetchDemoOrganizations = async () => {
-    setDemoOrgsLoading(true);
+  const fetchOrganizations = async () => {
+    setOrgsLoading(true);
     try {
       const response = await authService.getDemoOrganizations();
       setOrganizations(response.data?.organizations || []);
+      // If orgSlug is in URL, pre-select from list
+      if (orgSlug) {
+        const found = (response.data?.organizations || []).find(o => o.slug === orgSlug);
+        if (found) setSelectedOrg(found);
+      }
     } catch (err) {
       setOrganizations([]);
     } finally {
-      setDemoOrgsLoading(false);
+      setOrgsLoading(false);
     }
-  };
-
-  const handleOrgClick = async (slug) => {
-    if (selectedOrgSlug === slug) {
-      setSelectedOrgSlug(null);
-      setDemoUsers([]);
-      return;
-    }
-
-    setSelectedOrgSlug(slug);
-    setDemoUsersLoading(true);
-    setDemoUsers([]);
-    try {
-      const response = await authService.getDemoUsers(slug);
-      setDemoUsers(response.data?.users || []);
-    } catch (err) {
-      setDemoUsers([]);
-    } finally {
-      setDemoUsersLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async (demoEmail, demoOrgSlug) => {
-    setError('');
-    setLoggingInDemo(demoEmail);
-    try {
-      const response = await demoLogin(demoEmail, demoOrgSlug);
-      if (response.success) {
-        const loggedInUser = response.data.user;
-        if (loggedInUser.role === 'superadmin') {
-          navigate('/dashboard/superadmin');
-        } else {
-          navigate(`/o/${demoOrgSlug}/`);
-        }
-      } else {
-        setError(response.message || 'Demo login failed');
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Demo login failed');
-    } finally {
-      setLoggingInDemo(null);
-    }
-  };
-
-  const handleFillSuperadmin = () => {
-    setEmail('super@admin.com');
-    setPassword('supperadmin');
-    setSuperadminFilled(true);
-    setShowPassword(true);
-    setTimeout(() => setSuperadminFilled(false), 2000);
   };
 
   const handleSubmit = async (e) => {
@@ -120,13 +68,31 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await login(email, password);
+      let response;
+
+      if (loginMode === LOGIN_MODE_ORG) {
+        if (!selectedOrg) {
+          setError('Please select an organization');
+          setLoading(false);
+          return;
+        }
+        const orgSlugVal = typeof selectedOrg === 'string' ? selectedOrg : selectedOrg.slug;
+        response = await login(email, password, orgSlugVal);
+      } else {
+        response = await login(email, password);
+      }
+
       if (response.success) {
         const loggedInUser = response.data.user;
-        if (loggedInUser.role === 'superadmin' && !orgSlug) {
+        if (loggedInUser.role === 'superadmin') {
           navigate('/dashboard/superadmin');
-        } else if (orgSlug) {
-          navigate(`/o/${orgSlug}/`);
+        } else if (loggedInUser.organization) {
+          const userOrgSlug = loggedInUser.organization?.slug;
+          if (userOrgSlug) {
+            navigate(`/o/${userOrgSlug}/`);
+          } else {
+            navigate('/');
+          }
         } else {
           navigate('/');
         }
@@ -140,106 +106,193 @@ const Login = () => {
     }
   };
 
-  const primaryColor = orgInfo?.primaryColor || '#6366f1';
+  const filteredOrgs = organizations.filter(org =>
+    org.name.toLowerCase().includes(orgSearch.toLowerCase())
+  );
 
-  const roleBadgeColors = {
-    admin: 'bg-purple-100 text-purple-700',
-    user: 'bg-blue-100 text-blue-700',
-    superadmin: 'bg-amber-100 text-amber-700'
-  };
-
-  const roleIcons = {
-    admin: Shield,
-    user: UserIcon,
-    superadmin: Shield
-  };
+  const modes = [
+    {
+      id: LOGIN_MODE_ORG,
+      label: 'Organization',
+      icon: Building2,
+      description: 'Sign in via your organization'
+    },
+    {
+      id: LOGIN_MODE_INDIVIDUAL,
+      label: 'Individual',
+      icon: UserIcon,
+      description: 'Sign in as individual user'
+    }
+  ];
 
   return (
-    <div className="w-full">
-      {/* Logo and Header */}
+    <div className="w-full max-w-md mx-auto">
       <div className="text-center mb-8">
-        {orgLoading ? (
-          <div className="flex justify-center mb-4">
-            <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
-          </div>
-        ) : orgInfo ? (
-          <>
-            {orgInfo.logo ? (
-              <img
-                src={orgInfo.logo.startsWith('http') ? orgInfo.logo : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${orgInfo.logo}`}
-                alt={orgInfo.name}
-                className="h-16 w-auto mx-auto mb-4 rounded-lg"
-              />
-            ) : (
-              <div className="w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}>
-                <Building2 className="w-8 h-8" style={{ color: primaryColor }} />
-              </div>
-            )}
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {orgInfo.name}
-            </h1>
-            <p className="text-gray-500">
-              Sign in to access your assessments
-            </p>
-            <Link
-              to={`/org/${orgSlug}`}
-              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium hover:underline transition-colors"
-              style={{ color: primaryColor }}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              View Organization Profile
-            </Link>
-          </>
-        ) : (
-          <>
-            <img
-              src="/logo.png"
-              alt="Mindmil Assessments"
-              className="h-16 w-auto mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome to Mindmil
-            </h1>
-            <p className="text-gray-500">
-              Sign in to access your assessments
-            </p>
-          </>
-        )}
+        <img
+          src="/logo.png"
+          alt="Mindmil Assessments"
+          className="h-14 w-auto mx-auto mb-4"
+        />
+        <h1 className="text-2xl font-bold text-gray-900">
+          Welcome to Mindmil
+        </h1>
+        <p className="text-gray-500 mt-1.5 text-sm">
+          Sign in to access your assessments
+        </p>
       </div>
 
-      {/* Login Form */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-4 sm:p-6 lg:p-8">
-        {!orgSlug && !orgLoading && (
-          <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200">
-            <p className="text-sm text-amber-700">
-              Please access your organization's URL to login (e.g., <strong>/o/your-org/login</strong>), or login as SuperAdmin below.
-            </p>
-            <button
-              type="button"
-              onClick={handleFillSuperadmin}
-              className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${superadminFilled
-                ? 'bg-green-100 text-green-700 border border-green-200'
-                : 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200'
+      {/* Login mode tabs */}
+      <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-6 sm:p-8">
+        <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+          {modes.map((mode) => {
+            const Icon = mode.icon;
+            const active = loginMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => {
+                  setLoginMode(mode.id);
+                  setError('');
+                  if (mode.id !== LOGIN_MODE_SUPERADMIN) {
+                    setEmail('');
+                    setPassword('');
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
-            >
-              <Shield className="w-4 h-4" />
-              {superadminFilled ? 'Credentials Filled!' : 'Use SuperAdmin Credentials'}
-            </button>
-          </div>
-        )}
+              >
+                <Icon className="w-4 h-4" />
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 ">
-            <p className="text-sm text-red-600 ">{error}</p>
+          <div className="mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Organization selector */}
+          {loginMode === LOGIN_MODE_ORG && (
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Select Organization
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowOrgDropdown(!showOrgDropdown)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 bg-white text-left transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                {selectedOrg ? (
+                  <>
+                    {selectedOrg.logo ? (
+                      <img
+                        src={selectedOrg.logo.startsWith('http') ? selectedOrg.logo : ''}
+                        alt=""
+                        className="w-7 h-7 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-md bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {selectedOrg.name}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <Building2 className="w-5 h-5" />
+                    <span className="text-sm">Choose your organization...</span>
+                  </div>
+                )}
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showOrgDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showOrgDropdown && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowOrgDropdown(false)} />
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                    <div className="p-2 border-b border-gray-100">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={orgSearch}
+                          onChange={(e) => setOrgSearch(e.target.value)}
+                          placeholder="Search organizations..."
+                          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-1">
+                      {orgsLoading ? (
+                        <div className="flex justify-center py-6">
+                          <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
+                        </div>
+                      ) : filteredOrgs.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-6">No organizations found</p>
+                      ) : (
+                        filteredOrgs.map((org) => (
+                          <button
+                            key={org.slug}
+                            type="button"
+                            onClick={() => {
+                              setSelectedOrg(org);
+                              setShowOrgDropdown(false);
+                              setOrgSearch('');
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                              selectedOrg?.slug === org.slug
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'hover:bg-gray-50 text-gray-700'
+                            }`}
+                          >
+                            {org.logo ? (
+                              <img
+                                src={org.logo.startsWith('http') ? org.logo : ''}
+                                alt=""
+                                className="w-7 h-7 rounded-md object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                              </div>
+                            )}
+                            <span className="text-sm font-medium flex-1 truncate">{org.name}</span>
+                            {selectedOrg?.slug === org.slug && (
+                              <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Individual note */}
+          {loginMode === LOGIN_MODE_INDIVIDUAL && (
+            <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200">
+              <p className="text-xs text-blue-700">
+                Sign in with your individual account credentials.
+              </p>
+            </div>
+          )}
+
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
               Email Address
             </label>
             <input
@@ -248,17 +301,13 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-              style={{ '--tw-ring-color': primaryColor }}
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               placeholder="Enter your email"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -268,19 +317,15 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all pr-12"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all pr-12"
                 placeholder="Enter your password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 "
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -288,8 +333,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ backgroundColor: primaryColor }}
+            className="w-full py-3 px-4 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -301,166 +345,28 @@ const Login = () => {
             )}
           </button>
 
-          <Link to="/forgot-password" className="block text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-4">Forgot Password?</Link>
+          <Link
+            to="/forgot-password"
+            className="block text-center text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Forgot Password?
+          </Link>
 
-          {!orgSlug && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <Link
-                to="/register"
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-indigo-200 text-indigo-600 text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-              >
-                Try a Free Assessment
-              </Link>
-              <p className="mt-2 text-xs text-gray-400 text-center">No credit card required</p>
-            </div>
-          )}
-
-          {orgSlug && (
-            <button
-              type="button"
-              onClick={handleFillSuperadmin}
-              className={`w-full mt-3 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${superadminFilled
-                ? 'bg-green-50 text-green-600 border border-green-200'
-                : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 hover:text-gray-700'
-                }`}
+          <div className="pt-4 border-t border-gray-100">
+            <Link
+              to="/register"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-indigo-200 text-indigo-600 text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all"
             >
-              <Shield className="w-4 h-4" />
-              {superadminFilled ? 'Credentials Filled!' : 'SuperAdmin Login'}
-            </button>
-          )}
-        </form>
-
-        {/* Organizations Demo Section */}
-        {!orgSlug && (
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-xs text-gray-500 text-center mb-4 uppercase tracking-wider font-semibold">
-              Organizations
-            </p>
-
-            {demoOrgsLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-              </div>
-            ) : organizations.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">
-                No organizations available
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {organizations.map((org) => (
-                  <div key={org.slug} className="border border-gray-100 rounded-lg overflow-hidden">
-                    {/* Organization Header */}
-                    <button
-                      onClick={() => handleOrgClick(org.slug)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left"
-                    >
-                      {org.logo ? (
-                        <img
-                          src={org.logo.startsWith('http') ? org.logo : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${org.logo}`}
-                          alt={org.name}
-                          className="w-8 h-8 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: `${org.primaryColor || '#6366f1'}15` }}
-                        >
-                          <Building2 className="w-4 h-4" style={{ color: org.primaryColor || '#6366f1' }} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{org.name}</p>
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Users className="w-3 h-3" />
-                          <span>{org.userCount} {org.userCount === 1 ? 'user' : 'users'}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Link
-                          to={`/org/${org.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="View profile"
-                        >
-                          <Globe className="w-4 h-4" />
-                        </Link>
-                        {selectedOrgSlug === org.slug ? (
-                          <ChevronUp className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Demo Users List */}
-                    {selectedOrgSlug === org.slug && (
-                      <div className="border-t border-gray-100 bg-gray-50/50">
-                        {demoUsersLoading ? (
-                          <div className="flex justify-center py-4">
-                            <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
-                          </div>
-                        ) : demoUsers.length === 0 ? (
-                          <p className="text-xs text-gray-400 text-center py-4">
-                            No demo users available
-                          </p>
-                        ) : (
-                          <div className="p-2 space-y-1">
-                            {demoUsers.map((demoUser) => {
-                              const RoleIcon = roleIcons[demoUser.role] || UserIcon;
-                              return (
-                                <button
-                                  key={demoUser.email}
-                                  onClick={() => handleDemoLogin(demoUser.email, org.slug)}
-                                  disabled={loggingInDemo !== null}
-                                  className="w-full flex items-center gap-3 p-2.5 rounded-md hover:bg-white hover:shadow-sm transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
-                                >
-                                  <div
-                                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
-                                    style={{ backgroundColor: org.primaryColor || '#6366f1' }}
-                                  >
-                                    {demoUser.firstName?.[0]}{demoUser.lastName?.[0]}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-medium text-gray-800 truncate">
-                                        {demoUser.fullName || `${demoUser.firstName} ${demoUser.lastName}`}
-                                      </p>
-                                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${roleBadgeColors[demoUser.role] || 'bg-gray-100 text-gray-600'}`}>
-                                        <RoleIcon className="w-2.5 h-2.5" />
-                                        {demoUser.role}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-gray-400 truncate">
-                                      {demoUser.email}
-                                      {demoUser.jobTitle && ` · ${demoUser.jobTitle}`}
-                                    </p>
-                                  </div>
-                                  {loggingInDemo === demoUser.email ? (
-                                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" />
-                                  ) : (
-                                    <LogIn className="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+              Try a Free Assessment
+            </Link>
+            <p className="mt-2 text-xs text-gray-400 text-center">No credit card required</p>
           </div>
-        )}
+        </form>
       </div>
 
-      {/* Footer */}
       <p className="mt-6 text-center text-sm text-gray-500">
         Built with enterprise-level security architecture
       </p>
-
-
     </div>
   );
 };

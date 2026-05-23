@@ -1,5 +1,6 @@
 const { Organization, User, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { uploadFile, deleteFile } = require('../services/cloudinaryUploadService');
 
 /**
  * @desc    Get all organizations
@@ -9,7 +10,7 @@ const { asyncHandler, ApiError } = require('../middleware/errorHandler');
 const getOrganizations = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search = '', status } = req.query;
 
-  let query = {};
+  let query = { slug: { $ne: 'mindmil' } };
 
   if (search) {
     query.$or = [
@@ -239,13 +240,20 @@ const updateLogo = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  const logoUrl = `/uploads/logos/${req.file.filename}`;
+  const oldPublicId = organization.logoPublicId;
+  const result = await uploadFile(req.file.buffer, { folder: 'mindmill/logos/' });
 
   organization = await Organization.findByIdAndUpdate(
     req.params.id,
-    { logo: logoUrl },
+    { logo: result.url, logoPublicId: result.publicId },
     { new: true }
   );
+
+  if (oldPublicId) {
+    deleteFile(oldPublicId).catch((err) => {
+      console.error(`[organizationController] Failed to delete old logo ${oldPublicId}:`, err.message);
+    });
+  }
 
   res.json({
     success: true,
@@ -274,12 +282,24 @@ const updateBanner = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  // If a file is uploaded, use file path; otherwise use the preset value from body
-  const bannerValue = req.file ? `/uploads/banners/${req.file.filename}` : banner;
+  const updateFields = {};
+  if (req.file) {
+    const oldPublicId = organization.bannerPublicId;
+    const result = await uploadFile(req.file.buffer, { folder: 'mindmill/banners/' });
+    updateFields.banner = result.url;
+    updateFields.bannerPublicId = result.publicId;
+    if (oldPublicId) {
+      deleteFile(oldPublicId).catch((err) => {
+        console.error(`[organizationController] Failed to delete old banner ${oldPublicId}:`, err.message);
+      });
+    }
+  } else if (banner) {
+    updateFields.banner = banner;
+  }
 
   organization = await Organization.findByIdAndUpdate(
     req.params.id,
-    { banner: bannerValue },
+    updateFields,
     { new: true }
   );
 
@@ -481,7 +501,7 @@ const getMyOrganization = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'User is not associated with any organization');
   }
 
-  const organization = await Organization.findById(req.user.organization);
+  let organization = await Organization.findById(req.user.organization);
 
   if (!organization) {
     throw new ApiError(404, 'Organization not found');
@@ -519,7 +539,7 @@ const uploadProfileDocument = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Please upload a file');
   }
 
-  const { section } = req.body; // 'bestHRPractices' or 'awardsAccolades'
+  const { section } = req.body;
 
   if (!section || !['bestHRPractices', 'awardsAccolades'].includes(section)) {
     throw new ApiError(400, 'Invalid section. Must be "bestHRPractices" or "awardsAccolades"');
@@ -536,10 +556,19 @@ const uploadProfileDocument = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
+  // Use image resource type for PDFs and images so Cloudinary serves them inline
+  // (raw resource type sets Content-Disposition: attachment, which breaks iframe preview)
+  const isInlineType = req.file.mimetype === 'application/pdf' || req.file.mimetype.startsWith('image/');
+  const result = await uploadFile(req.file.buffer, {
+    folder: 'mindmill/documents/',
+    ...(isInlineType ? { extra: { resource_type: 'image' } } : {})
+  });
+
   const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
   const doc = {
     name: req.file.originalname,
-    url: `/uploads/documents/${req.file.filename}`,
+    url: result.url,
+    publicId: result.publicId,
     type: req.file.mimetype,
     size: req.file.size,
     uploadedAt: new Date()
@@ -585,7 +614,11 @@ const deleteProfileDocument = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
+  // Find the document to get its publicId before removing
   const docField = section === 'bestHRPractices' ? 'bestHRPracticesDocs' : 'awardsAccoladesDocs';
+  const docsArray = organization.publicProfile?.[docField] || [];
+  const doc = docsArray.find(d => d._id.toString() === documentId);
+
   const pullKey = `publicProfile.${docField}`;
 
   organization = await Organization.findByIdAndUpdate(
@@ -594,10 +627,85 @@ const deleteProfileDocument = asyncHandler(async (req, res) => {
     { new: true }
   );
 
+  if (doc?.publicId) {
+    deleteFile(doc.publicId).catch((err) => {
+      console.error(`[organizationController] Failed to delete document ${doc.publicId}:`, err.message);
+    });
+  }
+
   res.json({
     success: true,
     message: 'Document deleted successfully',
     data: { organization }
+  });
+});
+
+/**
+ * @desc    Get bank details (returns from default/system organization)
+ * @route   GET /api/organizations/bank-details
+ * @access  Public
+ */
+const getBankDetails = asyncHandler(async (req, res) => {
+  const org = await Organization.findOne({ isActive: true }).sort({ createdAt: 1 });
+  if (!org) {
+    return res.json({
+      success: true,
+      data: {
+        bankDetails: {
+          upiId: '',
+          accountHolderName: '',
+          bankName: '',
+          accountNumber: '',
+          ifscCode: '',
+          branchName: ''
+        }
+      }
+    });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      bankDetails: {
+        upiId: org.bankDetails?.upiId || '',
+        accountHolderName: org.bankDetails?.accountHolderName || '',
+        bankName: org.bankDetails?.bankName || '',
+        accountNumber: org.bankDetails?.accountNumber || '',
+        ifscCode: org.bankDetails?.ifscCode || '',
+        branchName: org.bankDetails?.branchName || ''
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Update bank details (stores on the first active organization)
+ * @route   PUT /api/organizations/bank-details
+ * @access  Private (SuperAdmin)
+ */
+const updateBankDetails = asyncHandler(async (req, res) => {
+  const { upiId, accountHolderName, bankName, accountNumber, ifscCode, branchName } = req.body;
+
+  const organization = await Organization.findOne({ isActive: true }).sort({ createdAt: 1 });
+  if (!organization) {
+    throw new ApiError(404, 'No active organization found');
+  }
+
+  organization.bankDetails = {
+    upiId: upiId ?? organization.bankDetails?.upiId ?? '',
+    accountHolderName: accountHolderName ?? organization.bankDetails?.accountHolderName ?? '',
+    bankName: bankName ?? organization.bankDetails?.bankName ?? '',
+    accountNumber: accountNumber ?? organization.bankDetails?.accountNumber ?? '',
+    ifscCode: ifscCode ?? organization.bankDetails?.ifscCode ?? '',
+    branchName: branchName ?? organization.bankDetails?.branchName ?? ''
+  };
+
+  await organization.save();
+
+  res.json({
+    success: true,
+    message: 'Bank details updated successfully',
+    data: { bankDetails: organization.bankDetails }
   });
 });
 
@@ -616,5 +724,7 @@ module.exports = {
   deleteOrganization,
   reassignAdmin,
   uploadProfileDocument,
-  deleteProfileDocument
+  deleteProfileDocument,
+  getBankDetails,
+  updateBankDetails
 };

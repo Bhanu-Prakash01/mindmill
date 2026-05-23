@@ -74,6 +74,59 @@ const DiscReport = () => {
     setCompletedAt(attempt.completedAt);
     if (attempt.report) setReportId(attempt.report?._id?.toString() || attempt.report?.toString() || attempt.report);
     } else {
+    // No discResults — this attempt was processed through the generic handler.
+    // Try to fetch the generic report and map its data to the DISC format.
+    const existingReportId = attempt?.report?._id?.toString() || attempt?.report?.toString() || attempt?.report;
+    if (existingReportId) {
+      try {
+        const reportResponse = await reportService.getReport(existingReportId);
+        const reportData = reportResponse.data?.report;
+        
+        if (reportData && reportData.dimensions?.DISC) {
+          const disc = reportData.dimensions.DISC;
+          
+          // Map generic report data to the expected discResults structure
+          const fallbackDiscResults = {
+            percentages: {
+              D: disc.D?.percentage || 0,
+              I: disc.I?.percentage || 0,
+              S: disc.S?.percentage || 0,
+              C: disc.C?.percentage || 0
+            },
+            dominant: disc.dominant || 'D',
+            secondary: 'I', // Default fallback
+            pattern: 'Standard Profile',
+            analysis: {
+              summary: reportData.analysis?.summary || 'Your assessment reveals a standard profile based on your responses.',
+              strengths: reportData.analysis?.strengths?.length ? reportData.analysis.strengths : ['Adaptable to different situations'],
+              developmentAreas: reportData.analysis?.developmentAreas?.length ? reportData.analysis.developmentAreas : ['Could benefit from exploring alternative approaches'],
+              recommendations: reportData.analysis?.recommendations?.length ? reportData.analysis.recommendations : ['Leverage your strengths in daily activities'],
+              workStyle: 'You have an adaptive work style that allows you to respond to situational needs effectively.',
+              communicationStyle: { style: 'Flexible and situation-dependent communication.' },
+              leadershipStyle: { style: 'Situational leadership approach.' }
+            },
+            dimensions: {
+              D: { name: 'Dominance', description: 'Focuses on shaping the environment by overcoming opposition to accomplish results.', strengths: ['Driven', 'Direct'] },
+              I: { name: 'Influence', description: 'Focuses on shaping the environment by influencing or persuading others.', strengths: ['Enthusiastic', 'Optimistic'] },
+              S: { name: 'Steadiness', description: 'Focuses on cooperating with others within existing circumstances to carry out the task.', strengths: ['Patient', 'Predictable'] },
+              C: { name: 'Compliance', description: 'Focuses on working conscientiously within existing circumstances to ensure quality and accuracy.', strengths: ['Accurate', 'Analytical'] }
+            }
+          };
+
+          setReport(fallbackDiscResults);
+          setTestTaker({
+            name: attempt.testTakerName || reportData.user?.firstName || null,
+            email: attempt.testTakerEmail || reportData.user?.email || null,
+            phone: attempt.testTakerPhone || null
+          });
+          setCompletedAt(attempt.completedAt || reportData.generatedAt);
+          setReportId(existingReportId);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to fetch fallback generic report:', e);
+      }
+    }
   setError('DISC results not found for this attempt');
   }
   } catch (err) {

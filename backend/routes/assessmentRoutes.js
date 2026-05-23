@@ -26,6 +26,7 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 const { isAdmin, isSuperAdmin } = require('../middleware/roleMiddleware');
 const { assessmentValidation, idParamValidation, paginationValidation } = require('../middleware/validationMiddleware');
 const { uploadBanner } = require('../config/multer');
+const { uploadFile, deleteFile } = require('../services/cloudinaryUploadService');
 
 // Public route - invite-based access (no auth required)
 router.get('/invite/:token', getAssessmentByInviteToken);
@@ -54,23 +55,33 @@ router.post('/:id/upload-banner', isSuperAdmin, idParamValidation, uploadBanner.
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
-  assessment.bannerImage = req.file.path;
+  const oldPublicId = assessment.bannerPublicId;
+  const result = await uploadFile(req.file.buffer, { folder: 'mindmill/assessment-banners/' });
+  assessment.bannerImage = result.url;
+  assessment.bannerPublicId = result.publicId;
   await assessment.save();
-  res.json({ success: true, data: { bannerUrl: '/' + assessment.bannerImage } });
+  if (oldPublicId) {
+    deleteFile(oldPublicId).catch((err) => {
+      console.error(`Failed to delete old assessment banner ${oldPublicId}:`, err.message);
+    });
+  }
+  res.json({ success: true, data: { bannerUrl: assessment.bannerImage } });
 });
 
 router.delete('/:id/banner', isSuperAdmin, idParamValidation, async (req, res) => {
-  const fs = require('fs');
   const { Assessment } = require('../models');
   const assessment = await Assessment.findById(req.params.id);
   if (!assessment) {
     return res.status(404).json({ success: false, message: 'Assessment not found' });
   }
-  if (assessment.bannerImage) {
-    fs.unlink(assessment.bannerImage, () => {});
-    assessment.bannerImage = null;
-    await assessment.save();
+  if (assessment.bannerPublicId) {
+    deleteFile(assessment.bannerPublicId).catch((err) => {
+      console.error(`Failed to delete assessment banner ${assessment.bannerPublicId}:`, err.message);
+    });
   }
+  assessment.bannerImage = null;
+  assessment.bannerPublicId = null;
+  await assessment.save();
   res.json({ success: true, message: 'Banner removed' });
 });
 

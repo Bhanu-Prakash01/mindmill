@@ -42,6 +42,33 @@ function getPercentile(score) {
 }
 
 /**
+ * Map letter key (A/B/C/D) to option array index, or vice versa.
+ * Supports both formats since PCLA questions may use key ("A"–"D")
+ * or array index (0–3) as the selectedKey.
+ */
+function resolveOption(options, selectedKey) {
+  // Direct key match (PCLA_QUESTIONS format: { key: 'A', weight: 4 })
+  let opt = (options || []).find(o => o.key === selectedKey);
+  if (opt) return opt;
+
+  // Try matching by score (standard Question format: { score: 4, isCorrect: true })
+  // selectedKey could be "A" → index 0, "B" → 1, etc.
+  const LETTERS = ['A', 'B', 'C', 'D'];
+  const idx = LETTERS.indexOf(selectedKey);
+  if (idx >= 0 && options[idx]) return options[idx];
+
+  // Try numeric key (order-based responses: "1" → index 0)
+  const numIdx = parseInt(selectedKey, 10);
+  if (!isNaN(numIdx) && options[numIdx]) return options[numIdx];
+
+  return null;
+}
+
+function getWeight(opt) {
+  return opt.weight ?? opt.score ?? 1;
+}
+
+/**
  * Build 6-axis radar by averaging dimension scores that belong to each axis.
  */
 function buildRadar(dimensionScores) {
@@ -115,14 +142,14 @@ function scorePCLA(responses, questions) {
     const dim = q.dimension || 'General';
     if (!dimAccumulator[dim]) dimAccumulator[dim] = { score: 0, max: 0 };
 
-    const maxPerQ = Math.max(...(q.options || []).map(o => o.weight || 0), 4);
+    const maxPerQ = Math.max(...(q.options || []).map(o => getWeight(o)), 4);
     maxRaw += maxPerQ;
     dimAccumulator[dim].max += maxPerQ;
 
     if (!selectedKey) continue; // unanswered
 
-    const opt = (q.options || []).find(o => o.key === selectedKey);
-    const weight = opt ? (opt.weight || 1) : 1;
+    const opt = resolveOption(q.options, selectedKey);
+    const weight = opt ? getWeight(opt) : 1;
     rawScore += weight;
     dimAccumulator[dim].score += weight;
   }

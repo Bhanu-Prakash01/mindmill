@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { creditService } from '../../services';
+import { creditService, organizationService } from '../../services';
 import {
   Coins, Plus, History, CheckCircle, XCircle, Trash2,
   ArrowUpRight, ArrowDownRight, RefreshCcw, Loader2, X
@@ -26,6 +26,7 @@ const IndividualCredits = () => {
 
   const [credits, setCredits] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [bankDetails, setBankDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -39,12 +40,14 @@ const IndividualCredits = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [creditsRes, requestsRes] = await Promise.all([
+      const [creditsRes, requestsRes, bankRes] = await Promise.all([
         creditService.getCredits(),
         creditService.getMyCreditRequests(),
+        organizationService.getBankDetails().catch(() => null),
       ]);
       setCredits(creditsRes.data?.credits);
       setRequests(requestsRes.data?.requests || []);
+      setBankDetails(bankRes?.data?.bankDetails || null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -102,11 +105,25 @@ const IndividualCredits = () => {
           {/* Payment details */}
           <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-xl">
             <p className="text-sm text-amber-800 font-medium mb-1">Payment Details</p>
-            <p className="text-sm text-amber-700">
-              UPI — <span className="font-semibold">curate98103937@barodampay</span>
-              <span className="mx-2">|</span>
-              SBI A/C — <span className="font-semibold">42323602768</span>, IFSC — <span className="font-semibold">SBIN0015281</span>
-            </p>
+            {bankDetails ? (
+              <div className="text-sm text-amber-700 space-y-1">
+                {bankDetails.upiId && (
+                  <p>UPI — <span className="font-semibold">{bankDetails.upiId}</span></p>
+                )}
+                {(bankDetails.accountNumber || bankDetails.ifscCode) && (
+                  <p>
+                    {bankDetails.bankName && <span>{bankDetails.bankName} </span>}
+                    A/C — <span className="font-semibold">{bankDetails.accountNumber}</span>
+                    {bankDetails.ifscCode && <>, IFSC — <span className="font-semibold">{bankDetails.ifscCode}</span></>}
+                  </p>
+                )}
+                {bankDetails.accountHolderName && (
+                  <p className="text-sm text-amber-600 font-medium">Account Holder: {bankDetails.accountHolderName}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-amber-600">No payment details configured yet.</p>
+            )}
           </div>
         </div>
         <button
@@ -248,7 +265,7 @@ const IndividualCredits = () => {
       {/* Request Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-bold text-gray-900">Request Credits</h2>
               <button onClick={() => setShowModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">

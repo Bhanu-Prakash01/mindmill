@@ -202,6 +202,11 @@ const attemptSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null
   },
+  // For Executive Critical Thinking Index (ECTI) assessments
+  ectiResults: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   // Security tracking
   ipAddress: {
     type: String,

@@ -178,7 +178,7 @@ const PublicTest = () => {
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         {assessment?.bannerImage && (
           <img
-            src={`/${assessment.bannerImage}`}
+            src={assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`}
             alt={assessment.title}
             className="w-full h-36 object-cover"
           />

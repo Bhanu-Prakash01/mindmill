@@ -4,15 +4,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { supportService } from '../../services';
 import {
- ArrowLeft,
- Send,
- Clock,
- User,
- CheckCircle,
- AlertCircle,
- Tag,
- MoreVertical,
- Paperclip
+  ArrowLeft,
+  Send,
+  Clock,
+  User,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Tag,
+  MoreVertical,
+  Paperclip
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 
@@ -21,6 +22,17 @@ const TicketDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+
+  const goBack = () => {
+    const path = window.location.pathname;
+    if (path.startsWith('/individual/')) {
+      navigate('/individual/support');
+    } else if (orgSlug) {
+      navigate(`/o/${orgSlug}/support`);
+    } else {
+      navigate('/support');
+    }
+  };
   const messagesEndRef = useRef(null);
 
  const [ticket, setTicket] = useState(null);
@@ -28,8 +40,9 @@ const TicketDetail = () => {
  const [newMessage, setNewMessage] = useState('');
  const [sending, setSending] = useState(false);
  const [updatingStatus, setUpdatingStatus] = useState(false);
- const [coordinators, setCoordinators] = useState([]);
- const [assigningCoordinator, setAssigningCoordinator] = useState(false);
+  const [coordinators, setCoordinators] = useState([]);
+  const [assigningCoordinator, setAssigningCoordinator] = useState(false);
+  const [escalating, setEscalating] = useState(false);
 
  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -100,19 +113,49 @@ const TicketDetail = () => {
  }
  };
 
- const handleAssignCoordinator = async (userId) => {
- if (!userId) return;
- setAssigningCoordinator(true);
- try {
- await supportService.assignTicket(id, userId);
- fetchTicket();
-} catch (error) {
-  console.error('Error assigning coordinator:', error);
-  toast.error('Failed to assign coordinator');
-  } finally {
- setAssigningCoordinator(false);
- }
- };
+  const handleAssignCoordinator = async (userId) => {
+    if (!userId) return;
+    setAssigningCoordinator(true);
+    try {
+      await supportService.assignTicket(id, userId);
+      fetchTicket();
+    } catch (error) {
+      console.error('Error assigning coordinator:', error);
+      toast.error('Failed to assign coordinator');
+    } finally {
+      setAssigningCoordinator(false);
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!window.confirm('Escalate this ticket to SuperAdmin? This will flag it for immediate attention.')) return;
+    setEscalating(true);
+    try {
+      const res = await supportService.escalateTicket(id, true);
+      toast.success(res.message || 'Ticket escalated');
+      fetchTicket();
+    } catch (error) {
+      console.error('Error escalating ticket:', error);
+      toast.error('Failed to escalate ticket');
+    } finally {
+      setEscalating(false);
+    }
+  };
+
+  const handleDeEscalate = async () => {
+    if (!window.confirm('Remove escalation from this ticket?')) return;
+    setEscalating(true);
+    try {
+      const res = await supportService.escalateTicket(id, false);
+      toast.success(res.message || 'Escalation removed');
+      fetchTicket();
+    } catch (error) {
+      console.error('Error removing escalation:', error);
+      toast.error('Failed to remove escalation');
+    } finally {
+      setEscalating(false);
+    }
+  };
 
  const getStatusBadge = (status) => {
  const styles = {
@@ -176,10 +219,10 @@ const TicketDetail = () => {
  {/* Header */}
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
  <div className="flex items-center gap-4">
- <button
- onClick={() => navigate(orgSlug ? `/o/${orgSlug}/support` : '/support')}
- className="p-2 text-gray-500 hover:text-gray-700 "
- >
+          <button
+              onClick={goBack}
+              className="p-2 text-gray-500 hover:text-gray-700 "
+            >
  <ArrowLeft className="w-5 h-5" />
  </button>
  <div>
@@ -368,8 +411,53 @@ const TicketDetail = () => {
  </div>
  )}
 
- {/* User Info */}
- <div className="bg-white rounded-xl border border-gray-200 p-6">
+  {/* Escalation - Admin Only */}
+  {isAdmin && (
+    <div className={`rounded-xl border p-6 ${ticket.escalated ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-gray-900">SuperAdmin Escalation</h3>
+        {ticket.escalated && (
+          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Escalated
+          </span>
+        )}
+      </div>
+
+      {ticket.escalated ? (
+        <div className="space-y-2">
+          {ticket.escalatedBy && (
+            <p className="text-xs text-gray-500">
+              Escalated by {ticket.escalatedBy.firstName} {ticket.escalatedBy.lastName}
+              {ticket.escalatedAt && <> on {new Date(ticket.escalatedAt).toLocaleDateString()}</>}
+            </p>
+          )}
+          {/* SuperAdmin can de-escalate; Admin who escalated can also de-escalate */}
+          {(user.role === 'superadmin' || (user.role === 'admin' && ticket.escalatedBy?._id === user._id)) && (
+            <button
+              onClick={handleDeEscalate}
+              disabled={escalating}
+              className="w-full px-3 py-2 text-sm border border-red-200 text-red-700 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              {escalating ? 'Removing...' : 'Remove Escalation'}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={handleEscalate}
+          disabled={escalating || ticket.status === 'closed' || ticket.status === 'resolved'}
+          className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <AlertTriangle className="w-4 h-4" />
+          {escalating ? 'Escalating...' : 'Escalate to SuperAdmin'}
+        </button>
+      )}
+    </div>
+  )}
+
+  {/* User Info */}
+  <div className="bg-white rounded-xl border border-gray-200 p-6">
  <h3 className="text-sm font-medium text-gray-900 mb-4">Requester</h3>
  <div className="flex items-center gap-3">
  <UserAvatar

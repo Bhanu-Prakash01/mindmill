@@ -46,6 +46,15 @@ async function seed() {
 
   const Question  = mongoose.models.Question  || mongoose.model('Question',  questionSchema);
   const Assessment = mongoose.models.Assessment || mongoose.model('Assessment', assessmentSchema);
+  const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({ role: String, email: String }, { strict: false }));
+
+  // Look up a superadmin to set as creator
+  const superAdmin = await User.findOne({ role: 'superadmin' });
+  if (!superAdmin) {
+    console.error('❌  No superadmin user found. Seed the database first (npm run seed).');
+    await mongoose.disconnect();
+    process.exit(1);
+  }
 
   // Check if already seeded
   const existing = await Assessment.findOne({ subCategory: 'Situational Judgement', title: /ESJI/i });
@@ -66,9 +75,10 @@ async function seed() {
     duration: 45,
     isActive: true,
     reportConfig: { type: 'standard', format: 'sjt' },
+    createdBy: superAdmin._id,
   });
 
-  console.log('📋  Assessment created:', assessment._id);
+  console.log('📋  Assessment created:', assessment._id, ' creator will be', superAdmin.email);
 
   // Create all questions
   const questionDocs = SJT_QUESTIONS.map(q => ({

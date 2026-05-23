@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { resourceService } from '../../services';
 import { useToast } from '../../context/ToastContext';
 import ResourceCard from './ResourceCard';
+import FAQSection from './FAQSection';
 import {
   Plus,
   BookOpen,
@@ -10,6 +11,7 @@ import {
   Video,
   Trash2,
   Search,
+  HelpCircle,
 } from 'lucide-react';
 
 const initialFormValues = {
@@ -24,6 +26,7 @@ const initialFormValues = {
 
 const AdminResources = () => {
   const toast = useToast();
+  const [activeTab, setActiveTab] = useState('resources');
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTag, setActiveTag] = useState(null);
@@ -188,80 +191,114 @@ const AdminResources = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Resources</h1>
-          <p className="text-gray-500 mt-1">Manage learning resources and materials</p>
+          <p className="text-gray-500 mt-1">Manage learning resources, materials and FAQs</p>
         </div>
+        {activeTab === 'resources' && (
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Resource
+          </button>
+        )}
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
         <button
-          onClick={openAddModal}
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          onClick={() => setActiveTab('resources')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'resources'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Resource
+          <BookOpen className="w-4 h-4" />
+          Resources
+        </button>
+        <button
+          onClick={() => setActiveTab('faq')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'faq'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <HelpCircle className="w-4 h-4" />
+          FAQs
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-indigo-500" />
-        <input
-          type="text"
-          placeholder="Search resources..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-        />
-      </div>
-
-      {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleAllClick}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              !activeTag
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All
-          </button>
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => handleTagClick(tag)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                activeTag === tag
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {tag}
-              {activeTag === tag && <X className="w-3 h-3" />}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {filteredResources.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">
-            {searchQuery
-              ? `No resources match "${searchQuery}".`
-              : "No resources yet. Click 'Add Resource' to create one."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredResources.map((resource) => (
-            <ResourceCard
-              key={resource._id}
-              resource={resource}
-              isAdmin={true}
-              onEdit={() => openEditModal(resource)}
-              onDelete={() => openDeleteModal(resource)}
+      {activeTab === 'resources' && (
+        <>
+          {/* Search */}
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-indigo-500" />
+            <input
+              type="text"
+              placeholder="Search resources..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
             />
-          ))}
-        </div>
+          </div>
+
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleAllClick}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  !activeTag
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleTagClick(tag)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    activeTag === tag
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tag}
+                  {activeTag === tag && <X className="w-3 h-3" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredResources.length === 0 ? (
+            <div className="text-center py-12">
+              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">
+                {searchQuery
+                  ? `No resources match "${searchQuery}".`
+                  : "No resources yet. Click 'Add Resource' to create one."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredResources.map((resource) => (
+                <ResourceCard
+                  key={resource._id}
+                  resource={resource}
+                  isAdmin={true}
+                  onEdit={() => openEditModal(resource)}
+                  onDelete={() => openDeleteModal(resource)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
+
+      {activeTab === 'faq' && <FAQSection />}
 
       {showFormModal && (
         <div

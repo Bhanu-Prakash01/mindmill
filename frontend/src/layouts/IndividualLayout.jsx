@@ -68,7 +68,7 @@ const IndividualLayout = () => {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 flex-shrink-0">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Mindmill" className="h-10 w-auto" />
+            <img src="/logo.png" alt="MindMil" className="h-10 w-auto" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

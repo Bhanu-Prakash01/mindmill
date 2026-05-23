@@ -5,6 +5,7 @@
 const mongoose = require('mongoose');
 const { Attempt, Assessment, Report } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendAttemptNotification } = require('./attemptController');
 const firoService = require('../services/firoScoringService');
 const { getFIROStaticData, generateFIRONarratives } = require('../services/llmReportService');
 const { firoQuestions, firoConfig } = require('../seeders/firoQuestions');
@@ -94,7 +95,8 @@ const submitFiro = asyncHandler(async (req, res) => {
           user.freeTrialAssessmentId = attempt.assessment;
           user.freeTrialAttemptId = attempt._id;
         } else {
-          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+          const creditCost = assessment.getEffectiveCreditCost();
+          user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
         }
         await user.save();
       } else {

@@ -9,10 +9,12 @@ const { Assessment, Question, User, Organization } = require('../models');
 const { discQuestions, DISC_CONFIG } = require('./discQuestions');
 
 const seedDisc = async () => {
+  const isStandalone = mongoose.connection.readyState === 0;
   try {
-    // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
-    console.log('Connected to MongoDB');
+    if (isStandalone) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
+      console.log('Connected to MongoDB');
+    }
 
     // Find or create a default organization
     let organization = await Organization.findOne({ slug: 'default-org' });
@@ -27,7 +29,8 @@ const seedDisc = async () => {
     }
 
     // Find or create an admin user
-    let adminUser = await User.findOne({ email: 'admin@mindmill.com' });
+    let adminUser = await User.findOne({ email: 'admin@mindmill.com' }) ||
+                    await User.findOne({ role: 'superadmin' });
     
     if (!adminUser) {
       adminUser = await User.create({
@@ -162,8 +165,10 @@ Complete all 28 questions honestly for accurate results.`,
   } catch (error) {
     console.error('Error seeding DISC:', error);
   } finally {
-    await mongoose.disconnect();
-    console.log('\nDisconnected from MongoDB');
+    if (isStandalone) {
+      await mongoose.disconnect();
+      console.log('\nDisconnected from MongoDB');
+    }
   }
 };
 

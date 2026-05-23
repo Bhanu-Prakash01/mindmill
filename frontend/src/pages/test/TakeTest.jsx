@@ -4,17 +4,16 @@ import { assessmentService, attemptService } from '../../services';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import {
- Clock,
- AlertCircle,
- ChevronLeft,
- ChevronRight,
- Flag,
- CheckCircle,
- AlertTriangle,
- Maximize2,
- XCircle,
- Bug,
- Zap
+  Clock,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  CheckCircle,
+  AlertTriangle,
+   Maximize2,
+   XCircle,
+   Bug
 } from 'lucide-react';
 
 const TakeTest = () => {
@@ -30,7 +29,7 @@ const TakeTest = () => {
  const [assessment, setAssessment] = useState(null);
  const [attempt, setAttempt] = useState(null);
  const [questions, setQuestions] = useState([]);
- const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
  const [answers, setAnswers] = useState({});
  const [discAnswers, setDiscAnswers] = useState({}); // { [questionId]: { most: statementIndex, least: statementIndex } }
  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
@@ -42,12 +41,51 @@ const [submitting, setSubmitting] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
   const [error, setError] = useState(null);
-  const [devMode, setDevMode] = useState(false);
   const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const attemptRef = useRef(attempt);
- const tabSwitchCountRef = useRef(0);
- const fullscreenExitsRef = useRef(0);
+  const tabSwitchCountRef = useRef(0);
+  const fullscreenExitsRef = useRef(0);
+
+  // ── Dev Mode ──────────────────────────────────────────────
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
+  const devAutoFillTimer = useRef(null);
+
+  const autoFillAnswers = useCallback(() => {
+    if (!questions.length) return;
+
+    const filled = {};
+    const filledDisc = {};
+
+    questions.forEach(q => {
+      const qid = q._id;
+      if (q.type === 'mcq' && q.options?.length) {
+        const idx = Math.floor(Math.random() * q.options.length);
+        filled[qid] = { selectedOption: idx };
+      } else if (q.type === 'rating') {
+        filled[qid] = { ratingAnswer: Math.floor(Math.random() * 5) + 1 };
+      } else if (q.type === 'text') {
+        filled[qid] = { textAnswer: '(Dev Mode) Auto-filled response.' };
+      } else if (q.type === 'disc-ranking') {
+        const stmts = q.statements || [];
+        if (stmts.length >= 2) {
+          const indices = [...Array(stmts.length).keys()].sort(() => Math.random() - 0.5);
+          filledDisc[qid] = { most: indices[0], least: indices[indices.length - 1] };
+          filled[qid] = { selectedOption: indices[0] };
+        }
+      }
+    });
+
+    setAnswers(filled);
+    setDiscAnswers(filledDisc);
+  }, [questions]);
+
+  // Auto-fill once questions are loaded in dev mode
+  useEffect(() => {
+    if (isDevMode && !loading && questions.length > 0) {
+      autoFillAnswers();
+    }
+  }, [isDevMode, loading, questions, autoFillAnswers]);
 
  useEffect(() => {
   if (isPublicAccess) {
@@ -223,79 +261,11 @@ if (!document.fullscreenElement) {
   });
  };
 
-  // Dev Mode: Fill all answers randomly
-  const fillAllAnswers = async () => {
-    const newAnswers = {};
-    const newDiscAnswers = {};
-    
-    for (const question of questions) {
-      const qId = question._id;
-      switch (question.type) {
-        case 'mcq':
-          if (question.options && question.options.length > 0) {
-            const randomIndex = Math.floor(Math.random() * question.options.length);
-            newAnswers[qId] = { selectedOption: randomIndex };
-          }
-          break;
-        
-        case 'text': {
-          const sampleTexts = [
-            'This is a sample response for testing purposes.',
-            'I believe this answer demonstrates my understanding.',
-            'The quick brown fox jumps over the lazy dog.',
-            'Development mode test response - sample text answer.',
-            'This assessment is proceeding well in dev mode.'
-          ];
-          newAnswers[qId] = { 
-            textAnswer: sampleTexts[Math.floor(Math.random() * sampleTexts.length)] 
-          };
-          break;
-        }
-        
-        case 'rating': {
-          const randomRating = Math.floor(Math.random() * 5) + 1;
-          newAnswers[qId] = { ratingAnswer: randomRating };
-          break;
-        }
 
-        case 'disc-ranking': {
-          const indices = [0, 1, 2, 3];
-          const most = indices[Math.floor(Math.random() * 4)];
-          let least = indices[Math.floor(Math.random() * 4)];
-          while (least === most) least = indices[Math.floor(Math.random() * 4)];
-          newDiscAnswers[qId] = { most, least };
-          newAnswers[qId] = { selectedOption: most }; // for progress tracking
-          break;
-        }
-        
-        default:
-          break;
-      }
-    }
 
-    // Update local state
-    setAnswers(newAnswers);
-    setDiscAnswers(newDiscAnswers);
 
-    // Save all answers to backend
-    try {
-      for (const [questionId, answerData] of Object.entries(newAnswers)) {
-        await attemptService.saveAnswer(attempt._id, questionId, answerData);
-      }
-      console.log('Dev Mode: All answers filled and saved!');
-    } catch (error) {
-      console.error('Dev Mode: Error saving answers:', error);
-    }
-  };
-
-  const toggleDevMode = () => {
-    if (!devMode) {
-      // Turning ON - fill all answers
-      fillAllAnswers();
-    }
-    setDevMode(!devMode);
-  };
-
+  
+  
  const toggleFlagQuestion = (index) => {
  setFlaggedQuestions(prev => {
  const newSet = new Set(prev);
@@ -407,8 +377,6 @@ if (!document.fullscreenElement) {
  );
  }
 
- const currentQuestion = questions[currentQuestionIndex];
- const currentAnswer = answers[currentQuestion?._id];
  const answeredCount = Object.keys(answers).length;
  const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
@@ -416,11 +384,11 @@ if (!document.fullscreenElement) {
  <div className="min-h-screen bg-gray-50 ">
  {/* Header */}
  <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-  {assessment?.bannerImage && (
-   <div className="w-full h-16 overflow-hidden">
-    <img src={`/${assessment.bannerImage}`} alt="" className="w-full h-16 object-cover" />
-   </div>
-  )}
+{assessment?.bannerImage && (
+    <div className="w-full h-16 overflow-hidden">
+     <img src={assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`} alt="" className="w-full h-16 object-cover" />
+    </div>
+   )}
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
  <div className="flex items-center justify-between h-16">
  <div>
@@ -428,7 +396,7 @@ if (!document.fullscreenElement) {
  {assessment?.title}
  </h1>
  <p className="text-sm text-gray-500 ">
- Question {currentQuestionIndex + 1} of {questions.length}
+ {questions.length} Questions
  </p>
  </div>
 
@@ -468,20 +436,7 @@ if (!document.fullscreenElement) {
   </button>
 
   <button
-  onClick={toggleDevMode}
-  className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-    devMode 
-      ? 'bg-green-500 text-white hover:bg-green-600' 
-      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-  }`}
-  title="Dev Mode: Auto-fill all answers"
-  >
-  {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
-  {devMode ? 'Dev Mode ON' : 'Dev Mode'}
-  </button>
-
- <button
- onClick={() => setShowQuitConfirm(true)}
+  onClick={() => setShowQuitConfirm(true)}
  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
  >
  Quit
@@ -498,7 +453,39 @@ if (!document.fullscreenElement) {
  </div>
  </header>
 
-{/* Proctoring Warnings */}
+  {/* Dev Mode Banner */}
+  {isDevMode && (
+    <div className="bg-amber-50 border-b-2 border-amber-400">
+      <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-amber-800">
+          <Bug className="w-4 h-4" />
+          <span className="font-semibold">DEV MODE</span>
+          <span className="text-amber-600">— Answers auto-filled for testing</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={autoFillAnswers}
+            className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-medium transition-colors"
+          >
+            Re-fill All
+          </button>
+          <button
+            onClick={() => {
+              autoFillAnswers();
+              setTimeout(() => {
+                setShowSubmitConfirm(true);
+              }, 100);
+            }}
+            className="text-xs px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium transition-colors"
+          >
+            Auto-fill &amp; Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Proctoring Warnings */}
   {(tabSwitchCount > 0 || fullscreenExits > 0) && (
   <div className="bg-yellow-50 border-b border-yellow-200 ">
   <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-2 text-sm text-yellow-800 ">
@@ -512,44 +499,40 @@ if (!document.fullscreenElement) {
   </div>
   )}
 
-  {/* Dev Mode Banner */}
-  {devMode && (
-    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Bug className="w-4 h-4" />
-          <span>DEV MODE ACTIVE - All answers auto-filled randomly</span>
-        </div>
-        <button
-          onClick={() => setDevMode(false)}
-          className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
-        >
-          Turn OFF
-        </button>
-      </div>
-    </div>
-  )}
 
- <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      
+  {/* Mobile Progress */}
+  <div className="sm:hidden px-4 pt-4 pb-0 bg-white border-b border-gray-200">
+    <div className="flex justify-between text-sm mb-1">
+      <span className="text-gray-600">Progress</span>
+      <span className="font-medium">{answeredCount}/{questions.length}</span>
+    </div>
+    <div className="w-full h-2 bg-gray-200 rounded-full">
+      <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
+    </div>
+  </div>
+
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
  <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
  {/* Question Navigation */}
  <div className="lg:col-span-1 order-2 lg:order-1">
- <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
+ <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto">
  <h3 className="text-sm font-medium text-gray-900 mb-4">Questions</h3>
- <div className="grid grid-cols-5 gap-2">
+  <div className="grid grid-cols-5 gap-1 sm:gap-2">
  {questions.map((q, index) => {
  const isAnswered = answers[q._id];
  const isFlagged = flaggedQuestions.has(index);
- const isCurrent = index === currentQuestionIndex;
 
  return (
  <button
  key={q._id}
- onClick={() => setCurrentQuestionIndex(index)}
+ onClick={() => {
+   const el = document.getElementById(`question-${index}`);
+   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ }}
  className={`aspect-square rounded-lg text-sm font-medium transition-colors relative ${
- isCurrent
- ? 'bg-indigo-600 text-white'
- : isAnswered
+ isAnswered
  ? 'bg-green-100 text-green-700 '
  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
  }`}
@@ -569,10 +552,6 @@ if (!document.fullscreenElement) {
  <span className="text-gray-600 ">Answered</span>
  </div>
  <div className="flex items-center gap-2">
- <div className="w-4 h-4 bg-indigo-600 rounded" />
- <span className="text-gray-600 ">Current</span>
- </div>
- <div className="flex items-center gap-2">
  <div className="w-4 h-4 bg-gray-100 rounded relative">
  <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" />
  </div>
@@ -583,23 +562,24 @@ if (!document.fullscreenElement) {
  </div>
 
  {/* Question Content */}
- <div className="lg:col-span-3 order-1 lg:order-2">
- <div className="bg-white rounded-xl border border-gray-200 p-6">
- {currentQuestion && (
- <>
+ <div className="lg:col-span-3 order-1 lg:order-2 space-y-6">
+ {questions.map((question, index) => {
+   const currentAnswer = answers[question._id];
+   return (
+ <div key={question._id} id={`question-${index}`} className="bg-white rounded-xl border border-gray-200 p-6 scroll-mt-24">
  <div className="flex items-start justify-between mb-6">
  <span className="text-sm text-gray-500 ">
- Question {currentQuestionIndex + 1}
- {currentQuestion.dimension && (
+ Question {index + 1}
+ {question.dimension && (
  <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded text-xs">
- {currentQuestion.dimension}
+ {question.dimension}
  </span>
  )}
  </span>
  <button
- onClick={() => toggleFlagQuestion(currentQuestionIndex)}
+ onClick={() => toggleFlagQuestion(index)}
  className={`p-2 rounded-lg transition-colors ${
- flaggedQuestions.has(currentQuestionIndex)
+ flaggedQuestions.has(index)
  ? 'bg-orange-100 text-orange-600 '
  : 'text-gray-400 hover:text-orange-500'
  }`}
@@ -609,29 +589,29 @@ if (!document.fullscreenElement) {
  </div>
 
  <h2 className="text-lg font-medium text-gray-900 mb-6">
- {currentQuestion.questionText}
+ {question.questionText}
  </h2>
 
  {/* MCQ Options */}
- {currentQuestion.type === 'mcq' && (
+ {question.type === 'mcq' && (
  <div className="space-y-3">
- {currentQuestion.options?.map((option, index) => (
+ {question.options?.map((option, optIndex) => (
  <button
- key={index}
- onClick={() => handleOptionSelect(currentQuestion._id, index)}
+ key={optIndex}
+ onClick={() => handleOptionSelect(question._id, optIndex)}
  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
- currentAnswer?.selectedOption === index
+ currentAnswer?.selectedOption === optIndex
  ? 'border-indigo-600 bg-indigo-50 '
  : 'border-gray-200 hover:border-gray-300 '
  }`}
  >
  <div className="flex items-center gap-3">
  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
- currentAnswer?.selectedOption === index
+ currentAnswer?.selectedOption === optIndex
  ? 'border-indigo-600 bg-indigo-600'
  : 'border-gray-300 '
  }`}>
- {currentAnswer?.selectedOption === index && (
+ {currentAnswer?.selectedOption === optIndex && (
  <CheckCircle className="w-4 h-4 text-white" />
  )}
  </div>
@@ -643,9 +623,9 @@ if (!document.fullscreenElement) {
  )}
 
   {/* DISC Ranking */}
-  {currentQuestion.type === 'disc-ranking' && (() => {
-    const discAns = discAnswers[currentQuestion._id] || { most: null, least: null };
-    const stmts = currentQuestion.statements || [];
+  {question.type === 'disc-ranking' && (() => {
+    const discAns = discAnswers[question._id] || { most: null, least: null };
+    const stmts = question.statements || [];
     const allSelected = discAns.most !== null && discAns.least !== null;
     return (
       <div className="space-y-4">
@@ -672,7 +652,7 @@ if (!document.fullscreenElement) {
               <span className="flex-1 text-gray-900 text-sm leading-snug">{stmt.text}</span>
               <div className="flex gap-3 shrink-0">
                 <button
-                  onClick={() => canSelectMost && handleDiscRanking(currentQuestion._id, 'most', idx)}
+                  onClick={() => canSelectMost && handleDiscRanking(question._id, 'most', idx)}
                   title="Most like me"
                   className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center font-bold text-xs transition-all ${
                     isMost
@@ -685,7 +665,7 @@ if (!document.fullscreenElement) {
                   M
                 </button>
                 <button
-                  onClick={() => canSelectLeast && handleDiscRanking(currentQuestion._id, 'least', idx)}
+                  onClick={() => canSelectLeast && handleDiscRanking(question._id, 'least', idx)}
                   title="Least like me"
                   className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center font-bold text-xs transition-all ${
                     isLeast
@@ -711,10 +691,10 @@ if (!document.fullscreenElement) {
   })()}
 
  {/* Text Answer */}
- {currentQuestion.type === 'text' && (
+ {question.type === 'text' && (
  <textarea
  value={currentAnswer?.textAnswer || ''}
- onChange={(e) => handleTextAnswer(currentQuestion._id, e.target.value)}
+ onChange={(e) => handleTextAnswer(question._id, e.target.value)}
  rows={6}
  className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
  placeholder="Enter your answer here..."
@@ -722,13 +702,13 @@ if (!document.fullscreenElement) {
  )}
 
  {/* Rating Scale */}
- {currentQuestion.type === 'rating' && (
+ {question.type === 'rating' && (
  <div className="flex items-center justify-center gap-4 py-8">
  {[1, 2, 3, 4, 5].map((rating) => (
  <button
  key={rating}
- onClick={() => handleRatingAnswer(currentQuestion._id, rating)}
- className={`w-12 h-12 rounded-lg text-lg font-medium transition-colors ${
+ onClick={() => handleRatingAnswer(question._id, rating)}
+  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-lg font-medium transition-colors ${
  currentAnswer?.ratingAnswer === rating
  ? 'bg-indigo-600 text-white'
  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -739,28 +719,18 @@ if (!document.fullscreenElement) {
  ))}
  </div>
  )}
-
- {/* Navigation */}
- <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 ">
- <button
- onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
- disabled={currentQuestionIndex === 0}
- className="flex items-center gap-2 px-4 py-2 text-gray-600 disabled:opacity-50 hover:text-gray-900 "
- >
- <ChevronLeft className="w-5 h-5" />
- Previous
- </button>
- <button
- onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
- disabled={currentQuestionIndex === questions.length - 1}
- className="flex items-center gap-2 px-4 py-2 text-gray-600 disabled:opacity-50 hover:text-gray-900 "
- >
- Next
- <ChevronRight className="w-5 h-5" />
- </button>
  </div>
- </>
- )}
+   );
+ })}
+ 
+ {/* Bottom Submit Button */}
+ <div className="flex justify-end pt-4">
+    <button
+      onClick={() => setShowSubmitConfirm(true)}
+      className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+    >
+      Review &amp; Submit Assessment
+    </button>
  </div>
  </div>
  </div>

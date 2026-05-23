@@ -56,6 +56,8 @@ const IndividualAssessments = () => {
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
 
   const freeTrialUsed = user?.freeTrialUsed;
+  const credits = user?.personalCredits;
+  const remainingCredits = (credits?.total || 0) - (credits?.used || 0);
 
   useEffect(() => {
     api.get('/auth/free-trial/assessments')
@@ -109,7 +111,7 @@ const IndividualAssessments = () => {
         <h1 className="text-2xl font-bold text-gray-900">Assessments</h1>
         <p className="text-gray-500 mt-1">
           {freeTrialUsed
-            ? 'Browse all available assessments. Purchase credits to unlock any assessment.'
+            ? `Browse all available assessments.${remainingCredits > 0 ? ` You have ${remainingCredits} credit${remainingCredits > 1 ? 's' : ''} — start any assessment to use one.` : ' Purchase credits to unlock any assessment.'}`
             : 'Pick any assessment to try for free with your free trial.'}
         </p>
       </div>
@@ -172,7 +174,7 @@ const IndividualAssessments = () => {
               <div className="relative w-full h-36 overflow-hidden bg-gray-100">
                 {assessment.bannerImage ? (
                   <img
-                    src={`/${assessment.bannerImage}`}
+                    src={assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`}
                     alt={assessment.title}
                     className="w-full h-full object-cover"
                   />
@@ -210,17 +212,15 @@ const IndividualAssessments = () => {
                   {assessment.title}
                 </h3>
 
-                {assessment.subCategory ? (
+                {assessment.subCategory && (
                   <p className="text-xs italic text-gray-500 mb-2">{assessment.subCategory}</p>
-                ) : (
-                  <p className="text-xs italic text-gray-500 mb-2">Inspired by {meta.inspiredBy}</p>
                 )}
 
                 {/* Description with See More/Less */}
                 <div className="mb-3 flex-1 flex flex-col">
                   <div className="cursor-pointer group">
                     <p className={`text-xs text-gray-600 text-justify leading-relaxed flex-1 transition-all duration-300 ${expandedDescriptions.has(assessment._id) ? '' : 'line-clamp-2'}`}>
-                      {assessment.description || meta.inspiredBy || 'No description provided.'}
+                      {assessment.description || 'No description provided.'}
                     </p>
                     {assessment.description && assessment.description.length > 100 && (
                       <button
@@ -232,6 +232,20 @@ const IndividualAssessments = () => {
                       </button>
                     )}
                   </div>
+                </div>
+
+                {/* Purpose & Audience */}
+                <div className="space-y-1 mb-3">
+                  {assessment.purpose && (
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                      <span className="font-semibold text-gray-700">Purpose:</span> {assessment.purpose}
+                    </p>
+                  )}
+                  {assessment.audience && (
+                    <p className="text-xs text-gray-500 leading-relaxed truncate">
+                      <span className="font-semibold text-gray-700">Audience:</span> {assessment.audience}
+                    </p>
+                  )}
                 </div>
 
                 {/* Meta Row: Difficulty, Time, Questions */}
@@ -252,15 +266,7 @@ const IndividualAssessments = () => {
 
                 {/* CTA Button */}
                 <div className="pt-3 border-t border-gray-100 mt-auto">
-                  {freeTrialUsed ? (
-                    <button
-                      onClick={() => navigate('/individual/credits')}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      Buy Credits to Start
-                    </button>
-                  ) : (
+                  {!freeTrialUsed ? (
                     <button
                       onClick={() => handleStart(assessment)}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
@@ -268,6 +274,23 @@ const IndividualAssessments = () => {
                       <Sparkles className="w-4 h-4" />
                       Start Free Trial
                       <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : remainingCredits > 0 ? (
+                    <button
+                      onClick={() => handleStart(assessment)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Start Assessment
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate('/individual/credits')}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Buy Credits to Start
                     </button>
                   )}
                 </div>

@@ -13,7 +13,9 @@ const {
   forgotPassword,
   resetPassword,
   registerFreeTrial,
-  getFreeTrialAssessments
+  getFreeTrialAssessments,
+  verifyEmailOtp,
+  resendVerificationOtp
 } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { authValidation } = require('../middleware/validationMiddleware');
@@ -27,6 +29,9 @@ router.post('/demo/login', authLimiter, demoLogin);
 // Free trial registration routes (public)
 router.get('/free-trial/assessments', getFreeTrialAssessments);
 router.post('/register', authLimiter, registerFreeTrial);
+
+router.post('/verify-email-otp', verifyEmailOtp);
+router.post('/resend-verification-otp', authLimiter, resendVerificationOtp);
 
 // Public routes
 router.post('/login', authLimiter, authValidation.login, login);

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Big Five Personality Report — {{candidateName}}</title>
+  <title>{{assessmentName}} — {{candidateName}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
@@ -113,7 +113,7 @@
       right: 0;
       width: 42%;
       height: 100%;
-      background: linear-gradient(135deg, var(--o-color), var(--a-color));
+      background: linear-gradient(135deg, var(--accent), #38BDF8);
       opacity: 0.09;
       clip-path: polygon(25% 0, 100% 0, 100% 100%, 0% 100%);
     }
@@ -124,7 +124,7 @@
       top: 0;
       bottom: 0;
       width: 4px;
-      background: linear-gradient(to bottom, var(--o-color), var(--a-color));
+      background: linear-gradient(to bottom, var(--accent), #38BDF8);
     }
 
     .cover-logo-row {
@@ -1492,7 +1492,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">2 of 8</span></div>
     </div>
@@ -1639,7 +1639,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model (OCEAN) · Scientifically Validated</p>
+      <p>{{assessmentName}} · Scientifically Validated</p>
     </div>
   </div>
 
@@ -1648,7 +1648,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">3 of 8</span></div>
     </div>
@@ -1765,7 +1765,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 
@@ -1774,7 +1774,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">4 of 8</span></div>
     </div>
@@ -1793,7 +1793,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 
@@ -1802,7 +1802,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">5 of 8</span></div>
     </div>
@@ -1861,7 +1861,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 
@@ -1870,7 +1870,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">6 of 8</span></div>
     </div>
@@ -1934,7 +1934,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 
@@ -1943,7 +1943,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">7 of 8</span></div>
     </div>
@@ -1981,7 +1981,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 
@@ -1990,7 +1990,7 @@
     <div class="ph">
       <div class="ph-left"><span class="ph-logo" style="display:flex;align-items:center;">{{#if logoBase64}}<img
             src="{{logoBase64}}" alt="Logo" style="height:14px;margin-right:4px;">{{/if}}MINDMILL ASSESSMENTS</span>
-        <div class="ph-sep"></div><span class="ph-title">Big Five (OCEAN) Personality Profile</span>
+        <div class="ph-sep"></div><span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right"><span class="ph-name">{{candidateName}}</span><span class="ph-pg">8 of 8</span></div>
     </div>
@@ -2053,7 +2053,7 @@
     </div>
     <div class="pf">
       <p>mindmil Assessments — Confidential</p>
-      <p>Big Five Personality Model · {{assessmentDate}}</p>
+      <p>{{assessmentName}} · {{assessmentDate}}</p>
     </div>
   </div>
 

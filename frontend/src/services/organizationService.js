@@ -100,4 +100,14 @@ export const organizationService = {
     });
     return response.data;
   },
+
+  getBankDetails: async () => {
+    const response = await api.get('/organizations/bank-details');
+    return response.data;
+  },
+
+  updateBankDetails: async (data) => {
+    const response = await api.put('/organizations/bank-details', data);
+    return response.data;
+  },
 };

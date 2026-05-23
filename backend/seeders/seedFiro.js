@@ -9,10 +9,12 @@ const { Assessment, Question, User, Organization } = require('../models');
 const { firoQuestions } = require('./firoQuestions');
 
 const seedFiro = async () => {
+  const isStandalone = mongoose.connection.readyState === 0;
   try {
-    // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
-    console.log('Connected to MongoDB');
+    if (isStandalone) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmill');
+      console.log('Connected to MongoDB');
+    }
 
     // Find or create a default organization
     let organization = await Organization.findOne({ slug: 'default-org' });
@@ -27,7 +29,8 @@ const seedFiro = async () => {
     }
 
     // Find or create an admin user
-    let adminUser = await User.findOne({ email: 'admin@mindmill.com' });
+    let adminUser = await User.findOne({ email: 'admin@mindmill.com' }) ||
+                    await User.findOne({ role: 'superadmin' });
     
     if (!adminUser) {
       adminUser = await User.create({
@@ -43,8 +46,7 @@ const seedFiro = async () => {
 
     // Check if FIRO-B assessment already exists
     const existingAssessment = await Assessment.findOne({ 
-      category: 'firo',
-      organization: organization._id 
+      subCategory: 'FIRO-B'
     });
 
     if (existingAssessment) {
@@ -162,8 +164,10 @@ Complete all 54 questions for accurate results.`,
   } catch (error) {
     console.error('Error seeding FIRO-B:', error);
   } finally {
-    await mongoose.disconnect();
-    console.log('\nDisconnected from MongoDB');
+    if (isStandalone) {
+      await mongoose.disconnect();
+      console.log('\nDisconnected from MongoDB');
+    }
   }
 };
 

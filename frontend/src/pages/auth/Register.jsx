@@ -4,25 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services';
 import {
   Building2, User, ArrowRight, ArrowLeft, CheckCircle, Loader2,
-  Eye, EyeOff, Sparkles, Clock, FileText, Brain, BarChart3
+  Eye, EyeOff, Sparkles, Mail, RefreshCw
 } from 'lucide-react';
 
-const STEPS = ['Account Type', 'Your Details', 'Pick Assessment', 'All Set!'];
-
-const categoryColors = {
-  personality: { bg: 'from-violet-500 to-purple-600', light: 'bg-violet-50 text-violet-700 border-violet-200' },
-  psychometric: { bg: 'from-blue-500 to-indigo-600', light: 'bg-blue-50 text-blue-700 border-blue-200' },
-  cognitive: { bg: 'from-cyan-500 to-teal-600', light: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  aptitude: { bg: 'from-emerald-500 to-green-600', light: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  situational: { bg: 'from-amber-500 to-orange-600', light: 'bg-amber-50 text-amber-700 border-amber-200' },
-  professional: { bg: 'from-rose-500 to-pink-600', light: 'bg-rose-50 text-rose-700 border-rose-200' },
-};
-
-const CategoryIcon = ({ category }) => {
-  const icons = { personality: Brain, psychometric: BarChart3, cognitive: Brain, aptitude: FileText, situational: FileText, professional: BarChart3 };
-  const Icon = icons[category] || FileText;
-  return <Icon className="w-5 h-5" />;
-};
+const STEPS = ['Account Type', 'Your Details', 'Verify Email', 'All Set!'];
 
 const InputField = ({ label, id, error, ...props }) => (
   <div>
@@ -38,17 +23,23 @@ const InputField = ({ label, id, error, ...props }) => (
 
 const Register = () => {
   const navigate = useNavigate();
-  const { registerFreeTrial } = useAuth();
+  const { registerFreeTrial, verifyEmail } = useAuth();
 
   const [step, setStep] = useState(0);
   const [accountType, setAccountType] = useState(null); // 'organization' | 'individual'
   const [assessments, setAssessments] = useState([]);
-  const [assessmentsLoading, setAssessmentsLoading] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  const [registrationOrgSlug, setRegistrationOrgSlug] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '',
@@ -57,18 +48,21 @@ const Register = () => {
   });
 
   useEffect(() => {
-    if (step === 2) loadAssessments();
-  }, [step]);
+    loadAssessments();
+  }, []);
+
+  useEffect(() => {
+    if (assessments.length > 0 && !selectedAssessment) {
+      setSelectedAssessment(assessments[0]);
+    }
+  }, [assessments]);
 
   const loadAssessments = async () => {
-    setAssessmentsLoading(true);
     try {
       const res = await authService.getFreeTrialAssessments();
       setAssessments(res.data?.assessments || []);
     } catch {
       setAssessments([]);
-    } finally {
-      setAssessmentsLoading(false);
     }
   };
 
@@ -89,11 +83,71 @@ const Register = () => {
 
   const handleNext = () => {
     if (step === 0) { if (!accountType) return; setStep(1); return; }
-    if (step === 1) { if (!validateStep1()) return; setStep(2); return; }
-    if (step === 2) { if (!selectedAssessment) return; handleSubmit(); }
+    if (step === 1) { if (!validateStep1()) return; handleSubmit(); }
   };
 
   const handleBack = () => setStep(s => Math.max(0, s - 1));
+
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const newDigits = [...otpDigits];
+    newDigits[index] = value.slice(-1);
+    setOtpDigits(newDigits);
+    setOtpError('');
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const otp = otpDigits.join('');
+    if (otp.length !== 6) {
+      setOtpError('Please enter the complete 6-digit code');
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError('');
+    try {
+      const res = await verifyEmail(registrationEmail, otp);
+      if (res.success) {
+        setStep(3);
+        setTimeout(() => {
+          if (accountType === 'organization' && registrationOrgSlug) {
+            navigate(`/o/${registrationOrgSlug}/`);
+          } else {
+            navigate('/dashboard');
+          }
+        }, 2500);
+      } else {
+        setOtpError(res.message || 'Invalid verification code');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Verification failed. Please try again.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setOtpResending(true);
+    setOtpError('');
+    try {
+      await authService.resendVerificationOtp(registrationEmail);
+      setOtpDigits(['', '', '', '', '', '']);
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Failed to resend code');
+    } finally {
+      setOtpResending(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -113,22 +167,28 @@ const Register = () => {
       };
       const res = await registerFreeTrial(payload);
       if (res.success) {
-        setStep(3);
-        // Auto redirect after 2.5s
-        setTimeout(() => {
-          if (accountType === 'organization' && res.data.orgSlug) {
-            navigate(`/o/${res.data.orgSlug}/`);
-          } else {
-            navigate('/dashboard');
-          }
-        }, 2500);
+        if (res.data?.needsVerification) {
+          setRegistrationEmail(res.data.email);
+          setRegistrationOrgSlug(res.data?.orgSlug || '');
+          setOtpDigits(['', '', '', '', '', '']);
+          setStep(2);
+        } else {
+          setStep(3);
+          setTimeout(() => {
+            if (accountType === 'organization' && res.data.orgSlug) {
+              navigate(`/o/${res.data.orgSlug}/`);
+            } else {
+              navigate('/dashboard');
+            }
+          }, 2500);
+        }
       } else {
-        setSubmitError(res.message || 'Registration failed');
-        setStep(2);
+        setSubmitError(res.message || 'Registration failed. Please try again.');
+        setStep(1);
       }
     } catch (err) {
-      setSubmitError(err.response?.data?.message || 'Something went wrong. Please try again.');
-      setStep(2);
+      setSubmitError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setStep(1);
     } finally {
       setSubmitting(false);
     }
@@ -139,7 +199,7 @@ const Register = () => {
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Mindmill" className="h-12 w-auto mx-auto mb-4" />
+          <img src="/logo.png" alt="MindMil" className="h-12 w-auto mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900">Start Your Free Trial</h1>
           <p className="text-gray-500 mt-2">One free assessment, zero credit card required</p>
         </div>
@@ -166,9 +226,9 @@ const Register = () => {
 
           {/* STEP 0 — Account Type */}
           {step === 0 && (
-            <div className="p-4 sm:p-6 lg:p-8">
+            <div className="p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-2">What describes you best?</h2>
-              <p className="text-gray-500 text-sm mb-6">Choose how you'll use MindMill</p>
+              <p className="text-gray-500 text-sm mb-6">Choose how you'll use MindMil</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   {
@@ -217,17 +277,23 @@ const Register = () => {
 
           {/* STEP 1 — Details Form */}
           {step === 1 && (
-            <div className="p-4 sm:p-6 lg:p-8">
+            <div className="p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-1">
                 {accountType === 'organization' ? 'Organization & Admin Details' : 'Your Details'}
               </h2>
               <p className="text-gray-500 text-sm mb-6">We'll set up your account right away</p>
 
+              {submitError && (
+                <div className="mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-600">{submitError}</p>
+                </div>
+              )}
+
               <div className="space-y-4">
                 {accountType === 'organization' && (
                   <>
                     <InputField label="Organization Name *" id="orgName" placeholder="Acme Corp" value={form.organizationName} onChange={set('organizationName')} error={fieldErrors.organizationName} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Industry</label>
                         <select value={form.industry} onChange={set('industry')} className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
@@ -250,7 +316,7 @@ const Register = () => {
                   </>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <InputField label="First Name *" id="firstName" placeholder="Alex" value={form.firstName} onChange={set('firstName')} error={fieldErrors.firstName} />
                   <InputField label="Last Name" id="lastName" placeholder="Johnson" value={form.lastName} onChange={set('lastName')} />
                 </div>
@@ -277,61 +343,65 @@ const Register = () => {
             </div>
           )}
 
-          {/* STEP 2 — Pick Assessment */}
+          {/* STEP 2 — Verify Email */}
           {step === 2 && (
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-indigo-500" />
-                <h2 className="text-xl font-bold text-gray-900">Choose Your Free Assessment</h2>
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-8 h-8 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Verify Your Email</h2>
+                <p className="text-gray-500 text-sm mt-1">
+                  We sent a verification code to <span className="font-medium text-gray-700">{registrationEmail}</span>
+                </p>
               </div>
-              <p className="text-gray-500 text-sm mb-6 ml-7">Select one — it's on us! You can buy more credits later.</p>
 
-              {submitError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{submitError}</div>
+              {otpError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 text-center">{otpError}</div>
               )}
 
-              {assessmentsLoading ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                </div>
-              ) : assessments.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                  <p>No assessments available at the moment.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
-                  {assessments.map((a) => {
-                    const colors = categoryColors[a.category] || categoryColors.personality;
-                    const isSelected = selectedAssessment?._id === a._id;
-                    return (
-                      <button
-                        key={a._id}
-                        onClick={() => setSelectedAssessment(a)}
-                        className={`text-left p-4 rounded-xl border-2 transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50/70 shadow-md' : 'border-gray-200 hover:border-indigo-200 hover:bg-gray-50'}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${colors.bg} flex items-center justify-center text-white flex-shrink-0`}>
-                            <CategoryIcon category={a.category} />
-                          </div>
-                          {isSelected && <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />}
-                        </div>
-                        <h3 className="font-semibold text-gray-900 mt-2 text-sm leading-snug">{a.title}</h3>
-                        {a.subCategory && <p className="text-xs text-gray-500 mt-0.5">{a.subCategory}</p>}
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className={`inline-block text-xs px-2 py-0.5 rounded-full border capitalize ${colors.light}`}>{a.category}</span>
-                          {a.timeBound?.enabled && (
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                              <Clock className="w-3 h-3" />
-                              {a.timeBound.durationMinutes}m
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="flex justify-center gap-2 mb-6">
+                {otpDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`otp-${i}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    className="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-white text-gray-900"
+                    autoFocus={i === 0}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={handleVerifyOtp}
+                disabled={otpVerifying || otpDigits.join('').length !== 6}
+                className="w-full flex items-center justify-center gap-2 px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {otpVerifying ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
+                ) : (
+                  <><CheckCircle className="w-4 h-4" /> Verify Email</>
+                )}
+              </button>
+
+              <div className="text-center mt-4">
+                <button
+                  onClick={handleResendOtp}
+                  disabled={otpResending}
+                  className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {otpResending ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Resending...</>
+                  ) : (
+                    <><RefreshCw className="w-3.5 h-3.5" /> Resend code</>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -351,8 +421,8 @@ const Register = () => {
           )}
 
           {/* Footer Nav */}
-          {step < 3 && (
-            <div className="px-4 pb-4 sm:px-8 sm:pb-8 flex items-center justify-between gap-4">
+          {step < 2 && (
+            <div className="px-8 pb-8 flex items-center justify-between gap-4">
               <div>
                 {step > 0 && (
                   <button onClick={handleBack} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all">
@@ -363,12 +433,12 @@ const Register = () => {
               </div>
               <button
                 onClick={handleNext}
-                disabled={submitting || (step === 0 && !accountType) || (step === 2 && !selectedAssessment)}
+                disabled={submitting || (step === 0 && !accountType)}
                 className="flex items-center gap-2 px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</>
-                ) : step === 2 ? (
+                ) : step === 1 ? (
                   <><Sparkles className="w-4 h-4" /> Start Free Trial</>
                 ) : (
                   <>Continue <ArrowRight className="w-4 h-4" /></>

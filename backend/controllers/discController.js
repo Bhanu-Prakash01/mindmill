@@ -5,6 +5,7 @@
 
 const { Attempt, Assessment, Report } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendAttemptNotification } = require('./attemptController');
 const { 
   calculateDISCScores, 
   generateNarrativeReport 
@@ -70,7 +71,8 @@ const submitDisc = asyncHandler(async (req, res) => {
           user.freeTrialAssessmentId = attempt.assessment;
           user.freeTrialAttemptId = attempt._id;
         } else {
-          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+          const creditCost = assessment.getEffectiveCreditCost();
+          user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
         }
         await user.save();
       } else {
@@ -92,6 +94,8 @@ const submitDisc = asyncHandler(async (req, res) => {
   const report = await generateDiscReport(attempt, assessment, discResults);
   attempt.report = report._id;
   await attempt.save();
+
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.json({
     success: true,

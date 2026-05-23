@@ -8,7 +8,7 @@ const { asyncHandler, ApiError } = require('../middleware/errorHandler');
  */
 const getSuperAdminDashboard = asyncHandler(async (req, res) => {
   // Get counts
-  const totalOrganizations = await Organization.countDocuments({ isActive: true });
+  const totalOrganizations = await Organization.countDocuments({ isActive: true, slug: { $ne: 'mindmil' } });
   const totalUsers = await User.countDocuments({ isActive: true });
   const totalAssessments = await Assessment.countDocuments();
   const totalAttempts = await Attempt.countDocuments({ status: 'completed' });
@@ -32,7 +32,7 @@ const getSuperAdminDashboard = asyncHandler(async (req, res) => {
   const activeClientsCount = activeOrgIds.length;
 
   // Get recent data
-  const recentOrganizations = await Organization.find({ isActive: true })
+  const recentOrganizations = await Organization.find({ isActive: true, slug: { $ne: 'mindmil' } })
     .sort({ createdAt: -1 })
     .limit(5)
     .select('name slug createdAt');

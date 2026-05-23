@@ -23,8 +23,10 @@ const seedMbti = require('../seeders/seedMbti');
 const seedHogan = require('../seeders/seedHogan');
 const seedFiro = require('../seeders/seedFiro');
 const seedCognitive = require('../seeders/seedCognitive');
+const seedCriticalThinking = require('../seeders/seedCriticalThinking');
 const seedSituational = require('../seeders/seedSituational');
 const seedProfessional = require('../seeders/seedProfessional');
+const seedEctiStandalone = require('../seeders/seedEctiAsModule');
 
 const seededAssessments = [];
 
@@ -36,8 +38,10 @@ const seedAllAssessments = async () => {
     { name: 'Hogan', fn: seedHogan },
     { name: 'FIRO-B', fn: seedFiro },
     { name: 'Cognitive Reasoning', fn: seedCognitive },
+    // { name: 'Critical Thinking', fn: seedCriticalThinking },
     { name: 'Situational Judgement', fn: seedSituational },
-    { name: 'Professional Aptitude', fn: seedProfessional }
+    { name: 'Professional Aptitude', fn: seedProfessional },
+    { name: 'Executive Critical Thinking (ECTI™)', fn: seedEctiStandalone },
   ];
 
   console.log('\n' + '='.repeat(50));
@@ -64,11 +68,11 @@ const seedAllAssessments = async () => {
   const successful = seededAssessments.filter(a => a.status === 'success');
   const failed = seededAssessments.filter(a => a.status === 'failed');
 
-  console.log(`\n✅ Successfully seeded: ${successful.length}/8`);
+  console.log(`\n✅ Successfully seeded: ${successful.length}/10`);
   successful.forEach(a => console.log(`   - ${a.name}`));
 
   if (failed.length > 0) {
-    console.log(`\n❌ Failed: ${failed.length}/8`);
+    console.log(`\n❌ Failed: ${failed.length}/10`);
     failed.forEach(a => console.log(`   - ${a.name}: ${a.error}`));
   }
 

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{assessmentName}} Executive Summary — {{candidateName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --navy: #0F172A; --navy-m: #1E293B; --slate: #475569; --muted: #64748B;
+      --border: #E2E8F0; --surface: #F8FAFC;
+      --inc: #6366F1; --ctl: #F59E0B; --aff: #EC4899;
+      --inc-g: linear-gradient(135deg, #6366F1, #818CF8);
+      --ctl-g: linear-gradient(135deg, #F59E0B, #FCD34D);
+      --aff-g: linear-gradient(135deg, #EC4899, #F9A8D4);
+    }
+    html { font-size: 11px; }
+    body {
+      font-family: 'Inter', 'DM Sans', sans-serif; color: #334155; background: #fff;
+      line-height: 1.6; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .page {
+      width: 210mm; min-height: 297mm; padding: 38px 46px;
+      position: relative; background: #fff;
+    }
+    @page { size: A4; margin: 0; }
+    @media print { .page { page-break-after: always; } .page:last-child { page-break-after: avoid; } }
+
+    /* Header */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding-bottom: 24px; border-bottom: 4px solid var(--inc); margin-bottom: 32px;
+    }
+    .company { font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .company span { color: var(--inc); }
+    .report-type { font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .hd-right { text-align: right; }
+    .candidate { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--navy); line-height: 1.1; margin-bottom: 4px; }
+    .date { font-size: 10px; color: var(--muted); }
+
+    /* Score Matrix */
+    .sec-title {
+      font-size: 14px; font-weight: 700; color: var(--navy);
+      display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+    }
+    .sec-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    .firo-matrix { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    .firo-matrix th {
+      font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      padding: 10px 12px; text-align: center; border-bottom: 2px solid var(--navy);
+    }
+    .firo-matrix th.th-inc { color: var(--inc); }
+    .firo-matrix th.th-ctl { color: var(--ctl); }
+    .firo-matrix th.th-aff { color: var(--aff); }
+    .firo-matrix th.th-tot { color: var(--muted); }
+    .firo-matrix td { border: 1px solid var(--border); text-align: center; padding: 14px 10px; }
+    .firo-matrix td.row-lbl {
+      text-align: left; font-weight: 700; font-size: 11px; color: #334155;
+      background: var(--surface); width: 22%; padding-left: 14px;
+    }
+    .firo-matrix .score-big {
+      font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 700; line-height: 1;
+    }
+    .firo-matrix .score-code {
+      font-size: 7.5px; font-weight: 600; color: var(--muted);
+      letter-spacing: 1px; text-transform: uppercase; margin-top: 3px;
+    }
+    .firo-matrix tr.total-row td {
+      background: var(--navy); border-color: var(--navy); color: #fff;
+    }
+    .firo-matrix tr.total-row td.row-lbl {
+      background: var(--navy); color: rgba(255,255,255,0.75);
+      text-transform: uppercase; font-size: 9px; letter-spacing: 1px;
+    }
+    .firo-matrix tr.total-row .score-big { color: #fff; }
+    .firo-matrix tr.total-row .score-code { color: rgba(255,255,255,0.45); }
+
+    /* Dimension bars */
+    .dim-bars { margin-bottom: 28px; }
+    .dim-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .dim-bar-lbl { min-width: 100px; font-size: 10px; font-weight: 600; color: var(--navy); }
+    .dim-bar-track {
+      flex: 1; background: var(--surface); height: 10px; border-radius: 5px;
+      overflow: hidden; position: relative;
+    }
+    .dim-bar-fill { height: 100%; border-radius: 5px; position: absolute; left: 0; top: 0; }
+    .dim-bar-val {
+      min-width: 50px; text-align: right; font-family: 'DM Serif Display', serif;
+      font-size: 16px; font-weight: 700; color: var(--navy);
+    }
+    .dim-bar-max { font-size: 9px; color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 400; }
+
+    /* Two-col panels */
+    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px; }
+    .panel { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; break-inside: avoid; }
+    .panel-head {
+      padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-head-icon {
+      width: 28px; height: 28px; border-radius: 8px; display: flex;
+      align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+    }
+    .panel-head-title { font-size: 12px; font-weight: 700; color: var(--navy); }
+    .panel-body { padding: 16px; }
+    .item-list { list-style: none; }
+    .item-list li {
+      display: flex; align-items: flex-start; gap: 10px; font-size: 11px;
+      color: var(--slate); line-height: 1.6; margin-bottom: 10px;
+    }
+    .item-list li:last-child { margin-bottom: 0; }
+    .il-bullet {
+      width: 16px; height: 16px; border-radius: 4px; background: var(--surface);
+      border: 1px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: 9px; font-weight: 700; color: var(--inc);
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* Executive summary box */
+    .exec-box {
+      background: var(--navy); border-radius: 12px; padding: 20px 24px; margin-bottom: 28px; color: #fff;
+    }
+    .exec-box-lbl {
+      font-size: 8px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: rgba(255,255,255,0.45); margin-bottom: 8px;
+    }
+    .exec-box-txt { font-size: 12px; color: rgba(255,255,255,0.9); line-height: 1.7; }
+
+    /* Footer */
+    .footer { text-align: center; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .footer p { font-size: 9px; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="company">
+        {{#if logoBase64}}<img src="{{logoBase64}}" alt="Logo" style="height: 18px; margin-right: 6px; vertical-align: middle;">{{/if}}
+        MINDMILL ASSESSMENTS
+      </div>
+      <div class="report-type">{{assessmentName}} Executive Summary</div>
+    </div>
+    <div class="hd-right">
+      <div class="candidate">{{candidateName}}</div>
+      <div class="date">{{candidateEmail}}</div>
+      <div class="date">{{assessmentDate}}{{#if hasAttemptMetrics}} · {{attemptPct}}% Att. · Time: {{timeTakenMins}}m{{/if}}</div>
+    </div>
+  </div>
+
+  <!-- Score Matrix -->
+  <div class="sec-title">Score Matrix</div>
+  <table class="firo-matrix">
+    <thead>
+      <tr>
+        <th></th>
+        <th class="th-inc">Inclusion</th>
+        <th class="th-ctl">Control</th>
+        <th class="th-aff">Affection</th>
+        <th class="th-tot">Row Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="row-lbl">Expressed</td>
+        <td><div class="score-big" style="color:var(--inc);">{{eI}}</div><div class="score-code">[eI] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--ctl);">{{eC}}</div><div class="score-code">[eC] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--aff);">{{eA}}</div><div class="score-code">[eA] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--navy);">{{totalExpressed}}</div><div class="score-code">of 27</div></td>
+      </tr>
+      <tr>
+        <td class="row-lbl">Wanted</td>
+        <td><div class="score-big" style="color:var(--inc);">{{wI}}</div><div class="score-code">[wI] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--ctl);">{{wC}}</div><div class="score-code">[wC] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--aff);">{{wA}}</div><div class="score-code">[wA] · max 9</div></td>
+        <td><div class="score-big" style="color:var(--navy);">{{totalWanted}}</div><div class="score-code">of 27</div></td>
+      </tr>
+      <tr class="total-row">
+        <td class="row-lbl">Total Need</td>
+        <td><div class="score-big">{{inclusionTotal}}</div><div class="score-code">of 18</div></td>
+        <td><div class="score-big">{{controlTotal}}</div><div class="score-code">of 18</div></td>
+        <td><div class="score-big">{{affectionTotal}}</div><div class="score-code">of 18</div></td>
+        <td><div class="score-big">{{overallTotal}}</div><div class="score-code">overall / 54</div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Dimension Bars -->
+  <div class="sec-title">Dimension Breakdown</div>
+  <div class="dim-bars">
+    <div class="dim-bar-row">
+      <div class="dim-bar-lbl">Inclusion</div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" style="width:{{inclusionPct}}%;background:var(--inc-g);"></div></div>
+      <div class="dim-bar-val">{{inclusionTotal}} <span class="dim-bar-max">/ 18</span></div>
+    </div>
+    <div class="dim-bar-row">
+      <div class="dim-bar-lbl">Control</div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" style="width:{{controlPct}}%;background:var(--ctl-g);"></div></div>
+      <div class="dim-bar-val">{{controlTotal}} <span class="dim-bar-max">/ 18</span></div>
+    </div>
+    <div class="dim-bar-row">
+      <div class="dim-bar-lbl">Affection</div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" style="width:{{affectionPct}}%;background:var(--aff-g);"></div></div>
+      <div class="dim-bar-val">{{affectionTotal}} <span class="dim-bar-max">/ 18</span></div>
+    </div>
+  </div>
+
+  <!-- Executive Summary -->
+  {{#if executiveSummary}}
+  <div class="exec-box">
+    <div class="exec-box-lbl">Executive Summary</div>
+    <div class="exec-box-txt">{{executiveSummary}}</div>
+  </div>
+  {{/if}}
+
+  <!-- Insight Panels -->
+  <div class="insights-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:rgba(99,102,241,0.1);">👥</div>
+        <div class="panel-head-title">Inclusion Fulfillment</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each inclusionFulfillment}}<li><div class="il-bullet">→</div><span>{{this}}</span></li>{{/each}}
+        </ul>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:rgba(245,158,11,0.1);">🎯</div>
+        <div class="panel-head-title">Control Fulfillment</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each controlFulfillment}}<li><div class="il-bullet">→</div><span>{{this}}</span></li>{{/each}}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="insights-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:rgba(236,72,153,0.1);">❤️</div>
+        <div class="panel-head-title">Affection Fulfillment</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each affectionFulfillment}}<li><div class="il-bullet">→</div><span>{{this}}</span></li>{{/each}}
+        </ul>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-icon" style="background:rgba(99,102,241,0.1);">📈</div>
+        <div class="panel-head-title">Growth Opportunities</div>
+      </div>
+      <div class="panel-body">
+        <ul class="item-list">
+          {{#each growthAreas}}<li><div class="il-bullet">→</div><span>{{this}}</span></li>{{/each}}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>MindMil Executive Summary</p>
+    <p>Confidential · Generated {{assessmentDate}}</p>
+  </div>
+</div>
+</body>
+</html>

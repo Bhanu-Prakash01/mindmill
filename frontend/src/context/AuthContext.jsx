@@ -19,8 +19,8 @@ export const AuthProvider = ({ children }) => {
   initAuth();
  }, []);
 
- const login = async (email, password) => {
-  const response = await authService.login(email, password);
+  const login = async (email, password, orgSlug) => {
+   const response = await authService.login(email, password, orgSlug);
   if (response.success) {
   setUser(response.data.user);
   }
@@ -37,7 +37,12 @@ export const AuthProvider = ({ children }) => {
 
  const registerFreeTrial = async (registrationData) => {
   const response = await authService.registerFreeTrial(registrationData);
-  if (response.success) {
+  return response;
+ };
+
+ const verifyEmail = async (email, otp) => {
+  const response = await authService.verifyEmailOtp(email, otp);
+  if (response.success && response.data?.user) {
    setUser(response.data.user);
   }
   return response;
@@ -69,6 +74,7 @@ export const AuthProvider = ({ children }) => {
    login,
    demoLogin,
    registerFreeTrial,
+   verifyEmail,
    logout,
    updateUser,
    refreshUser,

@@ -29,7 +29,15 @@ const organizationSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  logoPublicId: {
+    type: String,
+    default: null
+  },
   banner: {
+    type: String,
+    default: null
+  },
+  bannerPublicId: {
     type: String,
     default: null
   },
@@ -66,6 +74,7 @@ const organizationSchema = new mongoose.Schema({
     bestHRPracticesDocs: [{
       name: { type: String, required: true },
       url: { type: String, required: true },
+      publicId: { type: String, default: null },
       type: { type: String, required: true },
       size: { type: Number, required: true },
       uploadedAt: { type: Date, default: Date.now }
@@ -73,6 +82,7 @@ const organizationSchema = new mongoose.Schema({
     awardsAccoladesDocs: [{
       name: { type: String, required: true },
       url: { type: String, required: true },
+      publicId: { type: String, default: null },
       type: { type: String, required: true },
       size: { type: Number, required: true },
       uploadedAt: { type: Date, default: Date.now }
@@ -137,6 +147,14 @@ const organizationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
+  },
+  bankDetails: {
+    upiId: { type: String, default: '' },
+    accountHolderName: { type: String, default: '' },
+    bankName: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    ifscCode: { type: String, default: '' },
+    branchName: { type: String, default: '' }
   }
 }, {
   timestamps: true

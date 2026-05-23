@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
-const { Attempt, Assessment, Question, Report, Organization, TestTakerInvite } = require('../models');
+const { Attempt, Assessment, Question, Report, Organization, TestTakerInvite, User } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendTestCompletedEmail, sendTestAbandonedEmail, sendTestTakerThankYouEmail } = require('../services/emailService');
 const { scoreMBTI, calculateMBTIScores, determineMBTIType, generateCognitiveFunctions, generateInterpretation } = require('../services/mbtiScoringService');
 
 /**
@@ -182,8 +183,7 @@ const startAttempt = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check attempt limits
-  if (!assessment.allowMultipleAttempts) {
+  if (!assessment.allowMultipleAttempts && !isIndividual) {
     const previousAttempts = await Attempt.countDocuments({
       user: req.user._id,
       assessment: assessmentId,
@@ -218,14 +218,36 @@ const startAttempt = asyncHandler(async (req, res) => {
     }
   }
 
+  let creditsPreDeducted = false;
   if (isIndividual) {
-    // Free trial: ANY published assessment can be taken once for free
-    // After free trial is used, user must have personalCredits balance
     const creditBalance = (req.user.personalCredits?.total || 0) - (req.user.personalCredits?.used || 0);
     const freeTrialAvailable = !req.user.freeTrialUsed;
+    const effectiveCreditCost = assessment.getEffectiveCreditCost();
 
-    if (!freeTrialAvailable && creditBalance <= 0) {
-      throw new ApiError(403, 'Insufficient credits. Please purchase credits to take this assessment.');
+    if (!freeTrialAvailable && creditBalance < effectiveCreditCost) {
+      throw new ApiError(403, `Insufficient credits. You need ${effectiveCreditCost} credits for this assessment. Please purchase more credits.`);
+    }
+
+    if (!freeTrialAvailable) {
+      // Factor in pending credits from in-progress attempts to prevent overdraft
+      const pendingAttempts = await Attempt.find({
+        user: req.user._id,
+        status: 'in-progress',
+        creditDeducted: false
+      }).populate('assessment');
+      let totalPendingCost = 0;
+      for (const pa of pendingAttempts) {
+        totalPendingCost += pa.assessment?.getEffectiveCreditCost?.() ?? 5;
+      }
+      const availableAfterPending = creditBalance - totalPendingCost;
+      if (availableAfterPending < effectiveCreditCost) {
+        throw new ApiError(403, `Insufficient credits. You have ${creditBalance} credits but ${totalPendingCost} are reserved for assessments in progress. Please complete or submit those first.`);
+      }
+
+      // Pre-deduct credits at start so submit handlers don't double-deduct
+      req.user.personalCredits.used = (req.user.personalCredits.used || 0) + effectiveCreditCost;
+      await req.user.save();
+      creditsPreDeducted = true;
     }
   }
 
@@ -261,7 +283,8 @@ const startAttempt = asyncHandler(async (req, res) => {
     totalQuestions: assessment.questions.length,
     totalMarks: assessment.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
     ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
+    userAgent: req.headers['user-agent'],
+    creditDeducted: creditsPreDeducted  // pre-deducted for non-free-trial individual users
   });
 
   // Prepare questions for test (randomize if enabled)
@@ -359,7 +382,8 @@ const saveAnswer = asyncHandler(async (req, res) => {
                 user.freeTrialAssessmentId = attempt.assessment;
                 user.freeTrialAttemptId = attempt._id;
               } else {
-                user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+                const creditCost = assessment.getEffectiveCreditCost();
+                user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
               }
               await user.save();
             } else {
@@ -372,6 +396,24 @@ const saveAnswer = asyncHandler(async (req, res) => {
                 await assessment.save();
               }
             }
+          }
+        }
+      }
+    }
+
+    // Refund: pre-deducted individual user who expired early (< 3 answers)
+    if (attempt.creditDeducted && !attempt.isPublicAttempt) {
+      const fullAttempt = await Attempt.findById(attemptId).select('answers');
+      if (fullAttempt.answers.length < 3) {
+        const { User } = require('../models');
+        const user = await User.findById(attempt.user);
+        if (user?.accountType === 'individual' && !user?.organization && user.freeTrialUsed) {
+          const assessment = await Assessment.findById(attempt.assessment);
+          if (assessment) {
+            const creditCost = assessment.getEffectiveCreditCost();
+            user.personalCredits.used = Math.max(0, (user.personalCredits.used || 0) - creditCost);
+            await user.save();
+            attempt.creditDeducted = false;
           }
         }
       }
@@ -436,7 +478,7 @@ const submitAttempt = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Attempt is already completed');
   }
 
-const assessment = await Assessment.findById(attempt.assessment);
+const assessment = await Assessment.findById(attempt.assessment).populate('questions');
 
   const assessCategory = (assessment.category || '').toLowerCase();
   const assessSubCategory = (assessment.subCategory || '').toLowerCase();
@@ -468,6 +510,10 @@ const assessment = await Assessment.findById(attempt.assessment);
 
   if (assessSubCategory === 'pcla' || assessSubCategory === 'coachability' || assessCategory === 'pcla') {
     return await handlePclaSubmit(req, res, attempt, assessment);
+  }
+
+  if (assessSubCategory === 'ecti' || assessCategory === 'ecti') {
+    return await handleEctiSubmit(req, res, attempt, assessment);
   }
 
   // Calculate scores
@@ -538,7 +584,8 @@ const assessment = await Assessment.findById(attempt.assessment);
           user.freeTrialAssessmentId = attempt.assessment;
           user.freeTrialAttemptId = attempt._id;
         } else {
-          user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+          const creditCost = assessment.getEffectiveCreditCost();
+          user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
         }
         await user.save();
       } else if (!isSuperAdminUser) {
@@ -590,6 +637,9 @@ const assessment = await Assessment.findById(attempt.assessment);
       status: 'completed'
     });
   }
+
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.json({
     success: true,
@@ -1076,7 +1126,8 @@ const abandonAttempt = asyncHandler(async (req, res) => {
               user.freeTrialAssessmentId = attempt.assessment;
               user.freeTrialAttemptId = attempt._id;
             } else {
-              user.personalCredits.used = (user.personalCredits.used || 0) + 1;
+              const creditCost = assessment.getEffectiveCreditCost();
+              user.personalCredits.used = (user.personalCredits.used || 0) + creditCost;
             }
             await user.save();
           } else {
@@ -1094,13 +1145,41 @@ const abandonAttempt = asyncHandler(async (req, res) => {
     }
   }
 
+  // Refund: pre-deducted individual user who abandoned early (< 3 answers)
+  if (attempt.creditDeducted && !attempt.isPublicAttempt) {
+    const answerCount = attempt.answers.length;
+    if (answerCount < 3) {
+      const { User } = require('../models');
+      const user = await User.findById(attempt.user);
+      if (user?.accountType === 'individual' && !user?.organization && user.freeTrialUsed) {
+        const assessment = await Assessment.findById(attempt.assessment);
+        if (assessment) {
+          const creditCost = assessment.getEffectiveCreditCost();
+          user.personalCredits.used = Math.max(0, (user.personalCredits.used || 0) - creditCost);
+          await user.save();
+          attempt.creditDeducted = false;
+        }
+      }
+    }
+  }
+
   await attempt.save();
 
+  // Notify inviter (non-blocking)
+  if (attempt.invite) {
+    Assessment.findById(attempt.assessment).select('title questions').lean().then(assessment => {
+      sendAttemptNotification(attempt, assessment, 'abandoned');
+    }).catch(err => {
+      console.error('Failed to load assessment for abandon notification:', err.message);
+    });
+  }
+
+  const finalCreditState = attempt.creditDeducted && !attempt.isPublicAttempt;
   res.json({
     success: true,
-    message: creditDeducted
-      ? 'Attempt abandoned. 1 test credit was used (3+ questions answered).'
-      : 'Attempt abandoned. No test credit was used (fewer than 3 questions answered).',
+    message: finalCreditState
+      ? 'Attempt abandoned. Credits were deducted (3+ questions answered).'
+      : 'Attempt abandoned. No credit was deducted (fewer than 3 questions answered).',
     data: {
       attempt,
       creditDeducted
@@ -1372,6 +1451,9 @@ async function handleBig5Submit(req, res, attempt, assessment) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
 
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
+
   res.json({
     success: true,
     message: 'Big5 assessment completed successfully',
@@ -1462,6 +1544,9 @@ async function handleDiscSubmit(req, res, attempt, assessment) {
   if (attempt.invite) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
+
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.json({
     success: true,
@@ -1563,6 +1648,9 @@ async function handleMbtiSubmit(req, res, attempt, assessment) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
 
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
+
   res.json({
     success: true,
     message: 'MBTI assessment completed successfully',
@@ -1641,6 +1729,9 @@ async function handleHoganSubmit(req, res, attempt, assessment) {
   if (attempt.invite) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
+
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.json({
     success: true,
@@ -1735,6 +1826,9 @@ async function handleFiroSubmit(req, res, attempt, assessment) {
   if (attempt.invite) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
+
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.json({
     success: true,
@@ -1834,6 +1928,9 @@ async function handleSjtSubmit(req, res, attempt, assessment) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
 
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
+
   res.json({
     success: true,
     message: 'Situational Judgement Assessment completed successfully',
@@ -1869,6 +1966,11 @@ async function handlePclaSubmit(req, res, attempt, assessment) {
         }
       }
     }
+  }
+
+  // Guard: prevent saving all-zero results when no responses were provided
+  if (!Object.keys(responses).length) {
+    throw new ApiError(400, 'Cannot submit PCLA assessment with no answers. Please answer at least one question.');
   }
 
   const questionBank = PCLA_QUESTIONS;
@@ -1923,10 +2025,108 @@ async function handlePclaSubmit(req, res, attempt, assessment) {
     await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
   }
 
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
+
   res.json({
     success: true,
     message: 'Coachability Assessment completed successfully',
     data: { attempt, results: pclaResults, report }
+  });
+}
+
+async function handleEctiSubmit(req, res, attempt, assessment) {
+  const { scoreECTI } = require('../services/ectiScoringService');
+  const { ECTI_QUESTIONS } = require('../seeders/ectiQuestions');
+
+  // Build responses map: { "Q1": "A", ... } from req.body.responses
+  let responses = {};
+
+  if (req.body && req.body.responses && typeof req.body.responses === 'object') {
+    responses = req.body.responses;
+  }
+
+  // Fallback: reconstruct from saved answers on the attempt
+  if (!Object.keys(responses).length && attempt.answers && attempt.answers.length > 0) {
+    const attemptWithQ = await Attempt.findById(attempt._id).populate({
+      path: 'answers.question',
+      select: 'order options'
+    });
+    if (attemptWithQ?.answers) {
+      for (const ans of attemptWithQ.answers) {
+        if (!ans.question) continue;
+        const order = ans.question.order;
+        const optionIndex = ans.selectedOption;
+        const optKeys = ['A', 'B', 'C', 'D'];
+        if (optionIndex != null && optKeys[optionIndex]) {
+          responses[`Q${order}`] = optKeys[optionIndex];
+        }
+      }
+    }
+  }
+
+  const questionBank = ECTI_QUESTIONS;
+  const ectiResults = scoreECTI(responses, questionBank);
+
+  attempt.status = 'completed';
+  attempt.completedAt = new Date();
+  attempt.timeSpent = Math.floor((Date.now() - attempt.startedAt) / 1000);
+  attempt.ectiResults = ectiResults;
+  attempt.score = ectiResults.rawScore;
+  attempt.totalMarks = ectiResults.maxRaw;
+  attempt.percentage = ectiResults.percentage;
+  attempt.answeredQuestions = Object.keys(responses).length;
+
+  await deductTestSlot(attempt, assessment);
+  await attempt.save();
+
+  let conductedBy = attempt.user;
+  if (attempt.invite) {
+    const { TestTakerInvite } = require('../models');
+    const invite = await TestTakerInvite.findById(attempt.invite).select('invitedBy');
+    if (invite?.invitedBy) conductedBy = invite.invitedBy;
+  }
+
+  const { Report } = require('../models');
+  const report = await Report.create({
+    attempt: attempt._id,
+    user: attempt.user,
+    conductedBy,
+    assessment: attempt.assessment,
+    organization: attempt.organization,
+    type: 'ecti',
+    testTakerName: attempt.testTakerName || null,
+    testTakerEmail: attempt.testTakerEmail || null,
+    testTakerPhone: attempt.testTakerPhone || null,
+    timeSpent: attempt.timeSpent || null,
+    scores: {
+      total: ectiResults.rawScore,
+      maxScore: ectiResults.maxRaw,
+      percentage: ectiResults.percentage,
+      percentile: ectiResults.percentile,
+    },
+    analysis: {
+      summary: ectiResults.summary,
+      personalityProfile: ectiResults.band,
+      strengths: []
+    }
+  });
+
+  attempt.report = report._id;
+  await attempt.save();
+
+  if (attempt.invite) {
+    const { TestTakerInvite } = require('../models');
+    await TestTakerInvite.findByIdAndUpdate(attempt.invite, { status: 'completed' });
+  }
+
+  // Notify inviter (non-blocking)
+  sendAttemptNotification(attempt, assessment, 'completed');
+
+  res.json({
+    success: true,
+    message: 'ECTI Assessment completed successfully',
+    data: { attempt, results: ectiResults, report }
   });
 }
 
@@ -1969,6 +2169,87 @@ async function deductTestSlot(attempt, assessment) {
   await assessment.save();
 }
 
+/**
+ * Send email notifications when an attempt is completed or abandoned.
+ * Non-blocking — errors are logged and swallowed.
+ */
+async function sendAttemptNotification(attempt, assessment, status) {
+  try {
+    const testTakerName = attempt.testTakerName || 'Test Taker';
+    const assessmentTitle = assessment?.title || 'Assessment';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    // 1. Send Thank You Email to the test taker (if completed and email is available)
+    if (status === 'completed') {
+      let takerEmail = attempt.testTakerEmail;
+      
+      // If no explicit testTakerEmail but there's a user attached, try to get their email
+      if (!takerEmail && attempt.user) {
+        const user = await User.findById(attempt.user).select('email').lean();
+        if (user && user.email) {
+          takerEmail = user.email;
+        }
+      }
+
+      // If no email yet, maybe it's in the invite
+      if (!takerEmail && attempt.invite) {
+        const inviteForTaker = await TestTakerInvite.findById(attempt.invite).select('testTakerEmail').lean();
+        if (inviteForTaker && inviteForTaker.testTakerEmail) {
+          takerEmail = inviteForTaker.testTakerEmail;
+        }
+      }
+
+      if (takerEmail) {
+        sendTestTakerThankYouEmail({
+          to: takerEmail,
+          testTakerName,
+          assessmentTitle,
+          organizationName: 'MindMil'
+        }).catch(err => console.error('Failed to send thank you email:', err.message));
+      }
+    }
+
+    // 2. Send notification to the inviter (if it was an invite-based attempt)
+    if (attempt.invite) {
+      const invite = await TestTakerInvite.findById(attempt.invite)
+        .populate('invitedBy', 'email')
+        .lean();
+
+      if (invite?.invitedBy?.email) {
+        const recipientEmail = invite.invitedBy.email;
+        const inviterTestTakerName = attempt.testTakerName || invite.testTakerName || 'Test Taker';
+
+        if (status === 'completed') {
+          const reportUrl = attempt.report
+            ? `${frontendUrl}/reports/${attempt.report}`
+            : `${frontendUrl}/assessments/${attempt.assessment}`;
+
+          await sendTestCompletedEmail({
+            to: recipientEmail,
+            testTakerName: inviterTestTakerName,
+            assessmentTitle,
+            organizationName: 'MindMil',
+            reportUrl,
+            percentage: attempt.percentage,
+            passed: attempt.passed
+          });
+        } else if (status === 'abandoned') {
+          await sendTestAbandonedEmail({
+            to: recipientEmail,
+            testTakerName: inviterTestTakerName,
+            assessmentTitle,
+            organizationName: 'MindMil',
+            questionsAnswered: attempt.answers?.length || 0,
+            totalQuestions: assessment?.questions?.length || 0
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to send attempt notification:', err.message);
+  }
+}
+
 module.exports = {
   getAttempts,
   getAttempt,
@@ -1982,5 +2263,6 @@ module.exports = {
   verifyPasscode,
   logProctoringEvent,
   requestReportAccess,
-  abandonAttempt
+  abandonAttempt,
+  sendAttemptNotification
 };

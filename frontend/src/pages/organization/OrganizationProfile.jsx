@@ -74,9 +74,7 @@ const SectionCard = ({ icon: Icon, title, content, wordLimit, primaryColor, docu
         ) : (
           <>
             {!isEmpty && (
-              <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base max-w-none">
-                <p className="whitespace-pre-wrap text-slate-600 leading-relaxed">{content}</p>
-              </div>
+              <div className="prose prose-slate prose-p:text-slate-600 prose-p:leading-loose text-base max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
             )}
             {hasDocs && (
               <div className={`${!isEmpty ? 'mt-5 pt-5 border-t border-slate-100' : ''}`}>

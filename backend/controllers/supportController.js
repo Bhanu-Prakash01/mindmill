@@ -429,6 +429,54 @@ const getCoordinators = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Escalate a ticket to SuperAdmin
+ * @route   PUT /api/support/tickets/:id/escalate
+ * @access  Private (Admin)
+ */
+const escalateTicket = asyncHandler(async (req, res) => {
+  const { escalate } = req.body; // true = escalate, false = de-escalate
+
+  const ticket = await SupportTicket.findById(req.params.id);
+  if (!ticket) {
+    throw new ApiError(404, 'Ticket not found');
+  }
+
+  // Admin can escalate tickets in their org
+  if (req.user.role !== 'superadmin') {
+    if (req.user.role === 'admin') {
+      if (!ticket.organization) {
+        throw new ApiError(403, 'Access denied');
+      }
+      if (ticket.organization.toString() !== req.user.organization._id.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
+    } else {
+      throw new ApiError(403, 'Access denied');
+    }
+  }
+
+  ticket.escalated = escalate !== false;
+  ticket.escalatedAt = escalate !== false ? new Date() : null;
+  ticket.escalatedBy = escalate !== false ? req.user._id : null;
+
+  await ticket.save();
+
+  await ticket.populate([
+    { path: 'user', select: 'firstName lastName email' },
+    { path: 'organization', select: 'name slug' },
+    { path: 'assignedTo', select: 'firstName lastName' },
+    { path: 'escalatedBy', select: 'firstName lastName' },
+    { path: 'responses.from', select: 'firstName lastName role' },
+  ]);
+
+  res.json({
+    success: true,
+    message: escalate !== false ? 'Ticket escalated to SuperAdmin' : 'Escalation removed',
+    data: { ticket }
+  });
+});
+
 module.exports = {
   getTickets,
   getMyTickets,
@@ -437,6 +485,7 @@ module.exports = {
   addResponse,
   updateStatus,
   assignTicket,
+  escalateTicket,
   getStats,
   getCoordinators
 };

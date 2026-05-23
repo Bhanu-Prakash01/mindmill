@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Maximize2,
-  XCircle,
   Bug
 } from 'lucide-react';
 
@@ -31,7 +30,6 @@ const FiroTest = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [devMode, setDevMode] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [currentAttemptId, setCurrentAttemptId] = useState(urlAttemptId || null);
@@ -78,7 +76,25 @@ const FiroTest = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+    }, []);
+
+  // ── Dev Mode ──────────────────────────────────────────────
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
+
+  const autoFillAnswers = () => {
+    if (!questions.length) return;
+    const filled = {};
+    questions.forEach((_, idx) => {
+      filled[idx + 1] = Math.floor(Math.random() * 6) + 1;
+    });
+    setResponses(filled);
+  };
+
+  useEffect(() => {
+    if (isDevMode && !loading && questions.length > 0) {
+      autoFillAnswers();
+    }
+  }, [isDevMode, loading, questions]);
 
   const requestFullscreen = () => {
     const elem = document.documentElement;
@@ -275,14 +291,7 @@ const FiroTest = () => {
     }
   };
 
-  const toggleDevMode = () => {
-    if (!devMode) {
-      const filled = {};
-      for (let i = 1; i <= TOTAL_QUESTIONS; i++) filled[i] = 5;
-      setResponses(filled);
-    }
-    setDevMode(!devMode);
-  };
+
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -340,23 +349,42 @@ const FiroTest = () => {
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
-              <button onClick={toggleDevMode} className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${devMode ? 'bg-green-500 text-white' : 'bg-teal-100 text-teal-700'}`}>
-                {devMode ? 'Dev ON' : 'Dev'}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {devMode && (
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
+      {/* Dev Mode Banner */}
+      {isDevMode && (
+        <div className="bg-amber-50 border-b-2 border-amber-400">
           <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-            <span className="text-sm font-medium">DEV MODE ACTIVE - All PIRO answers auto-filled</span>
-            <button onClick={() => setDevMode(false)} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full">Turn OFF</button>
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <Bug className="w-4 h-4" />
+              <span className="font-semibold">DEV MODE</span>
+              <span className="text-amber-600">— Answers auto-filled for testing</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={autoFillAnswers}
+                className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-medium transition-colors"
+              >
+                Re-fill All
+              </button>
+              <button
+                onClick={() => {
+                  autoFillAnswers();
+                  setTimeout(() => handleSubmit(), 100);
+                }}
+                className="text-xs px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium transition-colors"
+              >
+                Auto-fill &amp; Submit
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      
       {showQuitConfirm && !isPublicAccess && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -395,7 +423,7 @@ const FiroTest = () => {
                       key={opt.value}
                       onClick={() => handleResponse(order, opt.value)}
                       aria-label={opt.label}
-                      className={`flex flex-col items-center justify-center w-20 h-20 rounded-lg border transition-all ${selected === opt.value ? 'bg-teal-600 text-white border-teal-600 scale-105' : 'bg-gray-50 text-gray-700 border-gray-300 hover:border-teal-400'}`}
+                      className={`flex flex-col items-center justify-center w-14 h-14 sm:w-20 sm:h-20 rounded-lg border transition-all ${selected === opt.value ? 'bg-teal-600 text-white border-teal-600 scale-105' : 'bg-gray-50 text-gray-700 border-gray-300 hover:border-teal-400'}`}
                     >
                       <span className="text-sm font-semibold">{opt.value}</span>
                       <span className="text-xs mt-1">{opt.label}</span>

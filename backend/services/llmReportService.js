@@ -957,10 +957,249 @@ const getFIROStaticData = (reportData) => {
   };
 };
 
+// ─────────────────────────────────────────────────────────────────
+// PCLA NARRATIVE GENERATORS
+// ─────────────────────────────────────────────────────────────────
+
+const PCLA_SYSTEM = `You are a senior organizational psychologist and executive coach specializing in learning agility and coachability assessment.
+Write in clear, authoritative prose — no bullet points, no JSON, no markdown headers.
+Address the hiring manager or HR professional reading this confidential PCLA™ report.
+Be specific, insightful, and grounded in research on adult learning, coachability, and professional development.
+CRITICAL TONE GUIDELINES:
+1. Adopt a polite, diplomatic, and highly constructive tone. Avoid blunt or direct language.
+2. Frame all development areas as opportunities for growth rather than deficits.
+3. Discuss the candidate's learning mindset, adaptability signals, and coaching ROI potential with nuance.`;
+
+const generatePclaCoverSummary = async (ci, band, archetype, radarScores, name) => {
+  return callLLM(
+    PCLA_SYSTEM,
+    `Write a 2-sentence executive headline for ${name}'s PCLA — Professional Coachability & Learning Agility Index report.
+Coachability Index: ${ci}/100 — Band: ${band} — Archetype: ${archetype}
+Radar Scores — Coachability: ${radarScores.Coachability || 0}%, Learning Orientation: ${radarScores['Learning Orientation'] || 0}%, Unlearning: ${radarScores['Unlearning Ability'] || 0}%, Tech Adaptability: ${radarScores['Technology Adaptability'] || 0}%, Reflection: ${radarScores['Reflection & Self-awareness'] || 0}%, Growth Drive: ${radarScores['Growth Drive'] || 0}%
+The summary should capture their learning agility signature and coaching ROI potential in 2 memorable sentences.
+Return ONLY the 2 sentences, no labels.`,
+    180
+  );
+};
+
+const generatePclaDeepProfile = async (ci, band, archetype, radarScores, dimScores, name) => {
+  const dimText = Object.entries(dimScores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k}: ${v}%`)
+    .join(', ');
+  return callLLM(
+    PCLA_SYSTEM,
+    `Write a 3-paragraph coachability deep-dive for ${name} based on their PCLA profile.
+Coachability Index: ${ci}/100 — Band: ${band} — Archetype: ${archetype}
+Dimension Scores: ${dimText}
+Para 1: Learning mindset and coachability disposition — how open they are to feedback, how they process developmental input, and their baseline receptivity to coaching.
+Para 2: Their adaptability and unlearning ability — how easily they let go of old patterns and embrace new approaches, technology, and ways of thinking.
+Para 3: Their reflection, self-awareness, and growth drive — what motivates their professional development and how they translate experience into wisdom.
+Each paragraph: 3–4 sentences. Psychologist-level depth, not generic HR boilerplate.
+Return ONLY the 3 paragraphs separated by blank lines.`,
+    520
+  );
+};
+
+const generatePclaLeadershipInsight = async (ci, band, archetype, radarScores, dimScores, strongest, weakest, name) => {
+  return callLLM(
+    PCLA_SYSTEM,
+    `Write 2 paragraphs on ${name}'s leadership development potential and team dynamics based on their PCLA profile.
+Coachability Index: ${ci}/100 — Archetype: ${archetype}
+Strongest Dimension: ${strongest} — Development Priority: ${weakest}
+Focus on how their coachability profile shapes their ability to grow into senior roles, respond to feedback from stakeholders, and navigate complex organizational dynamics.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generatePclaDevelopmentNarrative = async (ci, band, archetype, radarScores, strongest, weakest, name) => {
+  return callLLM(
+    PCLA_SYSTEM,
+    `Write 2 paragraphs on professional development opportunities for ${name} based on their PCLA profile.
+Coachability Index: ${ci}/100 — Band: ${band} — Archetype: ${archetype}
+Strongest: ${strongest} — Weakest: ${weakest}
+Identify the greatest coaching leverage point in their profile. Frame it constructively as a 12-month development focus with specific recommendations. Address how their learning style affects their response to coaching interventions.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generatePclaClosingInsight = async (ci, band, archetype, name) => {
+  return callLLM(
+    PCLA_SYSTEM,
+    `Write a 1-sentence manager's takeaway summarizing ${name}'s learning agility and coachability based on PCLA (Coachability Index: ${ci}/100, Band: ${band}, Archetype: ${archetype}). It must be a memorable, human takeaway about their development potential. Return ONLY the insight.`,
+    150
+  );
+};
+
+const generatePCLANarratives = async (reportData, testTaker) => {
+  const ci = reportData.coachabilityIndex || 0;
+  const band = reportData.band || 'N/A';
+  const archetype = reportData.archetype || 'Learning Professional';
+  const radarScores = reportData.radarScores || {};
+  const dimScores = reportData.dimensionScores || {};
+  const strongest = reportData.strongestDimension || (Object.entries(dimScores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A');
+  const weakest = reportData.weakestDimension || (Object.entries(dimScores).sort((a, b) => a[1] - b[1])[0]?.[0] || 'N/A');
+  const name = testTaker?.name || 'the candidate';
+
+  const toParas = (text) => (text || '').split(/\n\n+/).map(s => `<p>${s.trim()}</p>`).join('');
+
+  try {
+    const [coverSummary, deepProfile, leadershipInsight, developmentNarrative, closingInsight] =
+      await Promise.all([
+        generatePclaCoverSummary(ci, band, archetype, radarScores, name),
+        generatePclaDeepProfile(ci, band, archetype, radarScores, dimScores, name),
+        generatePclaLeadershipInsight(ci, band, archetype, radarScores, dimScores, strongest, weakest, name),
+        generatePclaDevelopmentNarrative(ci, band, archetype, radarScores, strongest, weakest, name),
+        generatePclaClosingInsight(ci, band, archetype, name),
+      ]);
+
+    return {
+      coverSummary,
+      deepProfileHtml: toParas(deepProfile),
+      leadershipHtml: toParas(leadershipInsight),
+      developmentHtml: toParas(developmentNarrative),
+      closingInsight,
+    };
+  } catch (err) {
+    console.error('PCLA narrative generation error:', err);
+    return {
+      coverSummary: `${name} presents a Coachability Index of ${ci}/100 (${band}), indicating their readiness to benefit from coaching and professional development interventions. Their learning agility profile provides valuable insights for maximizing training ROI.`,
+      deepProfileHtml: toParas(`${name}'s coachability profile reveals a ${archetype} learning personality. Their receptivity to feedback and developmental input shapes how effectively they translate experience into growth.\n\nTheir adaptability signals indicate how readily they embrace new approaches and technologies. This dimension of their profile determines how efficiently they can pivot when roles or strategies change.\n\nTheir growth drive and self-awareness complete the picture of their development potential. Together, these dimensions create a distinct coachability signature that predicts their response to various development interventions.`),
+      leadershipHtml: toParas(`${name}'s potential for leadership development is shaped by their learning agility profile. Their ability to absorb feedback and adapt behavior will be a key factor in their advancement trajectory.\n\nThe gap between their strongest and weakest coachability dimensions highlights where coaching investment will yield the highest return.`),
+      developmentHtml: toParas(`The primary coaching leverage point for ${name} lies in strengthening their ${weakest} dimension. A focused 12-month development plan should pair targeted interventions here with opportunities that leverage their strength in ${strongest}.\n\nTheir ${archetype} learning style suggests that experiential coaching methods combined with reflective practice will be most effective.`),
+      closingInsight: `${name}'s PCLA profile provides a clear roadmap for maximizing their development investment — focusing coaching where the ROI is highest and leveraging their natural learning strengths.`,
+    };
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+// ESJI (SJT) NARRATIVE GENERATORS
+// ─────────────────────────────────────────────────────────────────
+
+const ESJI_SYSTEM = `You are a senior executive assessment psychologist specializing in leadership under pressure and situational judgement.
+Write in clear, authoritative prose — no bullet points, no JSON, no markdown headers.
+Address the hiring manager or HR professional reading this confidential ESJI™ report.
+Be specific, insightful, and grounded in research on executive decision-making, crisis leadership, and management potential.
+CRITICAL TONE GUIDELINES:
+1. Adopt a polite, diplomatic, and highly constructive tone. Avoid blunt or direct language.
+2. Frame all development areas as opportunities for growth rather than deficits.
+3. Discuss the candidate's leadership signal, decision quality, and executive readiness with nuance.`;
+
+const generateEsjiCoverSummary = async (si, band, grade, percentile, radarScores, name) => {
+  return callLLM(
+    ESJI_SYSTEM,
+    `Write a 2-sentence executive headline for ${name}'s ESJI — Executive Situational Judgement Index report.
+Situational Index: ${si}/100 — Band: ${band} — Grade: ${grade} — Percentile: ${percentile}th
+Radar Scores — Composure: ${radarScores.Composure || 0}%, Decision Quality: ${radarScores['Decision Quality'] || 0}%, Crisis Communication: ${radarScores['Crisis Communication'] || 0}%, Stakeholder Handling: ${radarScores['Stakeholder Handling'] || 0}%, Business Continuity: ${radarScores['Business Continuity'] || 0}%, Resourcefulness: ${radarScores.Resourcefulness || 0}%, Escalation Judgement: ${radarScores['Escalation Judgement'] || 0}%
+The summary should capture their executive leadership signal and crisis decision-making profile in 2 memorable sentences.
+Return ONLY the 2 sentences, no labels.`,
+    180
+  );
+};
+
+const generateEsjiDeepProfile = async (si, band, grade, radarScores, dimScores, name) => {
+  const dimText = Object.entries(dimScores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k}: ${v}%`)
+    .join(', ');
+  return callLLM(
+    ESJI_SYSTEM,
+    `Write a 3-paragraph leadership under pressure deep-dive for ${name} based on their ESJI profile.
+Situational Index: ${si}/100 — Band: ${band} — Grade: ${grade}
+Dimension Scores: ${dimText}
+Para 1: Their core leadership signal under pressure — how they handle crisis, ambiguity, and high-stakes decision-making. What drives their situational judgement.
+Para 2: Their team and stakeholder dynamics — how they communicate during crisis, manage escalation, and maintain composure when leading others through uncertainty.
+Para 3: Their executive maturity and readiness — how their pattern across all dimensions signals readiness for larger roles, and what distinguishes their leadership approach.
+Each paragraph: 3–4 sentences. Executive assessment depth, not generic feedback.
+Return ONLY the 3 paragraphs separated by blank lines.`,
+    520
+  );
+};
+
+const generateEsjiLeadershipInsight = async (si, band, radarScores, strongest, weakest, name) => {
+  return callLLM(
+    ESJI_SYSTEM,
+    `Write 2 paragraphs on ${name}'s leadership style and team impact based on their ESJI profile.
+Situational Index: ${si}/100 — Band: ${band}
+Strongest Competency: ${strongest} — Development Priority: ${weakest}
+Radar: Composure=${radarScores.Composure || 0}%, Decision=${radarScores['Decision Quality'] || 0}%, Communication=${radarScores['Crisis Communication'] || 0}%, Stakeholder=${radarScores['Stakeholder Handling'] || 0}%, Continuity=${radarScores['Business Continuity'] || 0}%, Resourcefulness=${radarScores.Resourcefulness || 0}%, Escalation=${radarScores['Escalation Judgement'] || 0}%
+Focus on how their situational judgement profile shapes their leadership approach, their crisis response style, and the kind of team environments where they thrive and struggle.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generateEsjiDevelopmentNarrative = async (si, band, grade, radarScores, strongest, weakest, name) => {
+  return callLLM(
+    ESJI_SYSTEM,
+    `Write 2 paragraphs on professional development opportunities for ${name} based on their ESJI profile.
+Situational Index: ${si}/100 — Band: ${band} — Grade: ${grade}
+Strongest: ${strongest} — Weakest: ${weakest}
+Identify the highest-leverage development area in their leadership profile. Frame it constructively as a 12-month executive development focus. Address how their current situational judgement strengths can be leveraged to build their weaker areas.
+Return ONLY the 2 paragraphs separated by a blank line.`,
+    350
+  );
+};
+
+const generateEsjiClosingInsight = async (si, band, grade, name) => {
+  return callLLM(
+    ESJI_SYSTEM,
+    `Write a 1-sentence manager's takeaway summarizing ${name}'s executive leadership potential based on ESJI (Situational Index: ${si}/100, Band: ${band}, Grade: ${grade}). It must be a memorable, human takeaway about their crisis leadership and promotion readiness. Return ONLY the insight.`,
+    150
+  );
+};
+
+const generateSJTNarratives = async (reportData, testTaker) => {
+  const sjtData = reportData.sjtResults || reportData.attempt?.sjtResults || reportData.scores || reportData;
+  const si = sjtData.situationalIndex ?? Math.round(sjtData.percentage || 0);
+  const band = sjtData.band || 'Developing';
+  const grade = sjtData.grade || 'C';
+  const percentile = sjtData.percentile || 50;
+  const radarScores = sjtData.radar || {};
+  const dimScores = sjtData.dimensionScores || {};
+  const strongest = sjtData.strongestDimension || (Object.entries(dimScores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A');
+  const weakest = sjtData.weakestDimension || (Object.entries(dimScores).sort((a, b) => a[1] - b[1])[0]?.[0] || 'N/A');
+  const name = testTaker?.name || 'the candidate';
+
+  const toParas = (text) => (text || '').split(/\n\n+/).map(s => `<p>${s.trim()}</p>`).join('');
+
+  try {
+    const [coverSummary, deepProfile, leadershipInsight, developmentNarrative, closingInsight] =
+      await Promise.all([
+        generateEsjiCoverSummary(si, band, grade, percentile, radarScores, name),
+        generateEsjiDeepProfile(si, band, grade, radarScores, dimScores, name),
+        generateEsjiLeadershipInsight(si, band, radarScores, strongest, weakest, name),
+        generateEsjiDevelopmentNarrative(si, band, grade, radarScores, strongest, weakest, name),
+        generateEsjiClosingInsight(si, band, grade, name),
+      ]);
+
+    return {
+      coverSummary,
+      deepProfileHtml: toParas(deepProfile),
+      leadershipHtml: toParas(leadershipInsight),
+      developmentHtml: toParas(developmentNarrative),
+      closingInsight,
+    };
+  } catch (err) {
+    console.error('ESJI narrative generation error:', err);
+    return {
+      coverSummary: `${name} presents an Executive Situational Index of ${si}/100 (${band}, Grade ${grade}, ${percentile}th percentile), indicating their capacity for leadership under pressure and complex decision-making. Their profile provides a clear signal of their executive readiness and crisis management potential.`,
+      deepProfileHtml: toParas(`${name}'s ESJI profile reveals a distinct leadership signature shaped by their pattern across all seven executive competencies measured. Their strongest areas indicate where they naturally excel in high-stakes environments.\n\nTheir situational judgement under pressure reflects how they process complex scenarios, weigh competing priorities, and make decisions when stakes are high. This composite signal is the most reliable predictor of their crisis leadership capability.\n\nAcross all dimensions, their profile paints a picture of their executive maturity and readiness. Understanding this full pattern is essential for placing them in roles where they can succeed and grow.`),
+      leadershipHtml: toParas(`${name}'s leadership style is shaped by the interplay of their strongest and weakest competencies. Their approach to team leadership during crisis reflects their composite profile across all seven dimensions.\n\nThe gap between their peak competency (${strongest}) and development priority (${weakest}) provides clear direction for leadership coaching. Strengthening the weaker area while leveraging the stronger one creates the fastest path to executive readiness.`),
+      developmentHtml: toParas(`The highest-leverage development opportunity for ${name} centers around strengthening their ${weakest} competency. A focused 12-month executive development plan should pair targeted coaching here with stretch assignments that build on their strength in ${strongest}.\n\nTheir current profile at Band ${band} (Grade ${grade}) suggests that deliberate practice in real-world high-stakes scenarios, combined with structured reflection, will accelerate their readiness for larger leadership roles.`),
+      closingInsight: `${name}'s ESJI profile provides a clear signal of their executive leadership potential under pressure — focusing development on their competency gaps will unlock their readiness for broader leadership responsibility.`,
+    };
+  }
+};
+
 module.exports = {
   generateDISCNarratives,
   generateBig5Narratives,
   generateFIRONarratives,
+  generatePCLANarratives,
+  generateSJTNarratives,
   getDISCStaticData,
   getBig5StaticData,
   getFIROStaticData,

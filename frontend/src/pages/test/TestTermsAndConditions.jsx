@@ -155,7 +155,7 @@ const TestTermsAndConditions = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         {assessment?.bannerImage && (
-          <img src={`/${assessment.bannerImage}`} alt="" className="w-full h-36 object-cover" />
+          <img src={assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`} alt="" className="w-full h-36 object-cover" />
         )}
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-center">
@@ -355,7 +355,7 @@ const TestTermsAndConditions = () => {
 
         {/* Footer */}
         <div className="bg-gray-50 px-6 py-4 text-center text-sm text-gray-500">
-          Powered by MindMill Assessments
+          Powered by MindMil Assessments
         </div>
       </div>
     </div>

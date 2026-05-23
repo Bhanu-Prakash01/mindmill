@@ -14,8 +14,7 @@ import {
   Target,
   Maximize2,
   XCircle,
-  Bug,
-  Zap
+  Bug
 } from 'lucide-react';
 
 const DiscTest = () => {
@@ -39,7 +38,6 @@ const DiscTest = () => {
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
-  const [devMode, setDevMode] = useState(false);
   const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const attemptIdRef = useRef(attemptId);
@@ -128,6 +126,39 @@ const DiscTest = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // ── Dev Mode ──────────────────────────────────────────────
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
+
+  const autoFillAnswers = () => {
+    if (!questions.length) return;
+    const filled = {};
+    questions.forEach((q, idx) => {
+      const order = idx + 1;
+      const statements = q.statements?.length > 0 ? q.statements : (q.options || []);
+      if (statements.length >= 2) {
+        const indices = [...Array(statements.length).keys()];
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        const mostIdx = indices[0];
+        const leastIdx = indices[indices.length - 1];
+        filled[order] = {
+          questionId: q._id,
+          most: { statementIndex: mostIdx, trait: statements[mostIdx]?.trait, score: 1 },
+          least: { statementIndex: leastIdx, trait: statements[leastIdx]?.trait, score: -1 }
+        };
+      }
+    });
+    setResponses(filled);
+  };
+
+  useEffect(() => {
+    if (isDevMode && !loading && questions.length > 0) {
+      autoFillAnswers();
+    }
+  }, [isDevMode, loading, questions]);
 
   const fetchAssessment = async () => {
     try {
@@ -443,50 +474,8 @@ const DiscTest = () => {
     return colors[trait] || 'bg-gray-500';
   };
 
-  // Dev Mode: Fill all answers randomly (MOST/LEAST selection)
-  const fillAllAnswersDisc = () => {
-    const newResponses = {};
-    
-    questions.forEach((question, qIndex) => {
-      const questionOrder = qIndex + 1;
-      const statements = question.statements?.length > 0 ? question.statements : (question.options || []);
-      
-      if (statements.length >= 2) {
-        // Randomly select MOST (random statement)
-        const mostIndex = Math.floor(Math.random() * statements.length);
-        let leastIndex;
-        
-        // Ensure LEAST is different from MOST
-        do {
-          leastIndex = Math.floor(Math.random() * statements.length);
-        } while (leastIndex === mostIndex && statements.length > 1);
-        
-        newResponses[questionOrder] = {
-          questionId: question._id,
-          most: {
-            statementIndex: mostIndex,
-            trait: statements[mostIndex]?.trait,
-            score: 1
-          },
-          least: {
-            statementIndex: leastIndex,
-            trait: statements[leastIndex]?.trait,
-            score: -1
-          }
-        };
-      }
-    });
-    
-    setResponses(prev => ({ ...prev, ...newResponses }));
-    console.log('Dev Mode: DISC answers filled!');
-  };
 
-  const toggleDevMode = () => {
-    if (!devMode) {
-      fillAllAnswersDisc();
-    }
-    setDevMode(!devMode);
-  };
+
 
   if (loading) {
     return (
@@ -574,41 +563,42 @@ const DiscTest = () => {
                 Fullscreen
               </button>
 
-              <button
-                onClick={toggleDevMode}
-                className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                  devMode 
-                    ? 'bg-green-500 text-white hover:bg-green-600' 
-                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                }`}
-                title="Dev Mode: Auto-fill all answers"
-              >
-                {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
-                {devMode ? 'Dev Mode ON' : 'Dev Mode'}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Dev Mode Banner */}
-      {devMode && (
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      {isDevMode && (
+        <div className="bg-amber-50 border-b-2 border-amber-400">
           <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
               <Bug className="w-4 h-4" />
-              <span>DEV MODE ACTIVE - All DISC answers auto-filled</span>
+              <span className="font-semibold">DEV MODE</span>
+              <span className="text-amber-600">— Answers auto-filled for testing</span>
             </div>
-            <button
-              onClick={() => setDevMode(false)}
-              className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
-            >
-              Turn OFF
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={autoFillAnswers}
+                className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-medium transition-colors"
+              >
+                Re-fill All
+              </button>
+              <button
+                onClick={() => {
+                  autoFillAnswers();
+                  setTimeout(() => handleSubmit(), 100);
+                }}
+                className="text-xs px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium transition-colors"
+              >
+                Auto-fill &amp; Submit
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Instructions - Professional DISC Forced-Choice Format */}

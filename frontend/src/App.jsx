@@ -66,8 +66,10 @@ import ComprehensiveBig5Report from './pages/reports/ComprehensiveBig5Report';
 import HoganReport from './pages/reports/HoganReport';
 import FiroReport from './pages/reports/FiroReport';
 import SimpleReport from './pages/reports/SimpleReport';
+import SjtReport from './pages/reports/SjtReport';
 import SharedReport from './pages/reports/SharedReport';
 import PclaReport from './pages/reports/PclaReport';
+import EctiReport from './pages/reports/EctiReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -231,13 +233,13 @@ const AppRoutes = () => {
       <Route path="/reports/situational/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
-      <Route path="/reports/sjt/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/sjt/:attemptId" element={<SjtReport />} />
       <Route path="/reports/pcla/:attemptId" element={<PclaReport />} />
+      <Route path="/reports/ecti/:attemptId" element={<EctiReport />} />
       <Route path="/reports/disc/comprehensive/:attemptId" element={<ComprehensiveDiscReport />} />
       <Route path="/reports/big5/comprehensive/:attemptId" element={<ComprehensiveBig5Report />} />
       <Route path="/reports/:id" element={<ReportDetail />} />
     </Route>
-
     {/* SuperAdmin Routes (at root, auth required) */}
     <Route
     element={
@@ -283,7 +285,8 @@ const AppRoutes = () => {
      <Route path="/individual/assessments" element={<IndividualAssessments />} />
      <Route path="/individual/reports" element={<IndividualReports />} />
      <Route path="/individual/credits" element={<IndividualCredits />} />
-     <Route path="/individual/support" element={<IndividualSupport />} />
+      <Route path="/individual/support" element={<IndividualSupport />} />
+      <Route path="/individual/support/:id" element={<TicketDetail />} />
       <Route path="/individual/profile" element={<IndividualProfile />} />
       <Route path="/individual/resources" element={<UserResources />} />
     </Route>
@@ -589,7 +592,7 @@ const AppRoutes = () => {
       path="reports/sjt/:attemptId"
       element={
       <ProtectedRoute>
-      <SimpleReport />
+      <SjtReport />
       </ProtectedRoute>
       }
       />
@@ -598,6 +601,14 @@ const AppRoutes = () => {
       element={
       <ProtectedRoute>
       <PclaReport />
+      </ProtectedRoute>
+      }
+      />
+      <Route
+      path="reports/ecti/:attemptId"
+      element={
+      <ProtectedRoute>
+      <EctiReport />
       </ProtectedRoute>
       }
       />

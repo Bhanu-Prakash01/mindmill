@@ -157,7 +157,7 @@ Mike Johnson,mike.j@example.com,+91 9876543212`;
         </div>
 
         {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-4 mb-6 flex-wrap gap-2">
+        <div className="flex items-center justify-center gap-4 mb-6">
           <div className={`flex items-center gap-2 ${step >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
               1

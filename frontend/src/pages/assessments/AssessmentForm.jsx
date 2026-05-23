@@ -29,7 +29,7 @@ import {
 const SUBCATEGORY_MAP = {
   psychometric: ['FIRO-B', 'DISC', 'MBTI', 'Hogan'],
   personality: ['Big5'],
-  cognitive: ['Reasoning'],
+  cognitive: ['Reasoning', 'ECTI'],
   aptitude: ['General Aptitude'],
   professional: ['PCLA'],
 };
@@ -39,6 +39,7 @@ const SUBCATEGORY_LABELS = {
   'FIRO-B': 'Professional Interpersonal Relations Orientation (PIRO)',
   'Hogan': 'TraitMap Index',
   'PCLA': 'Professional Coachability & Learning Agility Index (PCLA™)',
+  'ECTI': 'Executive Critical Thinking Index (ECTI™)',
 };
 
 // Big5 trait configuration for question positions
@@ -130,6 +131,68 @@ const PREDEFINED_BIG5_QUESTIONS = {
  48: { text: "Have a lot of fun", trait: "E", direction: "positive", facet: 6 },
  49: { text: "Believe that there is no absolute right and wrong", trait: "O", direction: "negative", facet: 6 },
  50: { text: "Feel sympathy for those who are worse off than myself", trait: "A", direction: "positive", facet: 6 }
+};
+
+const HOGAN_SCALES = [
+  { key: 'HVP', name: 'Hogan Validation Profile', short: 'HVP', description: 'Measures straightforwardness, cooperation, and customer orientation', color: 'indigo' },
+  { key: 'HDS', name: 'Hogan Development Survey', short: 'HDS', description: 'Measures derailment risks and career impediments', color: 'red' },
+  { key: 'MVPI', name: 'Motives, Values, Preferences Inventory', short: 'MVPI', description: 'Measures values, interests, and driving forces', color: 'amber' },
+  { key: 'SCI', name: 'Strategic Competencies Inventory', short: 'SCI', description: 'Measures strategic thinking and problem-solving', color: 'emerald' },
+  { key: 'CPI', name: 'Clerical Potential Inventory', short: 'CPI', description: 'Measures potential for clerical/administrative roles', color: 'blue' },
+  { key: 'PAI', name: 'Potential Appraisal Inventory', short: 'PAI', description: 'Measures leadership potential and influence', color: 'purple' },
+  { key: 'SPI', name: 'Sales Potential Inventory', short: 'SPI', description: 'Measures potential for sales roles and customer engagement', color: 'cyan' }
+];
+
+const PREDEFINED_HOGAN_QUESTIONS = {
+  HVP: [
+    'I am honest in my dealings with others', 'I keep my promises and commitments',
+    'I treat others with respect and fairness', 'I am straightforward in my communication',
+    'I take responsibility for my actions', 'I consider how my behavior affects others',
+    'I value integrity in myself and others', 'I am reliable and dependable',
+    'I maintain ethical standards', 'I am trustworthy in professional settings'
+  ],
+  HDS: [
+    'I become impatient when things move slowly', 'I sometimes take on more than I can handle',
+    'I can be overly critical of myself', 'I occasionally neglect details in my work',
+    'I sometimes struggle with work-life balance', 'I can be resistant to feedback',
+    'I tend to worry about potential problems', 'I sometimes lack confidence in new situations',
+    'I can be stubborn about changing my approach', 'I occasionally lose temper under pressure'
+  ],
+  MVPI: [
+    'I am motivated by achievement and success', 'I value autonomy and independence',
+    'I enjoy working in a team environment', 'I am driven by recognition and awards',
+    'I value security and stability', 'I prefer variety and change in my work',
+    'I am motivated by helping others', 'I value creative expression',
+    'I am focused on financial rewards', 'I value personal growth and development'
+  ],
+  SCI: [
+    'I can analyze complex problems effectively', 'I develop strategic solutions to challenges',
+    'I think ahead and anticipate outcomes', 'I can integrate information from multiple sources',
+    'I identify patterns in complex data', 'I develop innovative approaches to problems',
+    'I can evaluate risks and benefits', 'I create solutions that address root causes',
+    'I can think through long-term implications', 'I develop comprehensive action plans'
+  ],
+  CPI: [
+    'I am detail-oriented in my work', 'I follow procedures accurately',
+    'I maintain accurate records', 'I am organized in my approach',
+    'I pay attention to detail in all tasks', 'I follow through on administrative tasks',
+    'I maintain consistency in my work', 'I am thorough in checking my work',
+    'I follow guidelines and protocols', 'I maintain orderly work processes'
+  ],
+  PAI: [
+    'I naturally take leadership in group situations', 'I am confident in directing others',
+    'I can inspire and motivate team members', 'I am comfortable making decisions',
+    'I can delegate effectively', 'I take initiative in difficult situations',
+    'I am persuasive in my communication', 'I can handle conflict constructively',
+    'I am motivated by leadership responsibilities', 'I can guide teams toward goals'
+  ],
+  SPI: [
+    'I enjoy interacting with customers', 'I am persuasive in sales situations',
+    'I am confident approaching new people', 'I can handle rejection positively',
+    'I am motivated by sales targets', 'I build rapport quickly with others',
+    'I can explain products effectively', 'I follow up on leads persistently',
+    'I can identify customer needs', 'I maintain positive attitude under pressure'
+  ]
 };
 
 // Helper function to determine Big5 question direction based on position
@@ -244,8 +307,8 @@ useEffect(() => {
  try {
  const response = await assessmentService.getAssessment(id);
  const assessment = response.data?.assessment;
-  if (assessment) {
-   setBannerPreview(assessment.bannerImage ? `/${assessment.bannerImage}` : '');
+if (assessment) {
+    setBannerPreview(assessment.bannerImage ? (assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`) : '');
    setFormData({
   title: assessment.title || '',
   description: assessment.description || '',
@@ -359,7 +422,7 @@ const fetchQuestions = async () => {
         const newId = response.data?.assessment?._id || response.assessment?._id;
         if (!newId) throw new Error('Failed to create assessment');
         if (questions.length > 0) {
-          await assessmentService.bulkCreateQuestions(newId, questions);
+          await assessmentService.bulkCreateQuestions(newId, questions.map(({ _id, ...q }) => q));
         }
       }
 
@@ -503,7 +566,10 @@ const handleEditQuestion = (question) => {
     type: question.type || 'mcq',
     dimension: question.dimension || '',
     marks: question.marks || 1,
+    trait: question.trait || '',
+    direction: question.direction || 'positive',
     options: question.options ? question.options.map(o => ({ ...o })) : [],
+    statements: question.statements ? question.statements.map(s => ({ ...s })) : [],
   });
 };
 
@@ -916,59 +982,133 @@ const handleDiscSelfPopulate = () => {
     }
   };
 
-  // Add DISC question
-const handleAddDiscQuestion = async () => {
- if (!newQuestion.questionText.trim()) {
-  toast.warning('Please enter a question');
-  return;
- }
- if (!newQuestion.statements || newQuestion.statements.length !== 4) {
-  toast.warning('DISC questions require exactly 4 statements');
-  return;
- }
- if (questions.length >= 24) {
-  toast.warning('Maximum 24 questions allowed for DISC');
-  return;
- }
-
- const questionNum = questions.length + 1;
- const discQuestion = {
- type: 'disc-ranking',
- questionText: newQuestion.questionText,
- statements: newQuestion.statements.map(s => ({
- text: s.text,
- trait: s.trait,
- score: 4
- })),
- options: newQuestion.statements.map((s, idx) => ({
- text: s.text,
- trait: s.trait,
- order: idx,
- score: 0
- })),
- order: questionNum,
- marks: 10,
- difficulty: 'basic',
- category: 'personality',
- dimension: 'DISC',
- isRequired: true,
- explanation: `This question measures ${newQuestion.statements.map(s => s.trait).join(', ')} tendencies.`,
- tags: ['disc', 'personality', 'behavioral']
- };
-
-  if (isEditing) {
-    try {
-      await assessmentService.createQuestion(id, discQuestion);
-      fetchQuestions();
-    } catch (error) {
-      console.error('Error adding DISC question:', error);
-      toast.error(error.response?.data?.message || 'Failed to add question');
+  const handleHoganPopulateAll = () => {
+    const total = 70;
+    const loaded = questions.length;
+    if (loaded >= total) {
+      toast.warning(`All ${total} Hogan questions are already loaded`);
       return;
     }
-  } else {
-    discQuestion._id = Date.now().toString();
-    setQuestions([...questions, discQuestion]);
+    if (!confirm(`This will add all ${total - loaded} predefined TraitMap Index demo questions. Continue?`)) return;
+
+    let order = loaded + 1;
+    const newQuestions = [];
+    HOGAN_SCALES.forEach(scale => {
+      const templates = PREDEFINED_HOGAN_QUESTIONS[scale.key];
+      if (!templates) return;
+      templates.forEach((text, idx) => {
+        newQuestions.push({
+          _id: Date.now() + newQuestions.length,
+          type: 'rating',
+          questionText: text,
+          dimension: scale.key,
+          marks: 5,
+          order: order++,
+          options: [
+            { text: 'Disagree', score: 1 }, { text: 'Slightly Disagree', score: 2 },
+            { text: 'Neutral', score: 3 }, { text: 'Slightly Agree', score: 4 },
+            { text: 'Agree', score: 5 }
+          ]
+        });
+      });
+    });
+
+    if (isEditing) {
+      setSaving(true);
+      assessmentService.bulkCreateQuestions(id, newQuestions.map(q => {
+        const { _id, ...rest } = q;
+        return rest;
+      }))
+        .then(() => fetchQuestions())
+        .catch(err => {
+          console.error('Error loading Hogan questions:', err);
+          toast.error('Failed to load Hogan questions');
+        })
+        .finally(() => setSaving(false));
+    } else {
+      setQuestions(prev => [...prev, ...newQuestions]);
+      toast.success(`Loaded ${newQuestions.length} TraitMap Index demo questions successfully.`);
+    }
+  };
+
+  const handleAddDiscQuestion = async () => {
+  if (!newQuestion.questionText.trim()) {
+   toast.warning('Please enter a question');
+   return;
   }
+  if (!newQuestion.statements || newQuestion.statements.length !== 4) {
+   toast.warning('DISC questions require exactly 4 statements');
+   return;
+  }
+  if (!newQuestion._editId && questions.length >= 24) {
+   toast.warning('Maximum 24 questions allowed for DISC');
+   return;
+  }
+
+  const questionNum = questions.length + 1;
+  const discQuestion = {
+  type: 'disc-ranking',
+  questionText: newQuestion.questionText,
+  statements: newQuestion.statements.map(s => ({
+  text: s.text,
+  trait: s.trait,
+  score: 4
+  })),
+  options: newQuestion.statements.map((s, idx) => ({
+  text: s.text,
+  trait: s.trait,
+  order: idx,
+  score: 0
+  })),
+  order: questionNum,
+  marks: 10,
+  difficulty: 'basic',
+  category: 'personality',
+  dimension: 'DISC',
+  isRequired: true,
+  explanation: `This question measures ${newQuestion.statements.map(s => s.trait).join(', ')} tendencies.`,
+  tags: ['disc', 'personality', 'behavioral']
+  };
+
+  if (newQuestion._editId) {
+    if (isEditing) {
+      try {
+        await assessmentService.updateQuestion(id, newQuestion._editId, discQuestion);
+        fetchQuestions();
+      } catch (error) {
+        console.error('Error updating DISC question:', error);
+        toast.error('Failed to update question');
+        return;
+      }
+    } else {
+      discQuestion._id = newQuestion._editId;
+      setQuestions(questions.map(q => q._id === newQuestion._editId ? { ...q, ...discQuestion } : q));
+    }
+  } else {
+    if (isEditing) {
+      try {
+        await assessmentService.createQuestion(id, discQuestion);
+        fetchQuestions();
+      } catch (error) {
+        console.error('Error adding DISC question:', error);
+        toast.error(error.response?.data?.message || 'Failed to add question');
+        return;
+      }
+    } else {
+      discQuestion._id = Date.now().toString();
+      setQuestions([...questions, discQuestion]);
+    }
+  }
+
+  setNewQuestion({
+    type: 'disc-ranking',
+    questionText: '',
+    statements: [],
+    options: [],
+    difficulty: 'basic',
+    dimension: 'DISC',
+    marks: 10,
+  });
   };
 
 
@@ -1025,7 +1165,7 @@ const removeOption = (index) => {
  </p>
  </div>
  </div>
-  <div className="flex items-center gap-2">
+   <div className="flex items-center gap-2 flex-wrap">
         {/* Save button — always visible */}
         <button
           onClick={handleSubmit}
@@ -1191,10 +1331,10 @@ const removeOption = (index) => {
   )}
   </div>
 
-  <div className="grid grid-cols-2 gap-4">
- <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Category <span className="text-red-500">*</span>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Category <span className="text-red-500">*</span>
  </label>
  <select
  value={formData.category}
@@ -1256,6 +1396,8 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
     let configOverrides = {};
     if (sub === 'PCLA') {
       configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 35, duration: 25, randomizeQuestions: false, randomizeOptions: false };
+    } else if (sub === 'ECTI') {
+      configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 36, randomizeQuestions: false, randomizeOptions: false, timeBound: { enabled: true, durationMinutes: 45 } };
     } else if (sub === 'Big5') {
       configOverrides = { isLockedStructure: true, isEditable: false, totalQuestions: 50, randomizeQuestions: false, randomizeOptions: false };
     } else if (sub === 'DISC') {
@@ -1331,13 +1473,13 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  <Info className="w-6 h-6 text-blue-600 " />
  </div>
  <div className="flex-1">
- <h3 className="text-lg font-medium text-blue-900 mb-2">
- Big Five Personality Test Structure
- </h3>
- <p className="text-blue-800 mb-4">
- You can customize the 50 questions while maintaining the official scoring formula.
- Each trait requires exactly 10 questions with specific positions.
- </p>
+  <h3 className="text-lg font-medium text-blue-900 mb-2">
+  Big Five Personality Test — Demo Questions
+  </h3>
+  <p className="text-blue-800 mb-4">
+  Pre-loaded <strong>demo questions</strong> below — customize each question and answer freely.
+  Each trait requires exactly 10 questions with specific positions.
+  </p>
 
  {/* Trait Question Counts */}
  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mb-4">
@@ -1372,43 +1514,43 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  return allComplete ? (
  <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
  <CheckCircle className="w-5 h-5" />
- <span>All 50 questions configured correctly!</span>
- </div>
- ) : (
- <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
- <AlertCircle className="w-5 h-5" />
- <span>Add {50 - questions.length} more questions to complete the assessment</span>
- </div>
- );
- })()}
- </div>
- </div>
- </div>
+  <span>All 50 demo questions configured correctly!</span>
+  </div>
+  ) : (
+  <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
+  <AlertCircle className="w-5 h-5" />
+  <span>Add {50 - questions.length} more demo questions to complete the assessment — use Auto-fill to load predefined templates</span>
+  </div>
+  );
+  })()}
+  </div>
+  </div>
+  </div>
 
- {/* Add New Big5 Question */}
- {questions.length < 50 && (
- <div className="bg-gray-50 rounded-lg p-4">
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-sm font-medium text-gray-900 ">
- Add Big5 Question ({questions.length + 1} of 50)
- </h3>
- <div className="flex gap-2">
- <button
- onClick={handleSelfPopulate}
- className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-colors"
- title="Auto-fill with predefined question for this position"
- >
- <Sparkles className="w-4 h-4 mr-1.5" />
- Auto-fill Q{questions.length + 1}
- </button>
-                <button
-                  onClick={handlePopulateAll}
-                  className="inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
-                  title="Automatically add all remaining predefined Big5 questions"
-                >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add All Questions ({50 - questions.length})
-                </button>
+  {/* Add New Big5 Question */}
+  {questions.length < 50 && (
+  <div className="bg-gray-50 rounded-lg p-4">
+  <div className="flex items-center justify-between mb-4">
+  <h3 className="text-sm font-medium text-gray-900 ">
+  Add Big5 Question ({questions.length + 1} of 50)
+  </h3>
+  <div className="flex gap-2">
+  <button
+  onClick={handleSelfPopulate}
+  className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-colors"
+  title="Auto-fill with predefined demo question for this position"
+  >
+  <Sparkles className="w-4 h-4 mr-1.5" />
+  Demo Auto-fill Q{questions.length + 1}
+  </button>
+                 <button
+                   onClick={handlePopulateAll}
+                   className="inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
+                   title="Automatically add all remaining predefined Big5 demo questions"
+                 >
+                   <Plus className="w-4 h-4 mr-1.5" />
+                   Add All Demo Questions ({50 - questions.length})
+                 </button>
  </div>
  </div>
  <div className="space-y-4">
@@ -1423,10 +1565,10 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  />
  </div>
 
- <div className="grid grid-cols-3 gap-4">
- <div>
- <label className="block text-sm text-gray-700 mb-1">
- Trait (Question {questions.length + 1})
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <div>
+  <label className="block text-sm text-gray-700 mb-1">
+  Trait (Question {questions.length + 1})
  </label>
  <select
  value={newQuestion.trait || ''}
@@ -1507,41 +1649,64 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  )}
 
- {/* Questions List */}
- <div className="space-y-3">
- <h3 className="text-sm font-medium text-gray-900 ">
- Questions ({questions.length}/50)
- </h3>
- {questions.map((question, index) => (
- <div
- key={question._id}
- className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg"
- >
- <div className="flex items-center gap-2 text-gray-400">
- <span className="text-sm font-medium w-6">{index + 1}</span>
- </div>
- <div className="flex-1">
- <p className="text-sm text-gray-900 ">{question.questionText}</p>
- <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
- <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
- {question.trait === 'E' ? 'Extraversion' :
- question.trait === 'A' ? 'Agreeableness' :
- question.trait === 'C' ? 'Conscientiousness' :
- question.trait === 'N' ? 'Neuroticism' : 'Openness'}
- </span>
- <span className={question.direction === 'positive' ? 'text-green-600' : 'text-red-600'}>
- {question.direction === 'positive' ? '+' : '-'}
- </span>
- </div>
- </div>
- <button
- onClick={() => handleDeleteQuestion(question._id)}
- className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
- >
- <Trash2 className="w-4 h-4" />
- </button>
- </div>
- ))}
+  {/* Questions List */}
+  <div className="space-y-2">
+  <h3 className="text-sm font-semibold text-gray-700">Questions ({questions.length}/50) <span className="text-xs font-normal text-gray-400">— click ✏️ to edit</span></h3>
+  {questions.map((question, index) => (
+  editingId === question._id && editFormData ? (
+    <div key={question._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+      <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{index + 1}</span>
+      <div className="flex-1 space-y-2">
+        <textarea value={editFormData.questionText} onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" />
+        <div className="flex items-center gap-2">
+          <select value={editFormData.trait || ''} onChange={(e) => setEditFormData({ ...editFormData, trait: e.target.value })} className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm">
+            <option value="">Trait</option>
+            <option value="E">Extraversion (E)</option>
+            <option value="A">Agreeableness (A)</option>
+            <option value="C">Conscientiousness (C)</option>
+            <option value="N">Neuroticism (N)</option>
+            <option value="O">Openness (O)</option>
+          </select>
+          <select value={editFormData.direction || 'positive'} onChange={(e) => setEditFormData({ ...editFormData, direction: e.target.value })} className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm">
+            <option value="positive">Positive (+)</option>
+            <option value="negative">Negative (-)</option>
+          </select>
+          <input type="number" value={editFormData.marks} onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })} className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" min="1" />
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"><Save className="w-3.5 h-3.5 mr-1 inline" /> Save</button>
+          <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </div>
+    </div>
+  ) : (
+  <div
+  key={question._id}
+  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
+  >
+  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{index + 1}</span>
+  <div className="flex-1">
+  <p className="text-sm text-gray-900 ">{question.questionText}</p>
+  <div className="flex items-center gap-2 mt-1">
+  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs">
+  {question.trait === 'E' ? 'Extraversion' :
+  question.trait === 'A' ? 'Agreeableness' :
+  question.trait === 'C' ? 'Conscientiousness' :
+  question.trait === 'N' ? 'Neuroticism' : 'Openness'}
+  </span>
+  <span className={`text-xs px-2 py-0.5 rounded ${question.direction === 'positive' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+  {question.direction === 'positive' ? '+' : '-'}
+  </span>
+  <span className="text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{question.marks || 5} marks</span>
+  </div>
+  </div>
+  <div className="flex items-center gap-1">
+    <button onClick={() => handleEditQuestion(question)} className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg" title="Edit question"><Pencil className="w-4 h-4" /></button>
+    <button onClick={() => handleDeleteQuestion(question._id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" title="Delete question"><Trash2 className="w-4 h-4" /></button>
+  </div>
+  </div>
+  )
+  ))}
  </div>
  </div>
  )}
@@ -1555,71 +1720,73 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  <Info className="w-6 h-6 text-blue-600 " />
  </div>
  <div className="flex-1">
- <h3 className="text-lg font-medium text-blue-900 mb-2">
- DISC Personality Assessment Structure
- </h3>
- <p className="text-blue-800 mb-4">
- You can customize the 24 questions while maintaining the official DISC scoring formula.
- Each question has 4 statements representing D, I, S, and C traits.
- </p>
+  <h3 className="text-lg font-medium text-blue-900 mb-2">
+  DISC Personality Assessment Structure
+  </h3>
+  <p className="text-blue-800 mb-4">
+  Pre-loaded <strong>demo questions</strong> below — customize each question and answer freely
+  to match your assessment needs.
+  </p>
 
- {/* Trait Info */}
- <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
- {[
- { trait: 'D', name: 'Dominance', color: 'red', desc: 'Direct, Results-oriented' },
- { trait: 'I', name: 'Influence', color: 'amber', desc: 'Outgoing, Enthusiastic' },
- { trait: 'S', name: 'Steadiness', color: 'green', desc: 'Patient, Humble' },
- { trait: 'C', name: 'Conscientiousness', color: 'blue', desc: 'Analytical, Precise' }
- ].map(({ trait, name, color, desc }) => (
- <div key={trait} className="bg-white rounded-lg p-3 text-center border-2 border-gray-200 ">
- <div className={`font-bold text-${color}-600 text-lg`}>{trait}</div>
- <div className="text-gray-600 text-xs">{name}</div>
- <div className="text-xs text-gray-500 mt-1">{desc}</div>
- </div>
- ))}
- </div>
+  {/* Trait Info */}
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+  {[
+  { trait: 'D', name: 'Dominance', color: 'red', desc: 'Direct, Results-oriented' },
+  { trait: 'I', name: 'Influence', color: 'amber', desc: 'Outgoing, Enthusiastic' },
+  { trait: 'S', name: 'Steadiness', color: 'green', desc: 'Patient, Humble' },
+  { trait: 'C', name: 'Conscientiousness', color: 'blue', desc: 'Analytical, Precise' }
+  ].map(({ trait, name, color, desc }) => (
+  <div key={trait} className="bg-white rounded-lg p-3 text-center border-2 border-gray-200 ">
+  <div className={`font-bold text-${color}-600 text-lg`}>{trait}</div>
+  <div className="text-gray-600 text-xs">{name}</div>
+  <div className="text-xs text-gray-500 mt-1">{desc}</div>
+  </div>
+  ))}
+  </div>
 
- {/* Validation Message */}
- {questions.length === 24 ? (
- <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
- <CheckCircle className="w-5 h-5" />
- <span>All 24 DISC questions configured correctly!</span>
- </div>
- ) : (
- <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
- <AlertCircle className="w-5 h-5" />
- <span>Add {24 - questions.length} more questions to complete the assessment</span>
- </div>
- )}
- </div>
- </div>
- </div>
+  {/* Validation Message */}
+  {questions.length === 24 ? (
+  <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+  <CheckCircle className="w-5 h-5" />
+  <span>All 24 DISC demo questions configured correctly!</span>
+  </div>
+  ) : (
+  <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
+  <AlertCircle className="w-5 h-5" />
+  <span>Add {24 - questions.length} more demo questions to complete the assessment — use Auto-fill to load predefined templates</span>
+  </div>
+  )}
+  </div>
+  </div>
+  </div>
 
- {/* Add New DISC Question */}
- {questions.length < 24 && (
- <div className="bg-gray-50 rounded-lg p-4">
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-sm font-medium text-gray-900 ">
- Add DISC Question ({questions.length + 1} of 24)
- </h3>
- <div className="flex gap-2">
- <button
- onClick={handleDiscSelfPopulate}
- className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-colors"
- title="Auto-fill with predefined question for this position"
- >
- <Sparkles className="w-4 h-4 mr-1.5" />
- Auto-fill Q{questions.length + 1}
- </button>
-                <button
-                  onClick={handleDiscPopulateAll}
-                  className="inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
-                  title="Automatically add all remaining predefined DISC questions"
-                >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add All Questions ({24 - questions.length})
-                </button>
- </div>
+  {/* Add New DISC Question */}
+  {(questions.length < 24 || newQuestion._editId) && (
+  <div className="bg-gray-50 rounded-lg p-4">
+  <div className="flex items-center justify-between mb-4">
+  <h3 className="text-sm font-medium text-gray-900 ">
+  {newQuestion._editId ? 'Edit DISC Question' : `Add DISC Question (${questions.length + 1} of 24)`}
+  </h3>
+  {!newQuestion._editId && (
+  <div className="flex gap-2">
+  <button
+  onClick={handleDiscSelfPopulate}
+  className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-colors"
+  title="Auto-fill with predefined demo question for this position"
+  >
+  <Sparkles className="w-4 h-4 mr-1.5" />
+  Demo Auto-fill Q{questions.length + 1}
+  </button>
+                  <button
+                    onClick={handleDiscPopulateAll}
+                    className="inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
+                    title="Automatically add all remaining predefined DISC demo questions"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    Add All Demo Questions ({24 - questions.length})
+                  </button>
+  </div>
+  )}
  </div>
  <div className="space-y-4">
  <div>
@@ -1633,76 +1800,125 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  />
  </div>
 
- {/* Statements */}
- <div className="space-y-3">
- <label className="block text-sm text-gray-700 ">Statements (4 required - D, I, S, C)</label>
- {(newQuestion.statements || []).map((statement, idx) => (
- <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 ">
- <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
- statement.trait === 'D' ? 'bg-red-500' :
- statement.trait === 'I' ? 'bg-amber-500' :
- statement.trait === 'S' ? 'bg-green-500' : 'bg-blue-500'
- }`}>
- {statement.trait}
- </span>
- <span className="flex-1 text-gray-700 text-sm">{statement.text}</span>
- </div>
- ))}
- {(!newQuestion.statements || newQuestion.statements.length === 0) && (
- <p className="text-sm text-gray-500 italic">Click "Auto-fill Q{questions.length + 1}" to populate statements</p>
- )}
- </div>
+  {/* Statements */}
+  <div className="space-y-3">
+  <label className="block text-sm text-gray-700 ">Statements (4 required - D, I, S, C)</label>
+  {['D', 'I', 'S', 'C'].map((trait) => {
+    const stmt = (newQuestion.statements || []).find(s => s.trait === trait) || { trait, text: '' };
+    const colors = {
+      D: 'border-red-200 bg-red-50', I: 'border-amber-200 bg-amber-50',
+      S: 'border-green-200 bg-green-50', C: 'border-blue-200 bg-blue-50'
+    };
+    return (
+      <div key={trait} className={`flex items-center gap-3 p-3 rounded-lg border ${colors[trait]}`}>
+        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+          trait === 'D' ? 'bg-red-500' : trait === 'I' ? 'bg-amber-500' :
+          trait === 'S' ? 'bg-green-500' : 'bg-blue-500'
+        }`}>
+          {trait}
+        </span>
+        <input
+          type="text"
+          value={stmt.text}
+          onChange={(e) => {
+            const updated = [...(newQuestion.statements || [])];
+            const idx = updated.findIndex(s => s.trait === trait);
+            if (idx >= 0) {
+              updated[idx] = { ...updated[idx], text: e.target.value };
+            } else {
+              updated.push({ trait, text: e.target.value, score: 4 });
+            }
+            setNewQuestion({ ...newQuestion, statements: updated });
+          }}
+          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+          placeholder={`Enter ${trait} statement...`}
+        />
+      </div>
+    );
+  })}
+  </div>
 
- <button
- onClick={handleAddDiscQuestion}
- disabled={!newQuestion.questionText.trim() || !newQuestion.statements || newQuestion.statements.length !== 4 || questions.length >= 24}
- className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
- >
- Add Question {questions.length + 1}
- </button>
+  <button
+  onClick={handleAddDiscQuestion}
+  disabled={!newQuestion.questionText.trim() || !newQuestion.statements || newQuestion.statements.length !== 4 || (questions.length >= 24 && !newQuestion._editId)}
+  className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+  {newQuestion._editId ? 'Update Question' : `Add Question ${questions.length + 1}`}
+  </button>
  </div>
  </div>
  )}
 
- {/* Questions List */}
- <div className="space-y-3">
- <h3 className="text-sm font-medium text-gray-900 ">
- Questions ({questions.length}/24)
- </h3>
- {questions.map((question, index) => (
- <div
- key={question._id}
- className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg"
- >
- <div className="flex items-center gap-2 text-gray-400">
- <span className="text-sm font-medium w-6">{index + 1}</span>
- </div>
- <div className="flex-1">
- <p className="text-sm text-gray-900 ">{question.questionText}</p>
- <div className="flex items-center gap-2 mt-2">
- {question.statements?.map((s, i) => (
- <span key={i} className={`px-2 py-1 text-xs rounded ${
- s.trait === 'D' ? 'bg-red-100 text-red-700 ' :
- s.trait === 'I' ? 'bg-amber-100 text-amber-700 ' :
- s.trait === 'S' ? 'bg-green-100 text-green-700 ' :
- 'bg-blue-100 text-blue-700 '
- }`}>
- {s.trait}
- </span>
- ))}
- </div>
- </div>
- <button
- onClick={() => handleDeleteQuestion(question._id)}
- className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
- >
- <Trash2 className="w-4 h-4" />
- </button>
- </div>
- ))}
- </div>
- </div>
- )}
+  {/* Questions List */}
+  <div className="space-y-2">
+  <h3 className="text-sm font-semibold text-gray-700">Questions ({questions.length}/24) <span className="text-xs font-normal text-gray-400">— click ✏️ to edit</span></h3>
+  {questions.map((question, index) => (
+  editingId === question._id && editFormData ? (
+    <div key={question._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+      <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-amber-100 text-amber-700 text-xs font-bold rounded-full">{index + 1}</span>
+      <div className="flex-1 space-y-2">
+        <textarea value={editFormData.questionText} onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" />
+        <div className="space-y-1.5">
+          <label className="block text-xs font-medium text-gray-600">Statements (D, I, S, C)</label>
+          {['D', 'I', 'S', 'C'].map((trait) => {
+            const stmt = editFormData.statements?.find(s => s.trait === trait) || { trait, text: '' };
+            const colors = { D: 'bg-red-100 text-red-700 border-red-200', I: 'bg-amber-100 text-amber-700 border-amber-200', S: 'bg-green-100 text-green-700 border-green-200', C: 'bg-blue-100 text-blue-700 border-blue-200' };
+            return (
+              <div key={trait} className="flex items-center gap-2">
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${trait === 'D' ? 'bg-red-500' : trait === 'I' ? 'bg-amber-500' : trait === 'S' ? 'bg-green-500' : 'bg-blue-500'}`}>{trait}</span>
+                <input type="text" value={stmt.text} onChange={(e) => {
+                  const updated = [...(editFormData.statements || [])];
+                  const idx = updated.findIndex(s => s.trait === trait);
+                  if (idx >= 0) updated[idx] = { ...updated[idx], text: e.target.value };
+                  else updated.push({ trait, text: e.target.value });
+                  setEditFormData({ ...editFormData, statements: updated });
+                }} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder={`${trait} statement...`} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"><Save className="w-3.5 h-3.5 mr-1 inline" /> Save</button>
+          <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </div>
+    </div>
+  ) : (
+  <div
+  key={question._id}
+  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
+  >
+  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-amber-100 text-amber-700 text-xs font-bold rounded-full">{index + 1}</span>
+   <div className="flex-1 min-w-0">
+   <p className="text-sm text-gray-900">{question.questionText}</p>
+   <div className="flex flex-wrap gap-1.5 mt-1.5">
+   {question.statements?.map((s, i) => (
+   <span key={i} className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${
+   s.trait === 'D' ? 'bg-red-100 text-red-700 ' :
+   s.trait === 'I' ? 'bg-amber-100 text-amber-700 ' :
+   s.trait === 'S' ? 'bg-green-100 text-green-700 ' :
+   'bg-blue-100 text-blue-700 '
+   }`}>
+   <span className="font-bold">{s.trait}</span>
+   <span>{s.text}</span>
+   </span>
+   ))}
+   </div>
+   </div>
+   <div className="flex items-center gap-1 flex-shrink-0">
+   <button onClick={() => handleEditQuestion(question)} className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg" title="Edit question">
+   <Pencil className="w-4 h-4" />
+   </button>
+   <button onClick={() => handleDeleteQuestion(question._id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" title="Delete question">
+   <Trash2 className="w-4 h-4" />
+   </button>
+   </div>
+  </div>
+  )
+  ))}
+  </div>
+  </div>
+  )}
 
   {/* ── PCLA Questions Panel ── */}
   {activeTab === 'questions' && formData.category === 'professional' && formData.subCategory === 'PCLA' && (
@@ -1718,8 +1934,8 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
               Professional Coachability &amp; Learning Agility Index (PCLA™)
             </h3>
             <p className="text-emerald-800 text-sm mb-4">
-              PCLA™ uses a fixed 35-scenario question bank measuring 8 coachability dimensions.
-              The questions are pre-validated and locked — use the button below to load them all at once.
+              Pre-loaded <strong>demo questions</strong> below — customize each question and answer freely
+              to match your assessment needs.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
               {[
@@ -1741,12 +1957,12 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
             {questions.length === 35 ? (
               <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
                 <CheckCircle className="w-5 h-5" />
-                <span>All 35 PCLA™ questions loaded and ready!</span>
+                <span>All 35 PCLA™ demo questions loaded — customize as needed!</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
                 <AlertCircle className="w-5 h-5" />
-                <span>{35 - questions.length} questions remaining — click &ldquo;Load All Questions&rdquo; below</span>
+                <span>{35 - questions.length} demo questions remaining — click &ldquo;Load Demo Questions&rdquo; below</span>
               </div>
             )}
           </div>
@@ -1757,8 +1973,8 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
       {questions.length < 35 && (
         <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 35</p>
-            <p className="text-xs text-gray-500 mt-0.5">All 35 scenarios will be added in the correct order</p>
+            <p className="text-sm font-medium text-gray-900">Demo questions loaded: {questions.length} / 35</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 35 demo scenarios will be added — edit them freely after loading</p>
           </div>
           <button
             onClick={handlePclaPopulateAll}
@@ -1766,25 +1982,7 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            {saving ? 'Loading...' : `Load All ${35 - questions.length} Questions`}
-          </button>
-        </div>
-      )}
-
-      {/* Load button */}
-      {questions.length < 35 && (
-        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 35</p>
-            <p className="text-xs text-gray-500 mt-0.5">All 35 scenarios will be added in the correct order</p>
-          </div>
-          <button
-            onClick={handlePclaPopulateAll}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            {saving ? 'Loading...' : `Load All ${35 - questions.length} Questions`}
+            {saving ? 'Loading...' : `Load All ${35 - questions.length} Demo Questions`}
           </button>
         </div>
       )}
@@ -1792,7 +1990,7 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
       {/* Questions list with inline edit */}
       {questions.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-700">Loaded Questions ({questions.length}/35)</h3>
+          <h3 className="text-sm font-semibold text-gray-700">Demo Questions ({questions.length}/35) <span className="text-xs font-normal text-gray-400">— click ✏️ to customize each</span></h3>
           {questions.map((q, idx) => (
             editingId === q._id && editFormData ? (
               /* Inline edit mode for this question */
@@ -1928,7 +2126,144 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
      </div>
    )}
 
-     {activeTab === 'questions' && questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && (
+  {/* ─── ECTI™ Questions Panel ─────────────────────────────── */}
+  {activeTab === 'questions' && formData.subCategory === 'ECTI' && (
+    <div className="space-y-6">
+      {/* Info banner */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-indigo-100 rounded-lg flex-shrink-0">
+            <Info className="w-6 h-6 text-indigo-700" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-indigo-900 mb-1">
+              Executive Critical Thinking Index (ECTI™) — Pre-configured Assessment
+            </h3>
+            <p className="text-indigo-800 text-sm mb-4">
+              The ECTI™ is a <strong>locked 36-question psychometric instrument</strong> with proprietary weighted-judgement scoring.
+              Questions are scenario-based and evaluate executive decision quality across 4 clusters and 20+ dimensions.
+              <span className="text-indigo-600 font-medium"> Questions cannot be edited to preserve psychometric integrity.</span>
+            </p>
+
+            {/* Cluster grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+              {[
+                { cluster: 'Operational Judgement', q: 8, color: 'blue', icon: '⚙️' },
+                { cluster: 'Strategic Decision Quality', q: 8, color: 'violet', icon: '♟️' },
+                { cluster: 'Stakeholder / Client Maturity', q: 8, color: 'emerald', icon: '🤝' },
+                { cluster: 'Executive Leadership Maturity', q: 12, color: 'amber', icon: '👑' },
+              ].map(({ cluster, q, icon }) => (
+                <div key={cluster} className="bg-white rounded-lg p-3 text-center border border-indigo-100">
+                  <div className="text-xl mb-1">{icon}</div>
+                  <div className="font-bold text-indigo-700">{q} Q</div>
+                  <div className="text-gray-600 text-xs mt-0.5 leading-tight">{cluster}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dimension pills */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wider">Dimensions Measured</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'Problem Framing', 'Stakeholder Judgement', 'Analytical Evaluation', 'Systems Thinking',
+                  'Risk Evaluation', 'Execution Thinking', 'Bias Awareness', 'People Judgement',
+                  'Decision Quality', 'Strategic Judgement', 'Ethical Reasoning', 'Leadership Communication',
+                  'Executive Influence', 'Organizational Judgement', 'Client Leadership', 'Sustainable Leadership',
+                  'Evidence Integration', 'Crisis Management', 'Strategic Balance', 'Leadership Continuity Thinking',
+                  'Ethical Leadership', 'Trust-based Decision Quality', 'Strategic Ambiguity Handling',
+                  'Accountability Maturity', 'Enterprise Thinking', 'Leadership Judgement', 'Crisis Integrity',
+                  'Strategic Foresight', 'Adaptive Leadership', 'Executive Readiness',
+                ].map(d => (
+                  <span key={d} className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">{d}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Scoring bands */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wider">Scoring Bands</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                {[
+                  { range: '126–144', band: 'Elite Executive Thinker', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+                  { range: '108–125', band: 'Strong Strategic Leader', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+                  { range: '90–107',  band: 'Solid Functional Leader', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+                  { range: '72–89',   band: 'Emerging Leader', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+                  { range: 'Below 72', band: 'Execution-focused', color: 'bg-red-100 text-red-800 border-red-200' },
+                ].map(({ range, band, color }) => (
+                  <div key={range} className={`border rounded px-2 py-1.5 ${color}`}>
+                    <div className="font-bold">{range}</div>
+                    <div>{band}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {questions.length === 36 ? (
+              <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+                <CheckCircle className="w-5 h-5" />
+                <span>All 36 ECTI™ questions are loaded and ready.</span>
+              </div>
+            ) : questions.length > 0 ? (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
+                <AlertCircle className="w-5 h-5" />
+                <span>{questions.length}/36 questions loaded. Use the seed runner to populate all questions.</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-indigo-700 bg-indigo-100 p-3 rounded-lg">
+                <Lock className="w-5 h-5" />
+                <span>Questions will be loaded automatically when you run the seed command: <code className="bg-indigo-200 px-1 rounded text-xs">npm run seed</code></span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Read-only question list */}
+      {questions.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700">
+            ECTI™ Questions ({questions.length}/36)
+            <span className="ml-2 text-xs font-normal text-gray-400">— locked psychometric instrument, view-only</span>
+          </h3>
+          {questions.map((q, idx) => (
+            <div key={q._id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">
+                {idx + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-900">{q.questionText?.split('\n')[0]}</p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  {q.dimension && (
+                    <span className="inline-block text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded px-2 py-0.5">{q.dimension}</span>
+                  )}
+                  {q.cluster && (
+                    <span className="inline-block text-xs bg-violet-50 text-violet-700 border border-violet-200 rounded px-2 py-0.5">{q.cluster}</span>
+                  )}
+                  <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{q.marks || 4} marks</span>
+                </div>
+                {q.options?.length > 0 && (
+                  <div className="flex flex-col gap-0.5 mt-2">
+                    {q.options.map((opt, oi) => (
+                      <span key={oi} className={`text-xs px-2 py-0.5 rounded ${opt.isCorrect ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-white border border-gray-100 text-gray-500'}`}>
+                        {['A', 'B', 'C', 'D'][oi]}. {opt.text}
+                        {opt.score !== undefined && <span className="ml-1 text-gray-400">({opt.score})</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex-shrink-0">
+                <Lock className="w-4 h-4 text-gray-300" title="Locked — ECTI psychometric instrument" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+     {activeTab === 'questions' && questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
@@ -1944,8 +2279,8 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
             <div className="flex-1">
               <h3 className="text-lg font-medium text-blue-900 mb-2">MBTI Assessment Structure</h3>
               <p className="text-blue-800 text-sm mb-4">
-                MBTI uses 32 bipolar questions measuring 4 dimensions (8 questions per dimension).
-                Each question presents a pair of opposing statements — test takers rate which side resonates more.
+                Pre-loaded <strong>demo questions</strong> below — customize each question and answer freely
+                to match your assessment needs.
               </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
                 {[
@@ -1963,12 +2298,12 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
               {questions.length === 32 ? (
                 <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
                   <CheckCircle className="w-5 h-5" />
-                  <span>All 32 MBTI questions loaded!</span>
+                  <span>All 32 MBTI demo questions loaded — customize as needed!</span>
                 </div>
               ) : (
                 <div className="text-amber-700 bg-amber-100 p-3 rounded-lg text-sm">
                   <AlertCircle className="w-4 h-4 inline mr-1" />
-                  Use the button below to load all 32 predefined MBTI questions at once
+                  Load all 32 predefined MBTI demo questions below — customize freely after loading
                 </div>
               )}
             </div>
@@ -1977,8 +2312,8 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
 
         <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Questions loaded: {questions.length} / 32</p>
-            <p className="text-xs text-gray-500 mt-0.5">All 32 questions will be added with correct dimension mapping</p>
+            <p className="text-sm font-medium text-gray-900">Demo questions loaded: {questions.length} / 32</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 32 demo questions will be added with correct dimension mapping — edit them after loading</p>
           </div>
           <button
             onClick={handleMbtiPopulateAll}
@@ -1986,16 +2321,291 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            {saving ? 'Loading...' : `Load All ${32 - questions.length} Questions`}
+            {saving ? 'Loading...' : `Load All ${32 - questions.length} Demo Questions`}
           </button>
         </div>
 
+      {/* Questions list with inline edit */}
+      {questions.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700">Demo Questions ({questions.length}/32) <span className="text-xs font-normal text-gray-400">— click ✏️ to customize each</span></h3>
+          {questions.map((q, idx) =>
+            editingId === q._id && editFormData ? (
+              /* Inline edit mode */
+              <div key={q._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-blue-100 text-blue-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                <div className="flex-1 space-y-2">
+                  <textarea value={editFormData.questionText} onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" />
+                  <div className="flex items-center gap-2">
+                    <select value={editFormData.type} onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })} className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm">
+                      <option value="mcq">MCQ</option>
+                      <option value="text">Text</option>
+                      <option value="rating">Rating</option>
+                    </select>
+                    <input type="text" value={editFormData.dimension} onChange={(e) => setEditFormData({ ...editFormData, dimension: e.target.value })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Dimension" />
+                    <input type="number" value={editFormData.marks} onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })} className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" min="1" />
+                  </div>
+                  {editFormData.type === 'mcq' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600">Options</label>
+                      {editFormData.options?.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <input type="text" value={opt.text} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], text: e.target.value }; setEditFormData({ ...editFormData, options: u }); }} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder={`Option ${oi + 1}`} />
+                          <input type="number" value={opt.score} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], score: parseInt(e.target.value) || 0 }; setEditFormData({ ...editFormData, options: u }); }} className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Score" />
+                          <button onClick={() => { if (editFormData.options.length <= 2) { toast.warning('Minimum 2 options required'); return; } setEditFormData({ ...editFormData, options: editFormData.options.filter((_, i) => i !== oi) }); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                      <button onClick={() => setEditFormData({ ...editFormData, options: [...editFormData.options, { text: '', score: 0, isCorrect: false }] })} className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Add Option</button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"><Save className="w-3.5 h-3.5 mr-1 inline" /> Save</button>
+                    <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Normal display mode */
+              <div key={q._id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-blue-100 text-blue-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900">{q.questionText}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {q.dimension && <span className="inline-block text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5">{q.dimension}</span>}
+                    <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5 capitalize">{q.type}</span>
+                    <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{q.marks} mark{q.marks !== 1 ? 's' : ''}</span>
+                  </div>
+                  {q.options?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {q.options.map((opt, oi) => (
+                        <span key={oi} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">{opt.text}{opt.score !== undefined ? <span className="ml-1 text-gray-400">({opt.score})</span> : ''}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleEditQuestion(q)} className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg" title="Edit question"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => handleDeleteQuestion(q._id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" title="Delete question"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
       </div>
     )}
 
-    {activeTab === 'questions' && !questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && (
- <div className="space-y-6">
- {/* Add New Question */}
+    {activeTab === 'questions' && !questionsLoading && formData.category === 'psychometric' && formData.subCategory === 'Hogan' && (
+      <div className="space-y-6">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-indigo-100 rounded-lg">
+              <Info className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-medium text-indigo-900 mb-2">TraitMap Index — Demo Questions</h3>
+              <p className="text-indigo-800 text-sm mb-4">
+                Pre-loaded <strong>demo questions</strong> below — customize each question and answer freely
+                to match your assessment needs.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+                {HOGAN_SCALES.map(({ key, name, short, description, color }) => (
+                  <div key={key} className="bg-white rounded-lg p-3 text-center border border-indigo-100">
+                    <div className={`font-bold text-lg`}>{short}</div>
+                    <div className="text-gray-600 text-xs mt-0.5 leading-tight">{name}</div>
+                  </div>
+                ))}
+              </div>
+              {questions.length >= 70 ? (
+                <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
+                  <span>All 70 TraitMap Index demo questions loaded — customize as needed!</span>
+                </div>
+              ) : (
+                <div className="text-amber-700 bg-amber-100 p-3 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  Load all 70 predefined TraitMap Index demo questions below — customize freely after loading
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Demo questions loaded: {questions.length} / 70</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 70 demo questions will be added with correct scale mapping — edit them after loading</p>
+          </div>
+          <button
+            onClick={handleHoganPopulateAll}
+            disabled={saving || questions.length >= 70}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {saving ? 'Loading...' : `Load All ${70 - questions.length} Demo Questions`}
+          </button>
+        </div>
+
+        {questions.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-700">Demo Questions ({questions.length}/70) <span className="text-xs font-normal text-gray-400">— click ✏️ to customize each</span></h3>
+            {questions.map((q, idx) =>
+              editingId === q._id && editFormData ? (
+                <div key={q._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                  <div className="flex-1 space-y-2">
+                    <textarea value={editFormData.questionText} onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" />
+                    <div className="flex items-center gap-2">
+                      <select value={editFormData.type} onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })} className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm">
+                        <option value="mcq">MCQ</option>
+                        <option value="text">Text</option>
+                        <option value="rating">Rating</option>
+                      </select>
+                      <input type="text" value={editFormData.dimension} onChange={(e) => setEditFormData({ ...editFormData, dimension: e.target.value })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Scale (e.g. HVP)" />
+                      <input type="number" value={editFormData.marks} onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })} className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" min="1" />
+                    </div>
+                    {editFormData.type === 'mcq' && (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-gray-600">Options</label>
+                        {editFormData.options?.map((opt, oi) => (
+                          <div key={oi} className="flex items-center gap-2">
+                            <input type="text" value={opt.text} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], text: e.target.value }; setEditFormData({ ...editFormData, options: u }); }} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder={`Option ${oi + 1}`} />
+                            <input type="number" value={opt.score} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], score: parseInt(e.target.value) || 0 }; setEditFormData({ ...editFormData, options: u }); }} className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Score" />
+                            <button onClick={() => { if (editFormData.options.length <= 2) { toast.warning('Minimum 2 options required'); return; } setEditFormData({ ...editFormData, options: editFormData.options.filter((_, i) => i !== oi) }); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ))}
+                        <button onClick={() => setEditFormData({ ...editFormData, options: [...editFormData.options, { text: '', score: 0, isCorrect: false }] })} className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Add Option</button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"><Save className="w-3.5 h-3.5 mr-1 inline" /> Save</button>
+                      <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div key={q._id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900">{q.questionText}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {q.dimension && <span className="inline-block text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded px-2 py-0.5">{q.dimension}</span>}
+                      <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5 capitalize">{q.type}</span>
+                      <span className="inline-block text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{q.marks} mark{q.marks !== 1 ? 's' : ''}</span>
+                    </div>
+                    {q.options?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {q.options.map((opt, oi) => (
+                          <span key={oi} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">{opt.text}{opt.score !== undefined ? <span className="ml-1 text-gray-400">({opt.score})</span> : ''}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleEditQuestion(q)} className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg" title="Edit question"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteQuestion(q._id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" title="Delete question"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    )}
+
+    {activeTab === 'questions' && !questionsLoading && formData.category === 'psychometric' && formData.subCategory === 'FIRO-B' && (
+      <div className="space-y-6">
+        {!isEditing ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+            <div className="flex items-center justify-center gap-2 text-amber-700 mb-2">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-medium">Save the assessment first to add PIRO questions</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Please save the assessment before adding PIRO questions. Once saved, you'll be able to access the dedicated PIRO question editor.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-purple-100 rounded-lg flex-shrink-0">
+                  <Info className="w-6 h-6 text-purple-700" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-purple-900 mb-2">
+                    {SUBCATEGORY_LABELS['FIRO-B'] || 'Professional Interpersonal Relations Orientation (PIRO)'}
+                  </h3>
+                  <p className="text-purple-800 text-sm mb-4">
+                    The PIRO (Professional Interpersonal Relations Orientation) assessment measures interpersonal needs
+                    across three dimensions: <strong>Inclusion</strong>, <strong>Control</strong>, and <strong>Affection</strong>.
+                    Each dimension has an Expressed and Wanted component, yielding 6 trait scales with 9 questions each (54 total).
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mb-4">
+                    {[
+                      { key: 'eI', name: 'Expressed Inclusion', short: 'eI' },
+                      { key: 'wI', name: 'Wanted Inclusion', short: 'wI' },
+                      { key: 'eC', name: 'Expressed Control', short: 'eC' },
+                      { key: 'wC', name: 'Wanted Control', short: 'wC' },
+                      { key: 'eA', name: 'Expressed Affection', short: 'eA' },
+                      { key: 'wA', name: 'Wanted Affection', short: 'wA' },
+                    ].map(({ key, name, short }) => (
+                      <div key={key} className="bg-white rounded-lg p-3 text-center border border-purple-100">
+                        <div className="font-bold text-purple-600">{short}</div>
+                        <div className="text-gray-600 text-xs mt-1">{name}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 text-purple-700 bg-purple-100 p-3 rounded-lg">
+                    <Info className="w-5 h-5 flex-shrink-0" />
+                    <span>Manage all 54 PIRO questions using the dedicated question editor — add/edit questions organized by trait.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {questions.length > 0 ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                <div className="flex items-center justify-center gap-2 text-green-700 mb-2">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">{questions.length} PIRO questions already added</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Manage all 54 PIRO questions using the dedicated question editor — add/edit questions organized by trait.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+                <div className="flex items-center justify-center gap-2 text-amber-700 mb-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-medium">No PIRO questions configured yet</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  No questions added yet. Use the dedicated PIRO question editor to add all 54 questions organized by trait.
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  const prefix = orgSlug ? `/o/${orgSlug}` : '';
+                  navigate(`${prefix}/assessments/${id}/questions/firo`);
+                }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                Open PIRO Question Editor
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )}
+
+    {activeTab === 'questions' && !questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'psychometric' && formData.subCategory === 'FIRO-B') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && (
+  <div className="space-y-6">
+  {/* Add New Question */}
  <div className="bg-gray-50 rounded-lg p-4">
   <h3 className="text-sm font-medium text-gray-900 mb-4">{newQuestion._editId ? 'Edit Question' : 'Add New Question'}</h3>
  <div className="space-y-4">
@@ -2091,46 +2701,83 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  </div>
  </div>
 
- {/* Questions List */}
- <div className="space-y-3">
- <h3 className="text-sm font-medium text-gray-900 ">
- Questions ({questions.length})
- </h3>
- {questions.map((question, index) => (
- <div
- key={question._id}
- className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg"
- >
- <div className="flex items-center gap-2 text-gray-400">
- <GripVertical className="w-4 h-4" />
- <span className="text-sm font-medium">{index + 1}</span>
- </div>
-  <div className="flex-1">
-  <p className="text-sm text-gray-900 ">{question.questionText}</p>
-  <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-  <span className="capitalize">{question.type}</span>
-  {question.dimension && <span>Dimension: {question.dimension}</span>}
-  <span>{question.marks} mark{question.marks !== 1 ? 's' : ''}</span>
-  </div>
-  </div>
-  <div className="flex items-center gap-1">
-  <button
-  onClick={() => handleFormEdit(question)}
-  className="p-2 text-indigo-400 hover:bg-indigo-50 rounded-lg"
-  title="Edit question"
+  {/* Questions List */}
+  <div className="space-y-2">
+  <h3 className="text-sm font-semibold text-gray-700">Questions ({questions.length}) <span className="text-xs font-normal text-gray-400">— click ✏️ to edit</span></h3>
+  {questions.map((question, index) => (
+  editingId === question._id && editFormData ? (
+    <div key={question._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+      <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{index + 1}</span>
+      <div className="flex-1 space-y-2">
+        <textarea value={editFormData.questionText} onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" />
+        <div className="flex items-center gap-2">
+          <select value={editFormData.type} onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value, options: e.target.value === 'mcq' ? editFormData.options || [{ text: '', score: 0 }] : [] })} className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm">
+            <option value="mcq">MCQ</option>
+            <option value="text">Text</option>
+            <option value="rating">Rating</option>
+          </select>
+          <input type="text" value={editFormData.dimension} onChange={(e) => setEditFormData({ ...editFormData, dimension: e.target.value })} className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Dimension" />
+          <input type="number" value={editFormData.marks} onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })} className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" min="1" />
+        </div>
+        {editFormData.type === 'mcq' && (
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-gray-600">Options</label>
+            {editFormData.options?.map((opt, oi) => (
+              <div key={oi} className="flex items-center gap-2">
+                <input type="text" value={opt.text} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], text: e.target.value }; setEditFormData({ ...editFormData, options: u }); }} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder={`Option ${oi + 1}`} />
+                <input type="number" value={opt.score} onChange={(e) => { const u = [...editFormData.options]; u[oi] = { ...u[oi], score: parseInt(e.target.value) || 0 }; setEditFormData({ ...editFormData, options: u }); }} className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm" placeholder="Score" />
+                <button onClick={() => { if (editFormData.options.length <= 2) { toast.warning('Minimum 2 options required'); return; } setEditFormData({ ...editFormData, options: editFormData.options.filter((_, i) => i !== oi) }); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+            <button onClick={() => setEditFormData({ ...editFormData, options: [...editFormData.options, { text: '', score: 0 }] })} className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Add Option</button>
+          </div>
+        )}
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"><Save className="w-3.5 h-3.5 mr-1 inline" /> Save</button>
+          <button onClick={handleInlineEditCancel} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+        </div>
+      </div>
+    </div>
+  ) : (
+  <div
+  key={question._id}
+  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
   >
-  <Pencil className="w-4 h-4" />
-  </button>
-  <button
-  onClick={() => handleDeleteQuestion(question._id)}
-  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-  >
-  <Trash2 className="w-4 h-4" />
-  </button>
-  </div>
-  </div>
+  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{index + 1}</span>
+   <div className="flex-1">
+   <p className="text-sm text-gray-900 ">{question.questionText}</p>
+   <div className="flex items-center gap-2 mt-1">
+   <span className="text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5 capitalize">{question.type}</span>
+   {question.dimension && <span className="text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{question.dimension}</span>}
+   <span className="text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">{question.marks} mark{question.marks !== 1 ? 's' : ''}</span>
+   </div>
+   {question.options?.length > 0 && (
+     <div className="flex flex-wrap gap-1.5 mt-1.5">
+       {question.options.map((opt, oi) => (
+         <span key={oi} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">{opt.text}{opt.score !== undefined ? <span className="ml-1 text-gray-400">({opt.score})</span> : ''}</span>
+       ))}
+     </div>
+   )}
+   </div>
+   <div className="flex items-center gap-1">
+   <button
+   onClick={() => handleEditQuestion(question)}
+   className="p-1.5 text-indigo-400 hover:bg-indigo-50 rounded-lg"
+   title="Edit question"
+   >
+   <Pencil className="w-4 h-4" />
+   </button>
+   <button
+   onClick={() => handleDeleteQuestion(question._id)}
+   className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
+   >
+   <Trash2 className="w-4 h-4" />
+   </button>
+   </div>
+   </div>
+  )
   ))}
-  </div>
+   </div>
   </div>
   )}
 

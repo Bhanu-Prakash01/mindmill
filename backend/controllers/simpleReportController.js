@@ -62,6 +62,7 @@ const getSimpleResults = asyncHandler(async (req, res) => {
       passed,
       breakdown,
       testTaker,
+      reportId: attempt.report,
       assessment: {
         _id: assessment._id,
         title: assessment.title,
@@ -169,31 +170,53 @@ function calculateScore(attempt, assessment) {
   let maxScore = 0;
   const breakdown = {};
 
-  // Situational Judgement: category = 'situational'
+  // Situational Judgement (ESJI): category = 'situational'
   if (category === 'situational' || subCategory === 'Situational Judgement') {
-    // Count correct MCQ answers, max 10
-    let correctCount = 0;
+    // Use stored SJT results from the scoring service if available
+    if (attempt.sjtResults && attempt.sjtResults.situationalIndex !== undefined) {
+      const r = attempt.sjtResults;
+      const situationalIndex = r.situationalIndex;
+      totalScore = r.rawScore || 0;
+      maxScore = r.maxRaw || 160;
 
-    answers.forEach(answer => {
-      const question = answer.question;
-      if (!question || question.type !== 'mcq') return;
+      breakdown.type = 'Situational Judgement';
+      breakdown.total = situationalIndex;
+      breakdown.maxScore = 100;
+      breakdown.situationalIndex = situationalIndex;
+      breakdown.band = r.band;
+      breakdown.grade = r.grade;
+      breakdown.promotionReadiness = r.promotionReadiness;
+      breakdown.bandDescription = r.bandDescription;
+      breakdown.strongestDimension = r.strongestDimension;
+      breakdown.weakestDimension = r.weakestDimension;
+      breakdown.summary = r.summary;
+      breakdown.radar = r.radar;
+      breakdown.dimensionScores = r.dimensionScores;
+    } else {
+      // Fallback: weighted scoring across all options
+      let weightedScore = 0;
+      let maxPossibleScore = 0;
 
-      const selectedOption = answer.selectedOption;
-      if (selectedOption === null || selectedOption === undefined) return;
+      answers.forEach(answer => {
+        const question = answer.question;
+        if (!question || question.type !== 'mcq') return;
 
-      const options = question.options || [];
-      const selected = options[selectedOption];
+        const maxWeight = Math.max(...(question.options || []).map(o => o.weight || 0), 4);
+        maxPossibleScore += maxWeight;
 
-      if (selected && (selected.isCorrect === true || selected.score > 0)) {
-        correctCount++;
-      }
-    });
+        if (answer.selectedOption === null || answer.selectedOption === undefined) return;
+        const selected = (question.options || [])[answer.selectedOption];
+        if (selected) weightedScore += selected.weight || 1;
+      });
 
-    totalScore = correctCount;
-    maxScore = 10;
-    breakdown.total = correctCount;
-    breakdown.maxScore = 10;
-    breakdown.type = 'Situational Judgement';
+      const pct = maxPossibleScore > 0 ? Math.round((weightedScore / maxPossibleScore) * 100) : 0;
+      totalScore = weightedScore;
+      maxScore = maxPossibleScore;
+      breakdown.type = 'Situational Judgement';
+      breakdown.total = pct;
+      breakdown.maxScore = 100;
+      breakdown.situationalIndex = pct;
+    }
   }
   // Cognitive Reasoning: category = 'cognitive'
   else if (category === 'cognitive' || subCategory === 'Reasoning') {

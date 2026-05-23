@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { User, Assessment, Organization } = require('../models');
 const { generateToken } = require('../config/jwt');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
-const { sendPasswordResetEmail } = require('../services/emailService');
+const { sendPasswordResetEmail, sendEmailVerificationOtp } = require('../services/emailService');
 
 /**
  * @desc    Login user
@@ -126,7 +126,7 @@ const getMe = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const updateProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, phone, jobTitle, avatar, city, isCoordinator } = req.body;
+  const { firstName, lastName, phone, jobTitle, avatar, city, isCoordinator, email } = req.body;
 
   const updateData = {};
   if (firstName !== undefined) updateData.firstName = firstName;
@@ -137,6 +137,16 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (city !== undefined) updateData.city = city;
   if (isCoordinator !== undefined && ['admin', 'superadmin'].includes(req.user.role)) {
     updateData.isCoordinator = isCoordinator;
+  }
+  if (email !== undefined && req.user.role === 'superadmin') {
+    const existingUser = await User.findOne({ 
+      email: email.toLowerCase().trim(),
+      _id: { $ne: req.user._id }
+    });
+    if (existingUser) {
+      throw new ApiError(400, 'Email already exists');
+    }
+    updateData.email = email.toLowerCase().trim();
   }
 
   const user = await User.findByIdAndUpdate(
@@ -242,7 +252,7 @@ const refreshToken = asyncHandler(async (req, res) => {
 const getDemoOrganizations = asyncHandler(async (req, res) => {
   const { Organization } = require('../models');
 
-  const organizations = await Organization.find({ isActive: true })
+  const organizations = await Organization.find({ isActive: true, slug: { $ne: 'mindmil' } })
     .select('name slug description primaryColor secondaryColor logo')
     .sort({ name: 1 });
 
@@ -614,17 +624,88 @@ const registerFreeTrial = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate JWT token
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
+  user.emailVerificationOtp = hashedOtp;
+  user.emailVerificationOtpExpire = Date.now() + 10 * 60 * 1000;
+  user.isEmailVerified = false;
+  await user.save();
+
+  await sendEmailVerificationOtp({
+    to: user.email,
+    fullName: user.fullName,
+    otp
+  }).catch(err => {
+    console.error('Failed to send verification email:', err.message);
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Account created! Please check your email for the verification code.',
+    data: {
+      email: user.email,
+      needsVerification: true,
+      freeTrialAssessment: {
+        id: assessment._id,
+        title: assessment.title,
+        category: assessment.category,
+        subCategory: assessment.subCategory
+      },
+      orgSlug: org?.slug || null
+    }
+  });
+});
+
+/**
+ * @desc    Verify email with OTP
+ * @route   POST /api/auth/verify-email-otp
+ * @access  Public
+ */
+const verifyEmailOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new ApiError(400, 'Email and OTP are required');
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  if (user.isEmailVerified) {
+    throw new ApiError(400, 'Email already verified');
+  }
+
+  if (!user.emailVerificationOtp || !user.emailVerificationOtpExpire) {
+    throw new ApiError(400, 'No verification code found. Please request a new one.');
+  }
+
+  if (Date.now() > user.emailVerificationOtpExpire) {
+    throw new ApiError(400, 'Verification code has expired. Please request a new one.');
+  }
+
+  const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+  if (hashedOtp !== user.emailVerificationOtp) {
+    throw new ApiError(400, 'Invalid verification code');
+  }
+
+  user.isEmailVerified = true;
+  user.emailVerificationOtp = null;
+  user.emailVerificationOtpExpire = null;
+  await user.save();
+
   const token = generateToken({
     userId: user._id,
     email: user.email,
     role: user.role
   });
 
-  // Persist token in response the same way login does
-  res.status(201).json({
+  res.json({
     success: true,
-    message: 'Account created successfully! Your free trial is ready.',
+    message: 'Email verified successfully',
     data: {
       user: {
         id: user._id,
@@ -637,18 +718,53 @@ const registerFreeTrial = asyncHandler(async (req, res) => {
         organization: user.organization || null,
         freeTrialUsed: user.freeTrialUsed,
         freeTrialAssessmentId: user.freeTrialAssessmentId,
-        avatar: user.avatar || null,
-        lastLogin: null
+        avatar: user.avatar || null
       },
-      freeTrialAssessment: {
-        id: assessment._id,
-        title: assessment.title,
-        category: assessment.category,
-        subCategory: assessment.subCategory
-      },
-      orgSlug: org?.slug || null,
       token
     }
+  });
+});
+
+/**
+ * @desc    Resend verification OTP
+ * @route   POST /api/auth/resend-verification-otp
+ * @access  Public
+ */
+const resendVerificationOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  if (user.isEmailVerified) {
+    throw new ApiError(400, 'Email already verified');
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
+  user.emailVerificationOtp = hashedOtp;
+  user.emailVerificationOtpExpire = Date.now() + 10 * 60 * 1000;
+  await user.save();
+
+  await sendEmailVerificationOtp({
+    to: user.email,
+    fullName: user.fullName,
+    otp
+  }).catch(err => {
+    console.error('Failed to send verification email:', err.message);
+  });
+
+  res.json({
+    success: true,
+    message: 'Verification code resent to your email'
   });
 });
 
@@ -665,5 +781,7 @@ module.exports = {
   resetPassword,
   demoLogin,
   registerFreeTrial,
-  getFreeTrialAssessments
+  getFreeTrialAssessments,
+  verifyEmailOtp,
+  resendVerificationOtp
 };

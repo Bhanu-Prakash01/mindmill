@@ -19,6 +19,10 @@ const assessmentSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  bannerPublicId: {
+    type: String,
+    default: null
+  },
 category: {
     type: String,
     enum: ['psychometric', 'personality', 'cognitive', 'aptitude', 'situational', 'professional'],
@@ -26,7 +30,7 @@ category: {
   },
   subCategory: {
     type: String,
-    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'Situational Judgement', 'General Aptitude', 'PCLA'],
+    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'ECTI', 'Situational Judgement', 'General Aptitude', 'PCLA'],
     default: ''
   },
   isLockedStructure: {
@@ -183,7 +187,8 @@ category: {
         cognitive: 8,
         aptitude: 3,
         situational: 3,
-        professional: 3
+        professional: 3,
+        ecti: 5
       };
       return creditMap[this.category] || 5;
     }
@@ -223,6 +228,13 @@ assessmentSchema.index({ isActive: 1, isPublished: 1 });
 assessmentSchema.index({ title: 'text', description: 'text' });
 assessmentSchema.index({ 'unlockedBy.organization': 1 });
 assessmentSchema.index({ 'memberAllocations.organization': 1, 'memberAllocations.member': 1 });
+
+// Resolve effective credit cost for this assessment
+// Priority: creditCostPerTest (assessment override) > creditsRequired (category default) > 5
+assessmentSchema.methods.getEffectiveCreditCost = function () {
+  if (this.creditCostPerTest != null) return this.creditCostPerTest;
+  return this.creditsRequired ?? 5;
+};
 
 // Pre-save middleware to update total questions count
 assessmentSchema.pre('save', function(next) {

@@ -362,10 +362,610 @@ async function sendPasswordResetEmail({ to, fullName, organizationName, resetLin
   return info;
 }
 
+async function sendEmailVerificationOtp({ to, fullName, otp }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+
+          <tr>
+            <td style="background-color:#4f46e5;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Email Verification
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    Verify Your Email Address
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Hello ${fullName},
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Thank you for signing up! Use the OTP below to verify your email address and complete your registration.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 40px;" align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="background-color:#f3f4f6;border-radius:8px;padding:20px 40px;letter-spacing:12px;font-size:36px;font-weight:700;color:#4f46e5;font-family:monospace;">
+                    ${otp}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 40px;">
+              <p style="color:#6b7280;font-size:13px;line-height:1.6;margin:0;text-align:center;">
+                This OTP expires in 10 minutes. If you did not create an account, please ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Sent via MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: 'Verify Your Email — MindMil',
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}
+
+async function sendReportShareEmail({ to, sharedByName, assessmentTitle, shareUrl, expiresInDays }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#4f46e5;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Report Shared With You
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    ${assessmentTitle}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                <strong>${sharedByName}</strong> has shared their <strong>${assessmentTitle}</strong> report with you.
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Click the button below to view the report. The link will expire in ${expiresInDays} days.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px 0;" align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="background-color:#4f46e5;border-radius:6px;">
+                    <a href="${shareUrl}" target="_blank" style="display:inline-block;padding:14px 40px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:6px;">
+                      View Report &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px 0;">
+              <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin:0;text-align:center;">
+                Trouble with the button? Copy this link:<br>
+                <a href="${shareUrl}" style="color:#4f46e5;word-break:break-all;">${shareUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Sent via MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: `${sharedByName} shared a ${assessmentTitle} report with you`,
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}
+
+async function sendTestTakerThankYouEmail({ to, testTakerName, assessmentTitle, organizationName }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#4f46e5;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Thank You
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    Assessment Completed
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Hi ${testTakerName},
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Thank you for completing the <strong>${assessmentTitle}</strong> assessment.
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Your responses have been successfully submitted and saved. If the organization has made the results visible to you, you may be able to view them in your dashboard.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 32px;">
+              <p style="margin:0;font-size:14px;color:#6b7280;">
+                Best regards,<br>
+                The ${organizationName || 'MindMil'} Team
+              </p>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="padding:24px 0;text-align:center;font-size:12px;color:#9ca3af;">
+              &copy; ${new Date().getFullYear()} ${organizationName || 'MindMil'}. All rights reserved.<br>
+              This is an automated message, please do not reply.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: `Thank you for completing: ${assessmentTitle}`,
+    html
+  };
+
+  const transporter = getTransporter();
+  return transporter.sendMail(mailOptions);
+}
+
+/**
+ * Send test completion notification to the inviter/admin
+ */
+async function sendTestCompletedEmail({ to, testTakerName, assessmentTitle, organizationName, reportUrl, percentage, passed }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const statusBadge = passed
+    ? `<span style="display:inline-block;padding:4px 12px;border-radius:4px;font-size:13px;font-weight:600;color:#059669;background:#d1fae5;">PASSED</span>`
+    : `<span style="display:inline-block;padding:4px 12px;border-radius:4px;font-size:13px;font-weight:600;color:#dc2626;background:#fee2e2;">NOT PASSED</span>`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#059669;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Assessment Completed
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    ${assessmentTitle}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Hello,
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                <strong>${testTakerName}</strong> has completed the <strong>${assessmentTitle}</strong> assessment.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;border-radius:6px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;padding-bottom:12px;">
+                          Result Summary
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Test Taker</td>
+                              <td style="color:#111827;font-size:14px;font-weight:600;">${testTakerName}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Score</td>
+                              <td style="color:#111827;font-size:14px;font-weight:600;">${percentage !== undefined && percentage !== null ? `${Math.round(percentage)}%` : '—'}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Status</td>
+                              <td>${passed !== undefined && passed !== null ? statusBadge : '—'}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px 0;" align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="background-color:#059669;border-radius:6px;">
+                    <a href="${reportUrl}" target="_blank" style="display:inline-block;padding:14px 40px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:6px;">
+                      View Report &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px 0;">
+              <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin:0;text-align:center;">
+                Trouble with the button? Copy this link:<br>
+                <a href="${reportUrl}" style="color:#059669;word-break:break-all;">${reportUrl}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Sent by ${organizationName} via MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: `Completed: ${testTakerName} finished ${assessmentTitle}`,
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}
+
+/**
+ * Send test abandoned notification to the inviter/admin
+ */
+async function sendTestAbandonedEmail({ to, testTakerName, assessmentTitle, organizationName, questionsAnswered, totalQuestions }) {
+  const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromName = process.env.FROM_NAME || 'MindMil';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f0f0;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:6px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#f59e0b;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">
+                    Assessment Abandoned
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size:22px;font-weight:700;color:#111827;padding-top:6px;">
+                    ${assessmentTitle}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="border-top:1px solid #e5e7eb;"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                Hello,
+              </p>
+              <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 16px;">
+                <strong>${testTakerName}</strong> has abandoned the <strong>${assessmentTitle}</strong> assessment before completing it.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#fefce8;border:1px solid #fde68a;border-radius:6px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;padding-bottom:12px;">
+                          Summary
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Test Taker</td>
+                              <td style="color:#111827;font-size:14px;font-weight:600;">${testTakerName}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:8px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Questions Answered</td>
+                              <td style="color:#111827;font-size:14px;font-weight:600;">${questionsAnswered} of ${totalQuestions}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="color:#9ca3af;font-size:13px;width:140px;">Status</td>
+                              <td><span style="display:inline-block;padding:4px 12px;border-radius:4px;font-size:13px;font-weight:600;color:#92400e;background:#fef3c7;">ABANDONED</span></td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0;">
+                You may want to reach out to the test taker to understand why they abandoned the assessment and consider resending the invite if needed.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px;border-top:1px solid #e5e7eb;margin-top:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="color:#9ca3af;font-size:12px;line-height:1.6;">
+                    Sent by ${organizationName} via MindMil
+                  </td>
+                  <td style="color:#9ca3af;font-size:12px;text-align:right;">
+                    Do not reply to this email
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: `Abandoned: ${testTakerName} did not complete ${assessmentTitle}`,
+    html
+  };
+
+  const transport = getTransporter();
+  const info = await transport.sendMail(mailOptions);
+  return info;
+}
+
 module.exports = {
   sendTestInvite,
+  sendTestTakerThankYouEmail,
   sendPasswordResetEmail,
-  sendCreditRequestNotification
+  sendCreditRequestNotification,
+  sendEmailVerificationOtp,
+  sendReportShareEmail,
+  sendTestCompletedEmail,
+  sendTestAbandonedEmail
 };
 
 async function sendCreditRequestNotification({ adminEmail, requesterName, organizationName, creditsRequested, reason }) {

@@ -104,6 +104,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true // Assuming true for existing flow, or adjust based on actual email tracking
   },
+  emailVerificationOtp: {
+    type: String,
+    default: null
+  },
+  emailVerificationOtpExpire: {
+    type: Date,
+    default: null
+  },
   deactivationDate: {
     type: Date,
     default: null

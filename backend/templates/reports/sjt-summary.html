@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:13px;}
+.page{width:210mm;min-height:297mm;background:#fff;margin:0 auto;page-break-after:always;position:relative;overflow:hidden;}
+.page:last-child{page-break-after:avoid;}
+.cover{background:linear-gradient(145deg,#0F172A 0%,#1E3A5F 50%,#0F172A 100%);color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:0;}
+.cover-top{padding:48px 48px 0;}
+.brand-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:20px;padding:6px 16px;margin-bottom:40px;}
+.brand-badge span{font-size:11px;font-weight:600;color:#818CF8;letter-spacing:1.5px;text-transform:uppercase;}
+.cover-title{font-size:38px;font-weight:800;line-height:1.1;color:#fff;margin-bottom:12px;}
+.cover-title em{color:#818CF8;font-style:normal;}
+.cover-sub{font-size:13px;color:#94A3B8;margin-bottom:40px;line-height:1.6;}
+.cover-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:40px;}
+.meta-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;}
+.meta-label{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.meta-val{font-size:14px;font-weight:600;color:#fff;}
+.score-hero{background:linear-gradient(135deg,#6366F1,#8B5CF6);border-radius:16px;padding:28px;display:flex;align-items:center;gap:32px;margin:0 48px 32px;}
+.score-ring{position:relative;width:120px;height:120px;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-ring .ring-bg{fill:none;stroke:rgba(255,255,255,.2);stroke-width:10;}
+.score-ring .ring-fg{fill:none;stroke:#fff;stroke-width:10;stroke-linecap:round;stroke-dasharray:339;}
+.score-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+.score-num{font-size:26px;font-weight:800;color:#fff;}
+.score-pct{font-size:11px;color:rgba(255,255,255,.7);}
+.score-info{flex:1;}
+.score-band{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;}
+.score-desc{font-size:12px;color:rgba(255,255,255,.8);margin-bottom:12px;line-height:1.5;}
+.score-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11px;color:#fff;font-weight:500;}
+.header{display:flex;justify-content:space-between;align-items:center;padding:24px 48px 0;margin-bottom:8px;}
+.header .h-title{font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;}
+.header .h-candidate{font-size:12px;font-weight:600;color:#334155;}
+.section{padding:24px 48px;}
+.section-title{font-size:11px;font-weight:700;color:#6366F1;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,#E2E8F0,transparent);}
+.radar-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.axis-row{display:flex;align-items:center;gap:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0;}
+.axis-ring{position:relative;width:44px;height:44px;flex-shrink:0;}
+.axis-ring svg{transform:rotate(-90deg);}
+.axis-ring .r-bg{fill:none;stroke:#E2E8F0;stroke-width:5;}
+.axis-ring .r-fg{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:157;}
+.axis-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;color:#1E293B;}
+.axis-name{font-size:11px;font-weight:600;color:#334155;}
+.axis-score-text{font-size:10px;color:#64748B;margin-top:1px;}
+.flags-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.flag-col{border-radius:10px;padding:14px;}
+.flag-col.green{background:#F0FDF4;border:1px solid #BBF7D0;}
+.flag-col.amber{background:#FFFBEB;border:1px solid #FDE68A;}
+.flag-col.red{background:#FFF1F2;border:1px solid #FECDD3;}
+.flag-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.flag-col.green .flag-heading{color:#16A34A;}
+.flag-col.amber .flag-heading{color:#D97706;}
+.flag-col.red .flag-heading{color:#DC2626;}
+.flag-item{font-size:10px;color:#374151;margin-bottom:4px;padding-left:12px;position:relative;line-height:1.4;}
+.flag-item::before{content:'';position:absolute;left:0;top:4px;width:4px;height:4px;border-radius:50%;}
+.flag-col.green .flag-item::before{background:#16A34A;}
+.flag-col.amber .flag-item::before{background:#D97706;}
+.flag-col.red .flag-item::before{background:#DC2626;}
+.fit-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.fit-label{font-size:11px;color:#334155;width:180px;flex-shrink:0;}
+.fit-bar-wrap{flex:1;background:#F1F5F9;border-radius:4px;height:6px;}
+.fit-bar{height:6px;border-radius:4px;background:linear-gradient(90deg,#6366F1,#8B5CF6);}
+.fit-pct{font-size:10px;font-weight:600;color:#334155;width:32px;text-align:right;}
+.verdict-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.verdict-card{text-align:center;padding:16px;background:#F8FAFC;border-radius:12px;border:1px solid #E2E8F0;}
+.verdict-card .v-label{font-size:9px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.verdict-card .v-val{font-size:13px;font-weight:700;color:#1E293B;}
+.verdict-card .v-big{font-size:26px;font-weight:800;color:#6366F1;}
+.peak-dev{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.peak-dev .card{border-radius:10px;padding:14px;}
+.peak-dev .card.green{background:#F0FDF4;border:1px solid #BBF7D0;}
+.peak-dev .card.orange{background:#FFF7ED;border:1px solid #FED7AA;}
+.peak-dev .pd-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.peak-dev .card.green .pd-label{color:#16A34A;}
+.peak-dev .card.orange .pd-label{color:#EA580C;}
+.peak-dev .pd-name{font-size:14px;font-weight:700;}
+.peak-dev .card.green .pd-name{color:#15803D;}
+.peak-dev .card.orange .pd-name{color:#C2410C;}
+.footer{position:absolute;bottom:0;left:0;right:0;padding:12px 48px;background:#F8FAFC;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
+.footer span{font-size:9px;color:#94A3B8;}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page cover">
+  <div class="cover-top">
+    <div class="brand-badge">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:18px;vertical-align:middle;margin-right:4px;">{{/if}}<span>MindMil · ESJI™</span></div>
+    <div class="cover-title">Executive Situational<br/>Judgement <em>Index</em></div>
+    <div class="cover-sub">Leadership Under Pressure · Decision Quality · Business Continuity Mindset · Executive Readiness<br/>Assessment Type: Executive Situational Judgement Index · 40 Scenario-Based Questions</div>
+    <div class="cover-meta-grid">
+      <div class="meta-card"><div class="meta-label">Candidate Name</div><div class="meta-val">{{candidateName}}</div></div>
+      <div class="meta-card"><div class="meta-label">Assessment Date</div><div class="meta-val">{{assessmentDate}}</div></div>
+      <div class="meta-card"><div class="meta-label">Norm Group</div><div class="meta-val">India Corporate Benchmark</div></div>
+      <div class="meta-card"><div class="meta-label">Contact</div><div class="meta-val">{{candidateEmail}}</div></div>
+    </div>
+  </div>
+  <div class="score-hero">
+    <div class="score-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="ring-bg" cx="60" cy="60" r="54"/>
+        <circle class="ring-fg" cx="60" cy="60" r="54" style="stroke-dashoffset:{{esiOffset}}"/>
+      </svg>
+      <div class="score-center"><div class="score-num">{{situationalIndex}}</div><div class="score-pct">/ 100</div></div>
+    </div>
+    <div class="score-info">
+      <div class="score-band">{{band}}</div>
+      <div class="score-desc">Percentile: {{percentile}}th · Grade: {{grade}} · Promotion Readiness: {{promotionReadiness}}</div>
+      <div class="score-chips">
+        <span class="chip">Situational Index: {{situationalIndex}}%</span>
+        <span class="chip">Percentile: {{percentile}}</span>
+        <span class="chip">Grade: {{grade}}</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMil Assessments</span><span>Confidential</span></div>
+</div>
+
+<!-- PAGE 2: RADAR + FLAGS -->
+<div class="page">
+  <div class="header"><span class="h-title">Leadership Radar &amp; Signals</span><span class="h-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Leadership Under Pressure — 7 Axis Radar</div>
+    <div class="radar-grid">
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#6366F1;stroke-dashoffset:{{composureOffset}}"/></svg><div class="axis-center">{{composureScore}}</div></div>
+        <div><div class="axis-name">Composure Under Stress</div><div class="axis-score-text">{{composureScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#8B5CF6;stroke-dashoffset:{{decisionOffset}}"/></svg><div class="axis-center">{{decisionScore}}</div></div>
+        <div><div class="axis-name">Decision Quality</div><div class="axis-score-text">{{decisionScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#06B6D4;stroke-dashoffset:{{communicationOffset}}"/></svg><div class="axis-center">{{communicationScore}}</div></div>
+        <div><div class="axis-name">Crisis Communication</div><div class="axis-score-text">{{communicationScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#F59E0B;stroke-dashoffset:{{stakeholderOffset}}"/></svg><div class="axis-center">{{stakeholderScore}}</div></div>
+        <div><div class="axis-name">Stakeholder Handling</div><div class="axis-score-text">{{stakeholderScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#10B981;stroke-dashoffset:{{continuityOffset}}"/></svg><div class="axis-center">{{continuityScore}}</div></div>
+        <div><div class="axis-name">Business Continuity</div><div class="axis-score-text">{{continuityScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#EC4899;stroke-dashoffset:{{resourcefulnessOffset}}"/></svg><div class="axis-center">{{resourcefulnessScore}}</div></div>
+        <div><div class="axis-name">Resourcefulness</div><div class="axis-score-text">{{resourcefulnessScore}}%</div></div>
+      </div>
+      <div class="axis-row">
+        <div class="axis-ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18" style="stroke:#EF4444;stroke-dashoffset:{{escalationOffset}}"/></svg><div class="axis-center">{{escalationScore}}</div></div>
+        <div><div class="axis-name">Escalation Judgement</div><div class="axis-score-text">{{escalationScore}}%</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Executive Signals</div>
+    <div class="flags-grid">
+      <div class="flag-col green">
+        <div class="flag-heading">✔ Green Flags — Strengths</div>
+        {{#each greenFlags}}<div class="flag-item">{{this}}</div>{{/each}}
+      </div>
+      <div class="flag-col amber">
+        <div class="flag-heading">⚠ Amber Flags — Watch</div>
+        {{#each amberFlags}}<div class="flag-item">{{this}}</div>{{/each}}
+      </div>
+      <div class="flag-col red">
+        <div class="flag-heading">🔴 Red Flags — Risk</div>
+        {{#each redFlags}}<div class="flag-item">{{this}}</div>{{/each}}
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 3: RECRUITMENT + PROMOTION + VERDICT -->
+<div class="page">
+  <div class="header"><span class="h-title">Hiring &amp; Promotion Matrix</span><span class="h-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Executive Fitness Scores</div>
+    <div class="fit-row"><span class="fit-label">Client-facing Leadership Fit</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{clientFit}}%"></div></div><span class="fit-pct">{{clientFit}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Project Crisis Leadership Fit</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{crisisFit}}%"></div></div><span class="fit-pct">{{crisisFit}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Operations Leadership Fit</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{operationsFit}}%"></div></div><span class="fit-pct">{{operationsFit}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Regional / Business Leadership Fit</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{regionalFit}}%"></div></div><span class="fit-pct">{{regionalFit}}%</span></div>
+    <div class="fit-row"><span class="fit-label">CXO Pipeline Signal</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{cxoPipeline}}%"></div></div><span class="fit-pct">{{cxoPipeline}}%</span></div>
+    <div style="margin-top:16px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px;display:flex;gap:24px;">
+      <div><div style="font-size:9px;color:#64748B;text-transform:uppercase;letter-spacing:1px;">Recommendation</div><div style="font-size:13px;font-weight:700;color:#1E293B;margin-top:3px;">{{hiringRec}}</div></div>
+      <div><div style="font-size:9px;color:#64748B;text-transform:uppercase;letter-spacing:1px;">Confidence</div><div style="font-size:13px;font-weight:700;color:#1E293B;margin-top:3px;">{{confidence}}</div></div>
+      <div><div style="font-size:9px;color:#64748B;text-transform:uppercase;letter-spacing:1px;">Risk Level</div><div style="font-size:13px;font-weight:700;color:#1E293B;margin-top:3px;">{{riskLevel}}</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Internal Promotion Matrix</div>
+    <div class="fit-row"><span class="fit-label">Current Role Stability</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{currentRole}}%"></div></div><span class="fit-pct">{{currentRole}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Larger Team Leadership</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{largerTeam}}%"></div></div><span class="fit-pct">{{largerTeam}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Cross-functional Leadership</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{crossFunctional}}%"></div></div><span class="fit-pct">{{crossFunctional}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Transformation Leadership</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{transformation}}%"></div></div><span class="fit-pct">{{transformation}}%</span></div>
+    <div class="fit-row"><span class="fit-label">Enterprise Leadership Potential</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{enterprise}}%"></div></div><span class="fit-pct">{{enterprise}}%</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Executive Verdict</div>
+    <div class="verdict-grid">
+      <div class="verdict-card"><div class="v-label">Situational Grade</div><div class="v-big">{{grade}}</div></div>
+      <div class="verdict-card"><div class="v-label">Promotion Readiness</div><div class="v-val">{{promotionReadiness}}</div></div>
+      <div class="verdict-card"><div class="v-label">Crisis Dependability</div><div class="v-val">{{confidence}}</div></div>
+      <div class="verdict-card"><div class="v-label">Leadership Band</div><div class="v-val">{{band}}</div></div>
+      <div class="verdict-card"><div class="v-label">Hiring Recommendation</div><div class="v-val">{{hiringRec}}</div></div>
+      <div class="verdict-card"><div class="v-label">Percentile Rank</div><div class="v-big" style="font-size:22px;">{{percentile}}</div></div>
+    </div>
+  </div>
+  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMil Assessments · Confidential</span><span>{{assessmentDate}}</span></div>
+</div>
+
+</body>
+</html>

@@ -105,7 +105,7 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
 <!-- PAGE 1: COVER -->
 <div class="page cover">
   <div class="cover-top">
-    <div class="brand-badge"><span>MindMill · ESJI™</span></div>
+    <div class="brand-badge">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:18px;vertical-align:middle;margin-right:4px;">{{/if}}<span>MindMil · ESJI™</span></div>
     <div class="cover-title">Executive Situational<br/>Judgement <em>Index</em></div>
     <div class="cover-sub">Leadership Under Pressure · Decision Quality · Business Continuity Mindset · Executive Readiness<br/>Assessment Type: Executive Situational Judgement Index · 40 Scenario-Based Questions</div>
     <div class="cover-meta-grid">
@@ -133,10 +133,21 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
       </div>
     </div>
   </div>
-  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMill Assessments</span><span>Confidential</span></div>
+  <div class="cover-summary" style="margin:0 48px 24px;padding:16px 24px;background:rgba(255,255,255,.06);border-radius:12px;border:1px solid rgba(255,255,255,.1);font-size:12px;color:#CBD5E1;line-height:1.7;">{{coverSummary}}</div>
+  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMil Assessments</span><span>Confidential</span></div>
 </div>
 
-<!-- PAGE 2: RADAR + DIMENSION TABLE -->
+<!-- PAGE 2: DEEP PROFILE NARRATIVE -->
+<div class="page" style="background:#fff;">
+  <div class="page-header"><span class="ph-title">Executive Profile Deep-Dive</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Leadership Under Pressure — Psychological Profile</div>
+    <div class="narrative" style="font-size:13px;color:#374151;line-height:1.8;">{{deepProfileHtml}}</div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 3: RADAR + DIMENSION TABLE -->
 <div class="page">
   <div class="page-header"><span class="ph-title">Leadership Radar</span><span class="ph-candidate">{{candidateName}}</span></div>
   <div class="section">
@@ -172,27 +183,31 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
       </div>
     </div>
   </div>
-  <div class="section">
-    <div class="section-title">Dimension Heat Map</div>
-    <table class="dim-table">
-      <thead><tr><th>Dimension</th><th>Score</th><th>Performance Bar</th><th>Zone</th><th>Signal</th></tr></thead>
-      <tbody>
-        {{#each dimensionRows}}
-        <tr>
-          <td>{{this.name}}</td>
-          <td><strong>{{this.score}}%</strong></td>
-          <td><div class="dim-bar-wrap"><div class="dim-bar" style="width:{{this.barWidth}}%"></div></div></td>
-          <td>{{this.zone}}</td>
-          <td>{{this.signal}}</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
-  <div class="footer"><span>ESJI™ · MindMill</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
 </div>
 
-<!-- PAGE 3: FLAGS -->
+<!-- PAGE 4: LEADERSHIP NARRATIVE -->
+<div class="page" style="background:#fff;">
+  <div class="page-header"><span class="ph-title">Leadership &amp; Team Dynamics</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Leadership Style &amp; Team Impact</div>
+    <div class="narrative" style="font-size:13px;color:#374151;line-height:1.8;">{{leadershipHtml}}</div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 5: DEVELOPMENT NARRATIVE -->
+<div class="page" style="background:#fff;">
+  <div class="page-header"><span class="ph-title">Executive Development Roadmap</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Coaching &amp; Growth Plan</div>
+    <div class="narrative" style="font-size:13px;color:#374151;line-height:1.8;">{{developmentHtml}}</div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 6: FLAGS -->
 <div class="page">
   <div class="page-header"><span class="ph-title">Executive Signal Analysis</span><span class="ph-candidate">{{candidateName}}</span></div>
   <div class="section">
@@ -227,10 +242,10 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
       </div>
     </div>
   </div>
-  <div class="footer"><span>ESJI™ · MindMill</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
 </div>
 
-<!-- PAGE 4: RECRUITMENT & PROMOTION MATRIX -->
+<!-- PAGE 7: RECRUITMENT & PROMOTION MATRIX -->
 <div class="page">
   <div class="page-header"><span class="ph-title">Recruitment &amp; Promotion Matrix</span><span class="ph-candidate">{{candidateName}}</span></div>
   <div class="section">
@@ -254,10 +269,10 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
     <div class="fit-row"><span class="fit-label">Transformation Leadership</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{transformation}}%"></div></div><span class="fit-pct">{{transformation}}%</span></div>
     <div class="fit-row"><span class="fit-label">Enterprise Leadership Potential</span><div class="fit-bar-wrap"><div class="fit-bar" style="width:{{enterprise}}%"></div></div><span class="fit-pct">{{enterprise}}%</span></div>
   </div>
-  <div class="footer"><span>ESJI™ · MindMill</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
 </div>
 
-<!-- PAGE 5: FINAL VERDICT -->
+<!-- PAGE 8: FINAL VERDICT -->
 <div class="page">
   <div class="page-header"><span class="ph-title">Final Executive Verdict</span><span class="ph-candidate">{{candidateName}}</span></div>
   <div class="section">
@@ -274,6 +289,25 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
       <div style="font-size:11px;font-weight:700;color:#6366F1;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Executive Summary</div>
       <div style="font-size:13px;color:#374151;line-height:1.7;">The candidate demonstrates <strong>{{band}}</strong> capability with an Executive Situational Index of <strong>{{situationalIndex}}%</strong> ({{percentile}}th percentile). Their strongest competency is <strong>{{strongest}}</strong>, while <strong>{{weakest}}</strong> represents the primary development opportunity. Based on this profile, the hiring recommendation is <strong>{{hiringRec}}</strong> with <strong>{{confidence}}</strong> confidence.</div>
     </div>
+<!-- PAGE 4: LEADERSHIP NARRATIVE -->
+<div class="page" style="background:#fff;">
+  <div class="page-header"><span class="ph-title">Leadership &amp; Team Dynamics</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Leadership Style &amp; Team Impact</div>
+    <div class="narrative" style="font-size:13px;color:#374151;line-height:1.8;">{{leadershipHtml}}</div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
+
+<!-- PAGE 5: DEVELOPMENT NARRATIVE -->
+<div class="page" style="background:#fff;">
+  <div class="page-header"><span class="ph-title">Executive Development Roadmap</span><span class="ph-candidate">{{candidateName}}</span></div>
+  <div class="section">
+    <div class="section-title">Coaching &amp; Growth Plan</div>
+    <div class="narrative" style="font-size:13px;color:#374151;line-height:1.8;">{{developmentHtml}}</div>
+  </div>
+  <div class="footer"><span>ESJI™ · MindMil</span><span>{{candidateName}} · {{assessmentDate}}</span></div>
+</div>
     <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div style="background:#F8FAFC;border-radius:12px;padding:20px;border:1px solid #E2E8F0;">
         <div style="font-size:11px;font-weight:700;color:#6366F1;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Increase</div>
@@ -285,7 +319,7 @@ body{font-family:'Inter',sans-serif;background:#0F172A;color:#1E293B;font-size:1
       </div>
     </div>
   </div>
-  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMill Assessments · Confidential</span><span>{{assessmentDate}}</span></div>
+  <div class="footer"><span>Executive Situational Judgement Index (ESJI™) · MindMil Assessments · Confidential</span><span>{{assessmentDate}}</span></div>
 </div>
 
 </body>

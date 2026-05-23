@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>MBTI Personality Report — {{candidateName}}</title>
+  <title>{{assessmentName}} — {{candidateName}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
@@ -33,9 +33,9 @@
       --tf-g: linear-gradient(135deg, #10B981, #6EE7B7);
       --jp: #3B82F6;
       --jp-g: linear-gradient(135deg, #3B82F6, #93C5FD);
-      /* accent — purple for MBTI */
-      --acc: #8B5CF6;
-      --acc-g: linear-gradient(135deg, #8B5CF6, #A78BFA);
+      /* accent — sky blue for unified corporate theme */
+      --acc: #0EA5E9;
+      --acc-g: linear-gradient(135deg, #0EA5E9, #38BDF8);
     }
 
     html {
@@ -822,7 +822,7 @@
         <div class="cv-orb cv-orb-2"></div>
 
         <div class="cv-logo-row">
-          <div class="cv-logo">Mind<span>Mil</span></div>
+          <div class="cv-logo" style="display:flex;align-items:center;gap:6px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:22px;">{{/if}}Mind<span>Mil</span></div>
           <div class="cv-tag">Personality Assessment Series</div>
         </div>
 
@@ -884,9 +884,9 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo">Mind<span>Mill</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
-        <span class="ph-title">MBTI Personality Report</span>
+        <span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right">
         <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
@@ -1022,7 +1022,7 @@
       </div>
     </div>
     <div class="pf">
-      <p>MindMill Assessments — Confidential</p>
+      <p>MindMil Assessments — Confidential</p>
       <p>MBTI Interpretive Report · {{assessmentDate}}</p>
     </div>
   </div>
@@ -1031,9 +1031,9 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo">Mind<span>Mill</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
-        <span class="ph-title">MBTI Personality Report</span>
+        <span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right">
         <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
@@ -1104,7 +1104,7 @@
       </div>
     </div>
     <div class="pf">
-      <p>MindMill Assessments — Confidential</p>
+      <p>MindMil Assessments — Confidential</p>
       <p>MBTI Interpretive Report · {{assessmentDate}}</p>
     </div>
   </div>
@@ -1113,9 +1113,9 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo">Mind<span>Mill</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
-        <span class="ph-title">MBTI Personality Report</span>
+        <span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right">
         <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
@@ -1186,7 +1186,7 @@
       </div>
     </div>
     <div class="pf">
-      <p>MindMill Assessments — Confidential</p>
+      <p>MindMil Assessments — Confidential</p>
       <p>MBTI Interpretive Report · {{assessmentDate}}</p>
     </div>
   </div>
@@ -1195,9 +1195,9 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo">Mind<span>Mill</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
-        <span class="ph-title">MBTI Personality Report</span>
+        <span class="ph-title">{{assessmentName}}</span>
       </div>
       <div class="ph-right">
         <span class="ph-name">{{candidateName}} · {{mbtiType}}</span>
@@ -1283,7 +1283,7 @@
       </div>
     </div>
     <div class="pf">
-      <p>MindMill Assessments — Confidential</p>
+      <p>MindMil Assessments — Confidential</p>
       <p>MBTI Interpretive Report · {{assessmentDate}}</p>
     </div>
   </div>

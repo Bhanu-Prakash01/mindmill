@@ -102,6 +102,19 @@ const supportTicketSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  escalated: {
+    type: Boolean,
+    default: false
+  },
+  escalatedAt: {
+    type: Date,
+    default: null
+  },
+  escalatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   tags: [{
     type: String,
     trim: true

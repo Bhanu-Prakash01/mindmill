@@ -430,7 +430,7 @@ Unlock Assessment
               <div className="relative w-full h-36 overflow-hidden bg-gray-100">
                 {assessment.bannerImage ? (
                   <img
-                    src={`/${assessment.bannerImage}`}
+                    src={assessment.bannerImage.startsWith('http') ? assessment.bannerImage : `/${assessment.bannerImage}`}
                     alt={assessment.title}
                     className="w-full h-full object-cover"
                   />
@@ -492,10 +492,8 @@ Unlock Assessment
                   {assessment.title}
                 </h3>
 
-                {assessment.subcategory ? (
+                {assessment.subcategory && (
                   <p className="text-sm italic text-gray-500 mb-2">{assessment.subcategory}</p>
-                ) : (
-                  <p className="text-sm italic text-gray-500 mb-2">Inspired by {meta.inspiredBy}</p>
                 )}
 
                 {/* Description with Expandable See More */}
@@ -512,6 +510,20 @@ Unlock Assessment
                       {expandedDescriptions.has(assessment._id) ? 'See less' : 'See more'}
                     </button>
                   </div>
+                </div>
+
+                {/* Purpose & Audience */}
+                <div className="space-y-1 mb-3">
+                  {assessment.purpose && (
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                      <span className="font-semibold text-gray-700">Purpose:</span> {assessment.purpose}
+                    </p>
+                  )}
+                  {assessment.audience && (
+                    <p className="text-xs text-gray-500 leading-relaxed truncate">
+                      <span className="font-semibold text-gray-700">Audience:</span> {assessment.audience}
+                    </p>
+                  )}
                 </div>
 
                 {/* Acknowledgement */}
@@ -610,7 +622,7 @@ Unlock Assessment
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                   {isAdmin ? (
                     user?.role === 'superadmin' ? (
-                      <div className="flex items-center gap-1 flex-wrap">
+                      <div className="flex items-center gap-1">
                         <Link
                           to={`${orgPrefix}/assessments/${assessment._id}`}
                           className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -671,7 +683,7 @@ Unlock Assessment
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 flex-wrap">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => setAssignmentModal({ show: true, assessment })}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

@@ -1,1 +1,0 @@
-FIRO-B test page created: frontend/src/pages/assessments/FiroTest.jsx with 54 questions, 6-point Likert, fetch from /api/firo/questions, submit to /api/firo/submit, navigate to reports. Implemented pagination (6 per page). Validation and loading/error states included. Next steps: run frontend tests and ensure API endpoints return expected shapes.

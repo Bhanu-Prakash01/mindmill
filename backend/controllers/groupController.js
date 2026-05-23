@@ -242,12 +242,16 @@ const addMembers = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied');
   }
 
+  // Use the group's organization, falling back to the current user's org.
+  // This handles the case where a superadmin created the group without setting organization.
+  const orgId = group.organization || req.user.organization?._id;
+
   const users = await User.find({
     _id: { $in: userIds },
-    organization: group.organization
+    ...(orgId ? { organization: orgId } : {})
   });
 
-  if (users.length !== userIds.length) {
+  if (orgId && users.length !== userIds.length) {
     throw new ApiError(400, 'Some users do not belong to this organization');
   }
 

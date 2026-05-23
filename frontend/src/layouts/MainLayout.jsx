@@ -93,7 +93,12 @@ const MainLayout = () => {
         <div className="h-16 flex items-center px-6 border-b border-gray-200 flex-shrink-0">
           <Link to={orgPrefix || '/'} className="flex items-center gap-3">
             <img
-              src="/logo.png"
+              src={user?.organization?.logo
+                ? (user.organization.logo.startsWith('http')
+                  ? user.organization.logo
+                  : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${user.organization.logo}`)
+                : "/logo.png"
+              }
               alt="Mindmil Assessments"
               className="h-12 w-auto "
             />

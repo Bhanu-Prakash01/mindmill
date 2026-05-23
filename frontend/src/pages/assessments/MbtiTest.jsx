@@ -12,8 +12,7 @@ import {
   Loader2,
   Maximize2,
   XCircle,
-  Bug,
-  Zap
+  Bug
 } from 'lucide-react';
 
 const MbtiTest = () => {
@@ -37,7 +36,6 @@ const MbtiTest = () => {
   const [error, setError] = useState(null);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [fullscreenExits, setFullscreenExits] = useState(0);
-  const [devMode, setDevMode] = useState(false);
   const [totalTimeSeconds, setTotalTimeSeconds] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const currentAttemptIdRef = useRef(currentAttemptId);
@@ -124,7 +122,25 @@ const MbtiTest = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, []);
+    }, []);
+
+  // ── Dev Mode ──────────────────────────────────────────────
+  const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
+
+  const autoFillAnswers = () => {
+    if (!questions.length) return;
+    const filled = {};
+    questions.forEach((_, idx) => {
+      filled[idx + 1] = Math.floor(Math.random() * 5) + 1;
+    });
+    setResponses(filled);
+  };
+
+  useEffect(() => {
+    if (isDevMode && !loading && questions.length > 0) {
+      autoFillAnswers();
+    }
+  }, [isDevMode, loading, questions]);
 
   const fetchAssessment = async () => {
     try {
@@ -327,25 +343,9 @@ const MbtiTest = () => {
     return Math.round((answered / TOTAL_QUESTIONS) * 100);
   };
 
-  const fillAllAnswersMbti = () => {
-    const newResponses = {};
-    
-    for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
-      const randomRating = Math.floor(Math.random() * 5) + 1;
-      newResponses[i] = randomRating;
-    }
-    
-    setResponses(prev => ({ ...prev, ...newResponses }));
-    console.log('Dev Mode: MBTI answers filled!');
-  };
 
-  const toggleDevMode = () => {
-    if (!devMode) {
-      fillAllAnswersMbti();
-    }
-    setDevMode(!devMode);
-  };
 
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -427,39 +427,42 @@ const MbtiTest = () => {
                 Fullscreen
               </button>
 
-              <button
-                onClick={toggleDevMode}
-                className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                  devMode 
-                  ? 'bg-green-500 text-white hover:bg-green-600' 
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                }`}
-              >
-                {devMode ? <Zap className="w-4 h-4" /> : <Bug className="w-4 h-4" />}
-                {devMode ? 'Dev Mode ON' : 'Dev Mode'}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {devMode && (
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      {/* Dev Mode Banner */}
+      {isDevMode && (
+        <div className="bg-amber-50 border-b-2 border-amber-400">
           <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
               <Bug className="w-4 h-4" />
-              <span>DEV MODE ACTIVE - All MBTI answers auto-filled</span>
+              <span className="font-semibold">DEV MODE</span>
+              <span className="text-amber-600">— Answers auto-filled for testing</span>
             </div>
-            <button
-              onClick={() => setDevMode(false)}
-              className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
-            >
-              Turn OFF
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={autoFillAnswers}
+                className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-medium transition-colors"
+              >
+                Re-fill All
+              </button>
+              <button
+                onClick={() => {
+                  autoFillAnswers();
+                  setTimeout(() => handleSubmit(), 100);
+                }}
+                className="text-xs px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium transition-colors"
+              >
+                Auto-fill &amp; Submit
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      
       {showQuitConfirm && !isPublicAccess && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">

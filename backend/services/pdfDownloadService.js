@@ -14,6 +14,7 @@ const {
   generateHoganReportPdf,
   generateSjtReportPdf,
   generatePclaReportPdf,
+  generateEctiReportPdf,
   getCachedPdf,
   savePdfToDisk,
 } = require('./pdfService');
@@ -221,11 +222,15 @@ const downloadPdf = async (report, testTaker, assessmentType, downloadType) => {
       break;
 
     case AssessmentType.SJT:
-      pdfBuffer = await generateSjtReportPdf(report, testTaker);
+      pdfBuffer = await generateSjtReportPdf(report, testTaker, { summary: !isComprehensive });
       break;
 
     case AssessmentType.PCLA:
-      pdfBuffer = await generatePclaReportPdf(report, testTaker);
+      pdfBuffer = await generatePclaReportPdf(report, testTaker, { summary: !isComprehensive });
+      break;
+
+    case AssessmentType.ECTI:
+      pdfBuffer = await generateEctiReportPdf(report, testTaker);
       break;
       
     default:

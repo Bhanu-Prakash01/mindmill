@@ -4,9 +4,12 @@ const { Assessment, Question, User, Organization } = require('../models');
 const { mbtiQuestions, MBTI_CONFIG } = require('./mbtiQuestions');
 
 const seedMbti = async () => {
+  const isStandalone = mongoose.connection.readyState === 0;
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmil');
-    console.log('Connected to MongoDB');
+    if (isStandalone) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmil');
+      console.log('Connected to MongoDB');
+    }
 
     let organization = await Organization.findOne({ slug: 'default-org' });
     
@@ -19,7 +22,8 @@ const seedMbti = async () => {
       console.log('Created default organization');
     }
 
-    let adminUser = await User.findOne({ email: 'admin@mindmill.com' });
+    let adminUser = await User.findOne({ email: 'admin@mindmill.com' }) ||
+                    await User.findOne({ role: 'superadmin' });
     
     if (!adminUser) {
       adminUser = await User.create({
@@ -34,8 +38,7 @@ const seedMbti = async () => {
     }
 
     const existingAssessment = await Assessment.findOne({ 
-      category: 'mbti',
-      organization: organization._id 
+      subCategory: 'MBTI',
     });
 
     if (existingAssessment) {
@@ -52,7 +55,7 @@ const seedMbti = async () => {
     const assessment = await Assessment.create({
       title: 'MBTI Personality Assessment',
       description: 'The MBTI (Myers-Briggs Type Indicator) assessment measures four dimensions of personality: Extraversion-Introversion, Sensing-Intuition, Thinking-Feeling, and Judging-Perceiving. This scientifically validated assessment helps you understand your unique personality type and how you interact with the world.',
-      category: 'mbti',
+      category: 'personality',
       subCategory: 'MBTI',
       organization: organization._id,
       createdBy: adminUser._id,
@@ -146,8 +149,10 @@ Complete all 32 questions honestly for accurate results.`,
   } catch (error) {
     console.error('Error seeding MBTI:', error);
   } finally {
-    await mongoose.disconnect();
-    console.log('\nDisconnected from MongoDB');
+    if (isStandalone) {
+      await mongoose.disconnect();
+      console.log('\nDisconnected from MongoDB');
+    }
   }
 };
 

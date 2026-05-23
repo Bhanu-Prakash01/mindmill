@@ -1,5 +1,6 @@
 const { Attempt, Assessment, Report, User, Organization } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
+const { sendAttemptNotification } = require('./attemptController');
 const { scoreHogan, calculateHoganScores } = require('../services/hoganScoringService');
 const { generateHoganReport } = require('../services/hoganReportService');
 const { generateHoganReportPdf } = require('../services/pdfService');
@@ -70,6 +71,8 @@ const submitHogan = asyncHandler(async (req, res) => {
     attempt.report = report._id;
     await attempt.save();
   }
+
+  sendAttemptNotification(attempt, assessment, 'completed');
 
   res.status(200).json({
     success: true,

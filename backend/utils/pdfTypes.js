@@ -15,6 +15,7 @@ const AssessmentType = {
   HOGAN: 'hogan',
   SJT: 'sjt',
   PCLA: 'pcla',
+  ECTI: 'ecti',
 };
 
 /** @readonly @type {AssessmentType[]} */
@@ -75,6 +76,7 @@ const getAssessmentDisplayName = (type) => {
     hogan: 'Hogan',
     sjt: 'Situational Judgement',
     pcla: 'Coachability & Learning Agility',
+    ecti: 'Executive Critical Thinking Index',
   };
   return names[type] || type.toUpperCase();
 };
@@ -110,6 +112,20 @@ const isValidDownloadType = (type) => {
   return DOWNLOAD_TYPES.includes(type);
 };
 
+/**
+ * Gets assessment name dynamically from the report object.
+ * Falls back to the display name derived from the assessment type.
+ * @param {Object} report - Report object (may have populated assessment)
+ * @param {string} defaultType - Assessment type key for fallback
+ * @returns {string} Assessment display name
+ */
+const getReportAssessmentName = (report, defaultType) => {
+  if (report?.assessment?.title) {
+    return report.assessment.title;
+  }
+  return getAssessmentDisplayName(defaultType);
+};
+
 module.exports = {
   AssessmentType,
   ASSESSMENT_TYPES,
@@ -118,6 +134,7 @@ module.exports = {
   generatePdfFilename,
   getAssessmentDisplayName,
   getDownloadTypeDisplayName,
+  getReportAssessmentName,
   isValidAssessmentType,
   isValidDownloadType,
 };

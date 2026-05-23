@@ -19,6 +19,7 @@ const IndividualReports = () => {
     if (subCategory === 'mbti') return `/reports/mbti/${attemptId}`;
     if (subCategory === 'firo-b') return `/reports/firo/${attemptId}`;
     if (subCategory === 'hogan') return `/reports/hogan/${attemptId}`;
+    if (subCategory === 'ecti') return `/reports/ecti/${attemptId}`;
     if (subCategory === 'general aptitude') return `/reports/aptitude/${attemptId}`;
     if (subCategory === 'situational judgement') return `/reports/situational/${attemptId}`;
     if (subCategory === 'reasoning') return `/reports/cognitive/${attemptId}`;

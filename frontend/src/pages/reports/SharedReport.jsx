@@ -206,7 +206,7 @@ const SharedReport = () => {
         )}
 
         <div className="text-center text-sm text-gray-400 mt-8 pb-4">
-          <p>Powered by Mindmill Assessments</p>
+          <p>Powered by MindMil Assessments</p>
         </div>
       </div>
     </div>

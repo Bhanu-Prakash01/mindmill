@@ -1,6 +1,7 @@
 const { Report, Attempt, Assessment } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/errorHandler');
-const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateMbtiReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, generateHoganReportPdf, savePdfToDisk, getCachedPdf, deleteCachedPdfs } = require('../services/pdfService');
+const { sendReportShareEmail } = require('../services/emailService');
+const { generateDiscReportPdf, generateBig5ReportPdf, generateFiroReportPdf, generateMbtiReportPdf, generateGenericReportPdf, generateQuickSummaryPdf, generateHoganReportPdf, savePdfToDisk, getCachedPdf } = require('../services/pdfService');
 const { downloadPdf, AssessmentType, DownloadType } = require('../services/pdfDownloadService');
 const crypto = require('crypto');
 
@@ -175,9 +176,26 @@ const shareReport = asyncHandler(async (req, res) => {
 
   await report.save();
 
-  // TODO: Send email with share link
-  // For now, just return the share URL
+  await report.populate([
+    { path: 'assessment', select: 'title' },
+    { path: 'user', select: 'firstName lastName' }
+  ]);
+
+  const assessmentTitle = report.assessment?.title || 'Assessment';
+  const sharedByName = report.user ? `${report.user.firstName} ${report.user.lastName}`.trim() : 'Someone';
   const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reports/shared/${accessToken}`;
+
+  try {
+    await sendReportShareEmail({
+      to: recipientEmail,
+      sharedByName,
+      assessmentTitle,
+      shareUrl,
+      expiresInDays: parseInt(expiresInDays)
+    });
+  } catch (emailErr) {
+    console.error('Failed to send share email:', emailErr.message);
+  }
 
   res.json({
     success: true,
@@ -317,6 +335,7 @@ const generateReportPdf = async (report, testTaker, type) => {
     console.log('[PDF] ==========================');
     
     if (reportType === 'disc') return AssessmentType.DISC;
+    if (reportType === 'ecti') return AssessmentType.ECTI;
     if (reportType === 'big5' || reportType === 'bigfive') return AssessmentType.BIG5;
     if (reportType === 'firo' || reportType === 'firo-b' || reportType === 'firo_b') return AssessmentType.FIRO;
     if (reportType === 'mbti') return AssessmentType.MBTI;
@@ -339,6 +358,7 @@ const generateReportPdf = async (report, testTaker, type) => {
     if (lowerCat === 'firo' || lowerCat === 'firo-b' || lowerCat === 'firo_b' || lowerCat === 'firob' || lowerCat === 'firo b') return AssessmentType.FIRO;
     if (lowerCat === 'mbti') return AssessmentType.MBTI;
     if (lowerCat === 'hogan' || lowerCat === 'personality') return AssessmentType.HOGAN;
+    if (lowerCat === 'ecti') return AssessmentType.ECTI;
     
     console.log('[PDF] Decision: Defaulting to FIRO');
     return AssessmentType.FIRO;
@@ -409,11 +429,11 @@ const downloadReport = asyncHandler(async (req, res) => {
       pdfBuffer = result.pdfBuffer;
       filename = result.filename;
 
-      await savePdfToDisk(pdfBuffer, report._id.toString(), type);
+      const cloudinaryUrl = await savePdfToDisk(pdfBuffer, report._id.toString(), type);
       
       const pdfField = type === 'summary' ? 'pdfFiles.summary' : 'pdfFiles.comprehensive';
       await Report.findByIdAndUpdate(report._id, {
-        [`${pdfField}.path`]: filename,
+        [`${pdfField}.path`]: cloudinaryUrl || filename,
         [`${pdfField}.generatedAt`]: new Date()
       });
     }

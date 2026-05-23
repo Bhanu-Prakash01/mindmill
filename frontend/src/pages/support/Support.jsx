@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Clock,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   XCircle,
   User,
@@ -30,6 +31,7 @@ const Support = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterIssue, setFilterIssue] = useState('all');
+  const [filterEscalated, setFilterEscalated] = useState('all');
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -274,15 +276,16 @@ const Support = () => {
  return icons[category] || <MessageCircle className="w-4 h-4" />;
  };
 
- const filteredTickets = tickets.filter(ticket => {
- const matchesSearch =
- ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
- ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase());
-  const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
-  const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
-  const matchesIssue = filterIssue === 'all' || (ticket.selectedIssues && ticket.selectedIssues.includes(filterIssue));
-  return matchesSearch && matchesStatus && matchesPriority && matchesIssue;
- });
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch =
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+    const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
+    const matchesIssue = filterIssue === 'all' || (ticket.selectedIssues && ticket.selectedIssues.includes(filterIssue));
+    const matchesEscalated = filterEscalated === 'all' || (filterEscalated === 'yes' && ticket.escalated) || (filterEscalated === 'no' && !ticket.escalated);
+    return matchesSearch && matchesStatus && matchesPriority && matchesIssue && matchesEscalated;
+  });
 
  if (loading) {
  return (
@@ -358,15 +361,26 @@ const Support = () => {
   <option value="high">High</option>
   <option value="urgent">Urgent</option>
   </select>
+  {isAdmin && (
+    <select
+      value={filterEscalated}
+      onChange={(e) => setFilterEscalated(e.target.value)}
+      className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+    >
+      <option value="all">All Tickets</option>
+      <option value="yes">Escalated Only</option>
+      <option value="no">Not Escalated</option>
+    </select>
+  )}
   <select
-  value={filterIssue}
-  onChange={(e) => setFilterIssue(e.target.value)}
-  className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+    value={filterIssue}
+    onChange={(e) => setFilterIssue(e.target.value)}
+    className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
   >
-  <option value="all">All Issues</option>
-  {standardQueries.map((q) => (
-    <option key={q._id} value={q.label}>{q.label}</option>
-  ))}
+    <option value="all">All Issues</option>
+    {standardQueries.map((q) => (
+      <option key={q._id} value={q.label}>{q.label}</option>
+    ))}
   </select>
   <select
   value={sortField}
@@ -458,21 +472,27 @@ const Support = () => {
  <tbody className="divide-y divide-gray-200 ">
  {filteredTickets.map((ticket) => (
  <tr key={ticket._id} className="hover:bg-gray-50 ">
- <td className="px-6 py-4">
- <div>
- <div className="flex items-center gap-2">
- <span className="text-xs text-gray-500 ">{ticket.ticketNumber}</span>
- {ticket.responses?.length > 0 && (
- <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">
- {ticket.responses.length} reply{ticket.responses.length !== 1 ? 'ies' : 'y'}
- </span>
- )}
- </div>
- <div className="text-sm font-medium text-gray-900 mt-1">
- {ticket.subject}
- </div>
- </div>
- </td>
+  <td className="px-6 py-4">
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500 ">{ticket.ticketNumber}</span>
+        {ticket.escalated && (
+          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Escalated
+          </span>
+        )}
+        {ticket.responses?.length > 0 && (
+          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+            {ticket.responses.length} reply{ticket.responses.length !== 1 ? 'ies' : 'y'}
+          </span>
+        )}
+      </div>
+      <div className="text-sm font-medium text-gray-900 mt-1">
+        {ticket.subject}
+      </div>
+    </div>
+  </td>
  {!isAdmin && (
  <td className="px-6 py-4">
  <div className="flex items-center gap-2 text-sm text-gray-600 ">

@@ -25,6 +25,7 @@ const Credits = () => {
   const [organization, setOrganization] = useState(null);
   const [allOrganizations, setAllOrganizations] = useState([]);
   const [creditSummary, setCreditSummary] = useState(null);
+  const [bankDetails, setBankDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestForm, setRequestForm] = useState({
@@ -49,7 +50,7 @@ const Credits = () => {
   fetchData();
   }, []);
 
-   const fetchData = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
 
@@ -70,6 +71,9 @@ const Credits = () => {
         const orgResponse = await organizationService.getMyOrganization();
         setOrganization(orgResponse.data?.organization);
       }
+
+      const bankRes = await organizationService.getBankDetails().catch(() => null);
+      setBankDetails(bankRes?.data?.bankDetails || null);
     } catch (error) {
       console.error('Error fetching credit data:', error);
     } finally {
@@ -202,11 +206,23 @@ const handleRejectRequest = async (id) => {
 {!isSuperAdmin && (
 <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
   <p className="text-sm text-amber-800 font-medium mb-1">Payment Details</p>
-  <p className="text-sm text-amber-700">
-    Buy — <span className="font-semibold">curate98103937@barodampay</span> (UPI)
-    <span className="mx-2">|</span>
-    SBI Account — <span className="font-semibold">42323602768</span>, IFSC — <span className="font-semibold">SBIN0015281</span>
-  </p>
+  {bankDetails ? (
+    <div className="text-sm text-amber-700 space-y-1">
+      {bankDetails.upiId && <p>Buy — <span className="font-semibold">{bankDetails.upiId}</span> (UPI)</p>}
+      {(bankDetails.accountNumber || bankDetails.ifscCode) && (
+        <p>
+          {bankDetails.bankName && <span>{bankDetails.bankName} </span>}
+          Account — <span className="font-semibold">{bankDetails.accountNumber}</span>
+          {bankDetails.ifscCode && <>, IFSC — <span className="font-semibold">{bankDetails.ifscCode}</span></>}
+        </p>
+      )}
+      {bankDetails.accountHolderName && (
+        <p className="text-sm text-amber-600 font-medium">Account Holder: {bankDetails.accountHolderName}</p>
+      )}
+    </div>
+  ) : (
+    <p className="text-sm text-amber-600">No payment details configured yet.</p>
+  )}
 </div>
 )}
  </div>
@@ -707,17 +723,16 @@ const handleRejectRequest = async (id) => {
  />
  </div>
  <div>
- <label className="block text-sm font-medium text-gray-700 mb-1">
- Reason
- </label>
- <textarea
- required
- rows={3}
- value={requestForm.reason}
- onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
- placeholder="Why do you need these credits?"
- />
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+  Reason <span className="text-gray-400 font-normal">(optional)</span>
+  </label>
+  <textarea
+  rows={3}
+  value={requestForm.reason}
+  onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+  placeholder="Why do you need these credits? (optional)"
+  />
  </div>
  <div className="flex gap-3 pt-4">
  <button
@@ -751,18 +766,24 @@ const handleRejectRequest = async (id) => {
   </p>
   <form onSubmit={handleConfirmApprove} className="space-y-4">
   <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-  Credits to Grant
-  </label>
-  <input
-  type="number"
-  required
-  min="1"
-  value={approveForm.creditsGranted}
-  onChange={(e) => setApproveForm({ ...approveForm, creditsGranted: parseInt(e.target.value) || 0 })}
-  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
-  />
-  </div>
+   <label className="block text-sm font-medium text-gray-700 mb-1">
+   Credits to Grant
+   </label>
+   <input
+   type="number"
+   required
+   min="1"
+   max={approvingRequest.creditsRequested}
+   value={approveForm.creditsGranted}
+   onChange={(e) => setApproveForm({ ...approveForm, creditsGranted: parseInt(e.target.value) || 0 })}
+   className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500"
+   />
+   {approveForm.creditsGranted < approvingRequest.creditsRequested && (
+     <p className="text-xs text-amber-600 mt-1">
+       Remainder ({approvingRequest.creditsRequested - approveForm.creditsGranted} credits) will stay as a pending request for later approval.
+     </p>
+   )}
+   </div>
   <div>
   <label className="block text-sm font-medium text-gray-700 mb-2">
    Expiry Period

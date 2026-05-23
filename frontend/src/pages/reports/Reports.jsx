@@ -77,6 +77,8 @@ const Reports = () => {
   };
 
   const isSimpleReportType = (report) => {
+    // SJT (ESJI) has comprehensive report now — exclude it
+    if (report.type === 'sjt' || report.assessment?.subCategory === 'SJT') return false;
     return report.assessment?.category === 'situational' ||
            report.assessment?.category === 'cognitive' ||
            report.assessment?.subCategory === 'General Aptitude';
@@ -129,18 +131,25 @@ const Reports = () => {
   const getReportLink = (report) => {
     const attemptId = typeof report.attempt === 'object' ? report.attempt?._id : report.attempt || report._id;
     
-    // Check both report.type (stored on report) and report.assessment?.category (from assessment)
-    const category = report.type || report.assessment?.category;
-    if (category === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
-    if (category === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
-    if (category === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
-    if (category === 'firo' || category === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
-    if (category === 'hogan') return `${orgPrefix}/reports/hogan/${attemptId}`;
-    if (category === 'sjt') return `${orgPrefix}/reports/sjt/${attemptId}`;
-    if (category === 'pcla' || category === 'coachability') return `${orgPrefix}/reports/pcla/${attemptId}`;
-    if (category === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
-    if (category === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
-    if (report.assessment?.subCategory === 'General Aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
+    // Check report.type, report.assessment?.category, and report.assessment?.subCategory
+    const type = report.type || '';
+    const category = report.assessment?.category || '';
+    const subCategory = report.assessment?.subCategory || '';
+    const typeLower = type.toLowerCase();
+    const catLower = category.toLowerCase();
+    const subLower = subCategory.toLowerCase();
+    
+    if (typeLower === 'big5' || catLower === 'big5' || subLower === 'big5') return `${orgPrefix}/reports/big5/${attemptId}`;
+    if (typeLower === 'disc' || catLower === 'disc' || subLower === 'disc') return `${orgPrefix}/reports/disc/${attemptId}`;
+    if (typeLower === 'mbti' || catLower === 'mbti' || subLower === 'mbti') return `${orgPrefix}/reports/mbti/${attemptId}`;
+    if (typeLower === 'firo' || typeLower === 'firo-b' || catLower === 'firo' || catLower === 'firo-b' || subLower === 'firo-b') return `${orgPrefix}/reports/firo/${attemptId}`;
+    if (typeLower === 'hogan' || catLower === 'hogan' || subLower === 'hogan') return `${orgPrefix}/reports/hogan/${attemptId}`;
+    if (typeLower === 'sjt' || catLower === 'sjt' || subLower === 'situational judgement') return `${orgPrefix}/reports/sjt/${attemptId}`;
+    if (typeLower === 'pcla' || typeLower === 'coachability' || catLower === 'pcla' || subLower === 'pcla') return `${orgPrefix}/reports/pcla/${attemptId}`;
+    if (typeLower === 'ecti' || catLower === 'ecti' || subLower === 'ecti') return `${orgPrefix}/reports/ecti/${attemptId}`;
+    if (typeLower === 'situational' || catLower === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
+    if (typeLower === 'cognitive' || catLower === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
+    if (subLower === 'general aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;
   };
 
@@ -164,6 +173,7 @@ const Reports = () => {
       professional: { label: 'Aptitude', color: 'bg-purple-100 text-purple-700', icon: FileBarChart },
       pcla: { label: 'Coachability', color: 'bg-emerald-100 text-emerald-700', icon: Brain },
       coachability: { label: 'Coachability', color: 'bg-emerald-100 text-emerald-700', icon: Brain },
+      ecti: { label: 'ECTI', color: 'bg-indigo-100 text-indigo-700', icon: Brain },
       standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700', icon: FileBarChart },
       key_factors: { label: 'Key Factors', color: 'bg-amber-100 text-amber-700', icon: Key },
       detailed: { label: 'Detailed', color: 'bg-cyan-100 text-cyan-700', icon: FileText },
@@ -264,7 +274,7 @@ const Reports = () => {
                 return (
                   <tr key={report._id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => navigate(getReportLink(report))}>
                     {/* Candidate */}
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <UserAvatar
                           name={candidateName?.split(' ')[0] || ''}
@@ -289,7 +299,7 @@ const Reports = () => {
                     </td>
 
                     {/* Assessment */}
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <div className="flex items-start gap-2.5">
                         <div className={`p-1.5 rounded-lg ${typeConfig.color} flex-shrink-0 mt-0.5`}>
                           <TypeIcon className="w-3.5 h-3.5" />
@@ -304,7 +314,7 @@ const Reports = () => {
                     </td>
 
                     {/* Conducted By */}
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       {report.conductedBy ? (
                         <div className="flex items-center gap-2.5">
                           <UserAvatar
@@ -328,7 +338,7 @@ const Reports = () => {
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 text-sm text-gray-500">
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
                         <span>
@@ -350,7 +360,7 @@ const Reports = () => {
                       </div>
                     </td>
 
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 text-sm text-gray-500">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
                         <span>
@@ -361,7 +371,7 @@ const Reports = () => {
 
                     {/* Visibility (admin only) */}
                     {isAdmin && (
-                      <td className="px-5 py-4 text-center hidden md:table-cell">
+                      <td className="px-5 py-4 text-center">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleToggleVisibility(report._id, report.visibleToUser); }}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -378,7 +388,7 @@ const Reports = () => {
                     )}
 
                     {/* Actions */}
-                    <td className="px-5 py-4 hidden md:table-cell">
+                    <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
                         <Link
                           to={getReportLink(report)}
@@ -403,134 +413,6 @@ const Reports = () => {
                         >
                           <Download className="w-4 h-4" />
                         </button>
-                      </div>
-                    </td>
-                    {/* Mobile Card View */}
-                    <td colSpan={7} className="block md:hidden p-3">
-                      <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3">
-                        {/* Candidate */}
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Candidate</span>
-                          <div className="text-right min-w-0">
-                            <div className="flex items-center gap-2 justify-end">
-                              <UserAvatar
-                                name={candidateName?.split(' ')[0] || ''}
-                                lastName={candidateName?.split(' ').slice(1).join(' ') || ''}
-                                email={candidateEmail}
-                                size={28}
-                              />
-                              <div className="font-medium text-gray-900 text-sm whitespace-nowrap">{candidateName}</div>
-                            </div>
-                            <div className="flex items-center gap-1 justify-end text-xs text-gray-500 truncate">
-                              {candidateEmail && <Mail className="w-3 h-3 shrink-0" />}
-                              <span className="truncate">{candidateEmail}</span>
-                            </div>
-                            {candidatePhone && (
-                              <div className="flex items-center gap-1 justify-end text-xs text-gray-400">
-                                <Phone className="w-3 h-3 shrink-0" />
-                                <span>{candidatePhone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Assessment */}
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0 mt-0.5">Assessment</span>
-                          <div className="text-right min-w-0">
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <div className={`p-1 rounded-lg ${typeConfig.color} shrink-0`}>
-                                <TypeIcon className="w-3 h-3" />
-                              </div>
-                              <span className="text-sm font-medium text-gray-900 truncate">{report.assessment?.title || 'N/A'}</span>
-                            </div>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${typeConfig.color} mt-1`}>
-                              {typeConfig.label}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Conducted By */}
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Conducted By</span>
-                          <div className="text-right text-sm min-w-0">
-                            {report.conductedBy ? (
-                              <div>
-                                <div className="text-gray-900 truncate">{report.conductedBy.firstName} {report.conductedBy.lastName || ''}</div>
-                                <div className="text-xs text-gray-500 truncate">{report.conductedBy.email}</div>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">Self-assessment</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Date */}
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Date</span>
-                          <div className="text-right">
-                            <div className="text-sm text-gray-500">
-                              {report.generatedAt ? new Date(report.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {report.generatedAt ? new Date(report.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Time Taken */}
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Time Taken</span>
-                          <span className="text-sm text-gray-500">{formatTime(report.timeSpent || report.attempt?.timeSpent)}</span>
-                        </div>
-
-                        {/* Visibility (admin only) */}
-                        {isAdmin && (
-                          <div className="flex justify-between items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Visibility</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleToggleVisibility(report._id, report.visibleToUser); }}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                                report.visibleToUser
-                                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                              }`}
-                            >
-                              {report.visibleToUser ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                              {report.visibleToUser ? 'Visible' : 'Hidden'}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</span>
-                          <div className="flex items-center gap-1">
-                            <Link
-                              to={getReportLink(report)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Open report"
-                              target="_blank"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Link>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setShareModalReport(report); setShareEmail(report.testTakerEmail || report.user?.email || ''); }}
-                              className="p-2 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"
-                              title="Share report"
-                            >
-                              <Share2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); isSimpleReportType(report) ? handleSimpleReportDownload(report) : setDownloadModalData(report); }}
-                              className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Download as PDF"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     </td>
                   </tr>

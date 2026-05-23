@@ -167,7 +167,7 @@ const PclaReport = () => {
       {/* Cover / Score Hero */}
       <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: 'linear-gradient(135deg, #064E3B, #065F46)' }}>
         <div className="p-8">
-          <div className="text-xs font-semibold text-emerald-300 tracking-widest uppercase mb-2">MindMill · PCLA™</div>
+          <div className="text-xs font-semibold text-emerald-300 tracking-widest uppercase mb-2">MindMil · PCLA™</div>
           <h1 className="text-2xl font-bold text-white mb-1">Professional Coachability &amp; Learning Agility Index</h1>
           <p className="text-emerald-200 text-sm mb-8">Learning Mindset · Adaptability · Reinvention Capacity · Coaching ROI</p>
 

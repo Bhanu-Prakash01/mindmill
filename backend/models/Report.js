@@ -83,7 +83,7 @@ const reportSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5', 'firo', 'firo-b', 'mbti', 'hogan', 'sjt', 'pcla'],
+    enum: ['psychometric', 'standard', 'cognitive', 'situational', 'disc', 'big5', 'firo', 'firo-b', 'mbti', 'hogan', 'sjt', 'pcla', 'ecti'],
     required: [true, 'Report type is required']
   },
   // Test taker details (from invite or user account)
