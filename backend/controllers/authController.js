@@ -12,6 +12,9 @@ const { sendPasswordResetEmail, sendEmailVerificationOtp } = require('../service
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  console.log('[login] Attempt - email:', email, '| password length:', password?.length);
+  console.log('[login] Org context from header:', req.organization?.slug || 'NONE');
+
   let user;
 
   if (req.organization) {
@@ -19,6 +22,8 @@ const login = asyncHandler(async (req, res) => {
     user = await User.findOne({ email, organization: req.organization._id })
       .select('+password')
       .populate('organization');
+
+    console.log('[login] Org-scoped lookup result:', user ? `Found (id: ${user._id})` : 'NOT FOUND');
 
     if (!user) {
       throw new ApiError(401, 'Invalid email or password for this organization');
@@ -34,6 +39,8 @@ const login = asyncHandler(async (req, res) => {
     })
       .select('+password')
       .populate('organization');
+
+    console.log('[login] Non-org lookup result:', user ? `Found (id: ${user._id})` : 'NOT FOUND');
 
     if (!user) {
       throw new ApiError(401, 'Please access via your organization URL to login');

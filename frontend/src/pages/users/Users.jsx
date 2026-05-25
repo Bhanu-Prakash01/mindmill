@@ -1140,7 +1140,7 @@ return (
           Reset Password
         </button>
       ) : (
-        <form onSubmit={handleResetPassword} className="space-y-3">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="block text-sm font-medium text-gray-700">
               New Password
@@ -1158,10 +1158,10 @@ return (
               type={showNewPassword ? 'text' : 'password'}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleResetPassword(e)}
               className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Enter new password"
               minLength={6}
-              required
             />
             <button
               type="button"
@@ -1172,7 +1172,8 @@ return (
             </button>
           </div>
           <button
-            type="submit"
+            type="button"
+            onClick={handleResetPassword}
             disabled={resettingPassword || newPassword.length < 6}
             className="w-full px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
           >
@@ -1188,7 +1189,7 @@ return (
               </>
             )}
           </button>
-        </form>
+        </div>
       )}
     </div>
   )}

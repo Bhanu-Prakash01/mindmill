@@ -555,17 +555,12 @@ const bulkCreateUsers = asyncHandler(async (req, res) => {
         continue;
       }
 
-      // Hash password
-      const bcrypt = require('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(userData.password, salt);
-
-      // Create user
+      // Create user — the User model's pre('save') hook handles bcrypt hashing
       const user = await User.create({
         email: userData.email.toLowerCase().trim(),
         firstName: userData.firstName.trim(),
         lastName: userData.lastName?.trim() || '',
-        password: hashedPassword,
+        password: userData.password, // plaintext — hashed by pre('save') hook
         phone: userData.phone?.trim() || '',
         phoneCountryCode: userData.phoneCountryCode?.trim() || '+91',
         jobTitle: userData.jobTitle?.trim() || '',
@@ -633,10 +628,8 @@ const resetPassword = asyncHandler(async (req, res) => {
     }
   }
 
-  // Hash new password
-  const bcrypt = require('bcryptjs');
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(newPassword, salt);
+  // Assign plaintext password — the pre('save') hook handles bcrypt hashing
+  user.password = newPassword;
   await user.save();
 
   res.json({

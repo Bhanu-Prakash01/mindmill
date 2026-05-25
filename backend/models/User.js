@@ -152,10 +152,15 @@ userSchema.index({ email: 1, organization: 1 }, { unique: true });
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
+
+  console.log('[pre-save] Password modified for:', this.email);
+  console.log('[pre-save] Raw password length:', this.password?.length);
+  console.log('[pre-save] Already a bcrypt hash?', this.password?.startsWith('$2'));
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
+    console.log('[pre-save] Hashed password (first 20):', this.password?.substring(0, 20));
     next();
   } catch (error) {
     next(error);
@@ -164,7 +169,13 @@ userSchema.pre('save', async function(next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  console.log('[comparePassword] Email:', this.email);
+  console.log('[comparePassword] Candidate password length:', candidatePassword?.length);
+  console.log('[comparePassword] Stored hash (first 20):', this.password?.substring(0, 20));
+  console.log('[comparePassword] Stored hash starts with $2 (valid bcrypt)?', this.password?.startsWith('$2'));
+  const result = await bcrypt.compare(candidatePassword, this.password);
+  console.log('[comparePassword] Match result:', result);
+  return result;
 };
 
 // Get full name
