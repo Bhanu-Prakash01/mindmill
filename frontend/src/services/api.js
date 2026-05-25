@@ -41,13 +41,20 @@ api.interceptors.request.use(
   }
 );
 
-// Public API routes that should NOT trigger a login redirect on 401
+// Routes that should NOT trigger a login redirect on 401:
+// 1. Public assessment/attempt/report routes (unauthenticated users)
+// 2. Auth routes where 401 means "bad credentials", not "session expired"
 const PUBLIC_API_PREFIXES = [
   '/assessments/public/',
   '/assessments/invite/',
   '/attempts/public/',
   '/attempts/invite/',
   '/reports/shared/',
+  '/auth/login',
+  '/auth/demo/',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
 ];
 
 const isPublicRoute = (url = '') =>
