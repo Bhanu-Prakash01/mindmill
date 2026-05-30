@@ -30,7 +30,7 @@ category: {
   },
   subCategory: {
     type: String,
-    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'ECTI', 'Situational Judgement', 'General Aptitude', 'PCLA'],
+    enum: ['', 'FIRO-B', 'DISC', 'MBTI', 'Hogan', 'Big5', 'Reasoning', 'ECTI', 'Situational Judgement', 'General Aptitude', 'PCLA', 'Cognitive ability'],
     default: ''
   },
   isLockedStructure: {

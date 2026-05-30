@@ -219,6 +219,65 @@ function calculateScore(attempt, assessment) {
     }
   }
   // Cognitive Reasoning: category = 'cognitive'
+  else if (category === 'cognitive' && subCategory === 'Cognitive ability') {
+    const dimensionScores = {
+      vr: { score: 0, max: 0, attempts: 0 },
+      nr: { score: 0, max: 0, attempts: 0 },
+      lr: { score: 0, max: 0, attempts: 0 },
+      ct: { score: 0, max: 0, attempts: 0 },
+      wm: { score: 0, max: 0, attempts: 0 }
+    };
+
+    let totalCorrect = 0;
+    let totalAttempted = 0;
+
+    answers.forEach(answer => {
+      const question = answer.question;
+      if (!question || question.type !== 'mcq') return;
+
+      const selectedOption = answer.selectedOption;
+      const dimension = question.dimension?.toLowerCase() || 'lr';
+      const options = question.options || [];
+
+      dimensionScores[dimension] = dimensionScores[dimension] || { score: 0, max: 0, attempts: 0 };
+      dimensionScores[dimension].max += 1;
+
+      if (selectedOption !== null && selectedOption !== undefined) {
+        totalAttempted += 1;
+        dimensionScores[dimension].attempts += 1;
+        const selected = options[selectedOption];
+        if (selected && (selected.isCorrect === true || selected.score > 0)) {
+          dimensionScores[dimension].score += 1;
+          totalCorrect += 1;
+        }
+      }
+    });
+
+    const calcPercentage = (score, max) => max > 0 ? (score / max) * 100 : 0;
+    const vrPct = calcPercentage(dimensionScores.vr.score, dimensionScores.vr.max);
+    const nrPct = calcPercentage(dimensionScores.nr.score, dimensionScores.nr.max);
+    const lrPct = calcPercentage(dimensionScores.lr.score, dimensionScores.lr.max);
+    const ctPct = calcPercentage(dimensionScores.ct.score, dimensionScores.ct.max);
+    const wmPct = calcPercentage(dimensionScores.wm.score, dimensionScores.wm.max);
+
+    // CACS = (VR × 0.20) + (NR × 0.20) + (LR × 0.25) + (CT × 0.20) + (WM × 0.15)
+    const cacs = (vrPct * 0.20) + (nrPct * 0.20) + (lrPct * 0.25) + (ctPct * 0.20) + (wmPct * 0.15);
+
+    const accuracy = totalAttempted > 0 ? (totalCorrect / totalAttempted) * 100 : 0;
+
+    totalScore = cacs;
+    maxScore = 100;
+
+    breakdown.vr = vrPct;
+    breakdown.nr = nrPct;
+    breakdown.lr = lrPct;
+    breakdown.ct = ctPct;
+    breakdown.wm = wmPct;
+    breakdown.cacs = Math.round(cacs);
+    breakdown.accuracy = Math.round(accuracy);
+    breakdown.maxScore = 100;
+    breakdown.type = 'Cognitive ability';
+  }
   else if (category === 'cognitive' || subCategory === 'Reasoning') {
     // Count by type (logical/numerical/verbal), max 15
     const dimensionScores = {

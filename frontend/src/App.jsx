@@ -70,6 +70,7 @@ import SjtReport from './pages/reports/SjtReport';
 import SharedReport from './pages/reports/SharedReport';
 import PclaReport from './pages/reports/PclaReport';
 import EctiReport from './pages/reports/EctiReport';
+import CognitiveAbilityReport from './pages/reports/CognitiveAbilityReport';
 
 // Credits
 import Credits from './pages/credits/Credits';
@@ -232,6 +233,7 @@ const AppRoutes = () => {
       <Route path="/reports/firo/:attemptId" element={<FiroReport />} />
       <Route path="/reports/situational/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/cognitive/:attemptId" element={<SimpleReport />} />
+      <Route path="/reports/cognitive-ability/:attemptId" element={<CognitiveAbilityReport />} />
       <Route path="/reports/aptitude/:attemptId" element={<SimpleReport />} />
       <Route path="/reports/sjt/:attemptId" element={<SjtReport />} />
       <Route path="/reports/pcla/:attemptId" element={<PclaReport />} />

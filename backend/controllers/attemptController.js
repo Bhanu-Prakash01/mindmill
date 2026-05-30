@@ -106,7 +106,7 @@ const getPublicAttempt = asyncHandler(async (req, res) => {
       populate: {
         path: 'questions',
         model: 'Question',
-        select: 'questionText order statements options type leftTrait rightTrait dimension'
+        select: 'questionText questionImage order statements options type leftTrait rightTrait dimension'
       }
     });
 

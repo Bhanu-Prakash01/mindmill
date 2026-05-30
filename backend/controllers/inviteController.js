@@ -152,7 +152,7 @@ const createInvite = asyncHandler(async (req, res) => {
     invite.emailSentAt = new Date();
     await invite.save();
   } catch (emailError) {
-    console.error('Failed to send invite email:', emailError.message);
+    console.error('Failed to send invite email:', emailError);
     emailErrorReason = emailError.message;
     // Invite is still created, just with 'pending' status
   }
@@ -521,8 +521,8 @@ const resendInvite = asyncHandler(async (req, res) => {
       data: { invite }
     });
   } catch (emailError) {
-    console.error('Failed to resend invite email:', emailError.message);
-    throw new ApiError(500, 'Failed to send invite email. Please try again later.');
+    console.error('Failed to resend invite email:', emailError);
+    throw new ApiError(500, `Failed to send invite email: ${emailError.message}`);
   }
 });
 

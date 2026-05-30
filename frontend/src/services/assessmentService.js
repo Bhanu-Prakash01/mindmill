@@ -96,10 +96,19 @@ export const assessmentService = {
   return response.data;
  },
 
- reorderQuestions: async (assessmentId, questionOrders) => {
-  const response = await api.put(`/assessments/${assessmentId}/questions/reorder`, { questionOrders });
-  return response.data;
- },
+  reorderQuestions: async (assessmentId, questionOrders) => {
+    const response = await api.put(`/assessments/${assessmentId}/questions/reorder`, { questionOrders });
+    return response.data;
+  },
+
+  uploadQuestionImage: async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await api.post(`/upload-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
 
  getStats: async (id) => {
   const response = await api.get(`/assessments/${id}/stats`);

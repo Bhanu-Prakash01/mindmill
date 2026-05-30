@@ -82,6 +82,7 @@ const Reports = () => {
   const isSimpleReportType = (report) => {
     // SJT (ESJI) has comprehensive report now — exclude it
     if (report.type === 'sjt' || report.assessment?.subCategory === 'SJT') return false;
+    if (report.assessment?.subCategory === 'Cognitive ability') return false;
     return report.assessment?.category === 'situational' ||
            report.assessment?.category === 'cognitive' ||
            report.assessment?.subCategory === 'General Aptitude';
@@ -151,6 +152,7 @@ const Reports = () => {
     if (typeLower === 'pcla' || typeLower === 'coachability' || catLower === 'pcla' || subLower === 'pcla') return `${orgPrefix}/reports/pcla/${attemptId}`;
     if (typeLower === 'ecti' || catLower === 'ecti' || subLower === 'ecti') return `${orgPrefix}/reports/ecti/${attemptId}`;
     if (typeLower === 'situational' || catLower === 'situational') return `${orgPrefix}/reports/situational/${attemptId}`;
+    if (subLower === 'cognitive ability') return `${orgPrefix}/reports/cognitive-ability/${attemptId}`;
     if (typeLower === 'cognitive' || catLower === 'cognitive') return `${orgPrefix}/reports/cognitive/${attemptId}`;
     if (subLower === 'general aptitude') return `${orgPrefix}/reports/aptitude/${attemptId}`;
     return `${orgPrefix}/reports/${report._id}`;

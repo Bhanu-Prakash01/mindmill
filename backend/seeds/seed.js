@@ -23,6 +23,7 @@ const seedMbti = require('../seeders/seedMbti');
 const seedHogan = require('../seeders/seedHogan');
 const seedFiro = require('../seeders/seedFiro');
 const seedCognitive = require('../seeders/seedCognitive');
+const seedCognitiveAbility = require('../seeders/seedCognitiveAbility');
 const seedCriticalThinking = require('../seeders/seedCriticalThinking');
 const seedSituational = require('../seeders/seedSituational');
 const seedProfessional = require('../seeders/seedProfessional');
@@ -38,6 +39,7 @@ const seedAllAssessments = async () => {
     { name: 'Hogan', fn: seedHogan },
     { name: 'FIRO-B', fn: seedFiro },
     { name: 'Cognitive Reasoning', fn: seedCognitive },
+    { name: 'Cognitive Ability Composite', fn: seedCognitiveAbility },
     // { name: 'Critical Thinking', fn: seedCriticalThinking },
     { name: 'Situational Judgement', fn: seedSituational },
     { name: 'Professional Aptitude', fn: seedProfessional },

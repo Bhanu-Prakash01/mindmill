@@ -29,7 +29,7 @@ import {
 const SUBCATEGORY_MAP = {
   psychometric: ['FIRO-B', 'DISC', 'MBTI', 'Hogan'],
   personality: ['Big5'],
-  cognitive: ['Reasoning', 'ECTI'],
+  cognitive: ['Reasoning', 'ECTI', 'Cognitive ability'],
   aptitude: ['General Aptitude'],
   professional: ['PCLA'],
 };
@@ -40,6 +40,7 @@ const SUBCATEGORY_LABELS = {
   'Hogan': 'TraitMap Index',
   'PCLA': 'Professional Coachability & Learning Agility Index (PCLA™)',
   'ECTI': 'Executive Critical Thinking Index (ECTI™)',
+  'Cognitive ability': 'Cognitive Ability Composite Score (CACS™)',
 };
 
 // Big5 trait configuration for question positions
@@ -261,6 +262,7 @@ const AssessmentForm = () => {
 
   const [editingId, setEditingId] = useState(null);
   const [editFormData, setEditFormData] = useState(null);
+  const [uploadingImageId, setUploadingImageId] = useState(null);
 
   const [newQuestion, setNewQuestion] = useState({
  type: 'mcq',
@@ -563,6 +565,7 @@ const handleEditQuestion = (question) => {
   setEditingId(question._id);
   setEditFormData({
     questionText: question.questionText || '',
+    questionImage: question.questionImage || null,
     type: question.type || 'mcq',
     dimension: question.dimension || '',
     marks: question.marks || 1,
@@ -578,6 +581,7 @@ const handleFormEdit = (question) => {
   setNewQuestion({
     type: question.type || 'mcq',
     questionText: question.questionText || '',
+    questionImage: question.questionImage || null,
     trait: question.trait || '',
     direction: question.direction || 'positive',
     options: question.options || [
@@ -598,6 +602,65 @@ const handleFormEdit = (question) => {
 const handleInlineEditCancel = () => {
   setEditingId(null);
   setEditFormData(null);
+};
+
+const handleQuestionImageUpload = async (e, qId) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    toast.warning('Please select an image file');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.warning('Image must be less than 5MB');
+    return;
+  }
+  try {
+    setUploadingImageId(qId);
+    const result = await assessmentService.uploadQuestionImage(file);
+    if (result.success) {
+      setEditFormData(prev => ({ ...prev, questionImage: result.data.imageUrl }));
+      toast.success('Image uploaded successfully');
+    }
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to upload image');
+  } finally {
+    setUploadingImageId(null);
+  }
+};
+
+const handleOptionImageUploadEdit = async (e, optIndex) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast.warning('Please select an image file');
+  if (file.size > 5 * 1024 * 1024) return toast.warning('Image must be less than 5MB');
+  try {
+    const result = await assessmentService.uploadQuestionImage(file);
+    if (result.success) {
+      const updated = [...editFormData.options];
+      updated[optIndex] = { ...updated[optIndex], image: result.data.imageUrl };
+      setEditFormData({ ...editFormData, options: updated });
+      toast.success('Option image uploaded successfully');
+    }
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to upload option image');
+  }
+};
+
+const handleOptionImageUploadNew = async (e, index) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast.warning('Please select an image file');
+  if (file.size > 5 * 1024 * 1024) return toast.warning('Image must be less than 5MB');
+  try {
+    const result = await assessmentService.uploadQuestionImage(file);
+    if (result.success) {
+      updateOption(index, 'image', result.data.imageUrl);
+      toast.success('Option image uploaded successfully');
+    }
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to upload option image');
+  }
 };
 
 const handleInlineEditSave = async () => {
@@ -888,6 +951,52 @@ const handleDiscSelfPopulate = () => {
     } catch (error) {
       console.error('Error loading PCLA questions:', error);
       toast.error('Failed to load PCLA questions. Make sure the question bank file exists.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ========== Cognitive Ability Question Handlers ==========
+  const handleCognitiveAbilityPopulateAll = async () => {
+    if (questions.length >= 19) {
+      toast.warning('All 19 Cognitive Ability questions are already loaded');
+      return;
+    }
+    if (!confirm('This will load all 19 pre-configured Cognitive Ability (CACS™) questions. Continue?')) return;
+
+    setSaving(true);
+    try {
+      const { COGNITIVE_ABILITY_QUESTIONS } = await import('../../data/cognitiveAbilityQuestions');
+      const questionsToCreate = COGNITIVE_ABILITY_QUESTIONS.slice(questions.length).map(q => ({
+        type: 'mcq',
+        questionText: q.questionText,
+        questionImage: q.questionImage || null,
+        order: q.order,
+        dimension: q.dimension,
+        marks: 1,
+        difficulty: q.difficulty === 'easy' ? 'basic' : q.difficulty === 'advanced' ? 'tough' : (q.difficulty || 'moderate'),
+        isRequired: true,
+        options: q.options.map(o => ({
+          text: o.text,
+          image: o.image || null,
+          isCorrect: o.isCorrect,
+          score: o.isCorrect ? 1 : 0
+        })),
+        tags: ['cognitive', 'cacs', q.dimension.toLowerCase()],
+        explanation: q.explanation || `This question measures ${q.dimension.toUpperCase()}.`,
+      }));
+
+      if (isEditing) {
+        await assessmentService.bulkCreateQuestions(id, questionsToCreate);
+        fetchQuestions();
+      } else {
+        const withIds = questionsToCreate.map((q, i) => ({ ...q, _id: Date.now() + i }));
+        setQuestions(prev => [...prev, ...withIds]);
+      }
+      toast.success(`Loaded ${questionsToCreate.length} Cognitive Ability questions successfully.`);
+    } catch (error) {
+      console.error('Error loading Cognitive Ability questions:', error);
+      toast.error('Failed to load Cognitive Ability questions. Make sure the question bank file exists.');
     } finally {
       setSaving(false);
     }
@@ -2263,7 +2372,279 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
     </div>
   )}
 
-     {activeTab === 'questions' && questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && (
+  {/* ─── Cognitive Ability™ Questions Panel ─────────────────────────── */}
+  {activeTab === 'questions' && formData.category === 'cognitive' && formData.subCategory === 'Cognitive ability' && (
+    <div className="space-y-6">
+      {/* Info banner */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-indigo-100 rounded-lg flex-shrink-0">
+            <Info className="w-6 h-6 text-indigo-700" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-indigo-900 mb-2">
+              Cognitive Ability Composite Score (CACS™)
+            </h3>
+            <p className="text-indigo-800 text-sm mb-4">
+              Pre-loaded <strong>CACS™ demo questions</strong> below — evaluate key cognitive domains across 19 items with weighted scoring.
+              Customize each question and its answer choices freely.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mb-4">
+              {[
+                { dim: 'Verbal Reasoning (VR)', color: 'emerald', count: 4, wt: '20%' },
+                { dim: 'Numerical Reasoning (NR)', color: 'blue', count: 4, wt: '20%' },
+                { dim: 'Logical Reasoning (LR)', color: 'purple', count: 5, wt: '25%' },
+                { dim: 'Critical Thinking (CT)', color: 'pink', count: 4, wt: '20%' },
+                { dim: 'Working Memory (WM)', color: 'amber', count: 2, wt: '15%' },
+              ].map(({ dim, count, wt }) => (
+                <div key={dim} className="bg-white rounded-lg p-2 text-center border border-indigo-100">
+                  <div className="font-bold text-indigo-700">{count} Q ({wt})</div>
+                  <div className="text-gray-600 text-xs mt-0.5 leading-tight">{dim}</div>
+                </div>
+              ))}
+            </div>
+            {questions.length === 19 ? (
+              <div className="flex items-center gap-2 text-green-700 bg-green-100 p-3 rounded-lg">
+                <CheckCircle className="w-5 h-5" />
+                <span>All 19 CACS™ demo questions loaded — customize as needed!</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-100 p-3 rounded-lg">
+                <AlertCircle className="w-5 h-5" />
+                <span>{19 - questions.length} demo questions remaining — click &ldquo;Load Demo Questions&rdquo; below</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Load button */}
+      {questions.length < 19 && (
+        <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Demo questions loaded: {questions.length} / 19</p>
+            <p className="text-xs text-gray-500 mt-0.5">All 19 CACS™ questions will be added — edit them freely after loading</p>
+          </div>
+          <button
+            onClick={handleCognitiveAbilityPopulateAll}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {saving ? 'Loading...' : `Load All ${19 - questions.length} Demo Questions`}
+          </button>
+        </div>
+      )}
+
+      {/* Questions list with inline edit */}
+      {questions.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700">CACS™ Questions ({questions.length}/19) <span className="text-xs font-normal text-gray-400">— click ✏️ to customize each</span></h3>
+          {questions.map((q, idx) => (
+            editingId === q._id && editFormData ? (
+              /* Inline edit mode for this question */
+              <div key={q._id} className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    value={editFormData.questionText}
+                    onChange={(e) => setEditFormData({ ...editFormData, questionText: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editFormData.type}
+                      onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                    >
+                      <option value="mcq">MCQ</option>
+                      <option value="text">Text</option>
+                    </select>
+                    <select
+                      value={editFormData.dimension}
+                      onChange={(e) => setEditFormData({ ...editFormData, dimension: e.target.value })}
+                      className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                    >
+                      <option value="vr">Verbal Reasoning (VR)</option>
+                      <option value="nr">Numerical Reasoning (NR)</option>
+                      <option value="lr">Logical Reasoning (LR)</option>
+                      <option value="ct">Critical Thinking (CT)</option>
+                      <option value="wm">Working Memory (WM)</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={editFormData.marks}
+                      onChange={(e) => setEditFormData({ ...editFormData, marks: parseInt(e.target.value) || 1 })}
+                      className="w-20 px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                      min="1"
+                    />
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg border border-gray-200 transition-colors">
+                      <Image className="w-4 h-4" />
+                      <span>{uploadingImageId === q._id ? 'Uploading...' : 'Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleQuestionImageUpload(e, q._id)}
+                        disabled={uploadingImageId === q._id}
+                      />
+                    </label>
+                  </div>
+                  {editFormData.questionImage && (
+                    <div className="relative inline-block mt-2">
+                      <img src={editFormData.questionImage.startsWith('http') ? editFormData.questionImage : `/${editFormData.questionImage}`} alt="Question" className="h-32 object-contain rounded-md border border-gray-200 bg-white p-1" />
+                      <button
+                        onClick={() => setEditFormData({ ...editFormData, questionImage: null })}
+                        className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 shadow-sm hover:bg-red-200"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  {editFormData.type === 'mcq' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600">Options</label>
+                      {editFormData.options?.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          {opt.image && (
+                            <img 
+                              src={opt.image.startsWith('http') ? opt.image : `/${opt.image}`} 
+                              alt="" 
+                              className="h-8 w-8 object-contain rounded border border-gray-200 bg-white p-0.5" 
+                            />
+                          )}
+                          <label className="cursor-pointer text-gray-500 hover:text-indigo-600" title="Upload Option Image">
+                            <Image className="w-4 h-4" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleOptionImageUploadEdit(e, oi)}
+                            />
+                          </label>
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) => {
+                              const updated = [...editFormData.options];
+                              updated[oi] = { ...updated[oi], text: e.target.value };
+                              setEditFormData({ ...editFormData, options: updated });
+                            }}
+                            className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                            placeholder={`Option ${oi + 1}`}
+                          />
+                          <label className="inline-flex items-center gap-1.5 ml-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={opt.isCorrect}
+                              onChange={(e) => {
+                                const updated = editFormData.options.map((o, i) => ({
+                                  ...o,
+                                  isCorrect: i === oi ? e.target.checked : false
+                                }));
+                                setEditFormData({ ...editFormData, options: updated });
+                              }}
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                            />
+                            <span className="text-xs text-gray-500">Correct</span>
+                          </label>
+                          <button
+                            onClick={() => {
+                              if (editFormData.options.length <= 2) { toast.warning('Minimum 2 options required'); return; }
+                              setEditFormData({ ...editFormData, options: editFormData.options.filter((_, i) => i !== oi) });
+                            }}
+                            className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setEditFormData({ ...editFormData, options: [...editFormData.options, { text: '', isCorrect: false }] })}
+                        className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Option
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button onClick={handleInlineEditSave} className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+                      <Save className="w-3.5 h-3.5 mr-1 inline" />
+                      Save
+                    </button>
+                    <button onClick={handleInlineEditCancel} className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Display mode for this question */
+              <div key={q._id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-100 transition-colors">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">{idx + 1}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 leading-snug">{q.questionText}</p>
+                    {q.questionImage && (
+                      <div className="mt-2 mb-2">
+                        <img src={q.questionImage.startsWith('http') ? q.questionImage : `/${q.questionImage}`} alt="Question" className="h-32 object-contain rounded-md border border-gray-200 bg-white p-1" />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-500">
+                      <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider text-[10px]">{q.dimension?.toUpperCase()}</span>
+                      <span className="bg-gray-100 px-1.5 py-0.5 rounded capitalize">{q.difficulty}</span>
+                      <span>{q.marks || 1} mark(s)</span>
+                    </div>
+                    {q.options?.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 mt-2 bg-white p-2.5 rounded-lg border border-gray-100">
+                        {q.options.map((opt, oi) => (
+                          <div key={oi} className={`text-xs px-2.5 py-1.5 rounded-md flex items-center justify-between ${opt.isCorrect ? 'bg-green-50 text-green-700 border border-green-200 font-medium' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-semibold">{['A', 'B', 'C', 'D', 'E'][oi]}.</span>
+                              {opt.image && (
+                                <img 
+                                  src={opt.image.startsWith('http') ? opt.image : `/${opt.image}`} 
+                                  alt="" 
+                                  className="h-10 w-10 object-contain rounded border border-gray-200 bg-white p-0.5" 
+                                />
+                              )}
+                              <span className="truncate">{opt.text}</span>
+                            </div>
+                            {opt.isCorrect && <CheckCircle className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleEditQuestion(q)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 shadow-sm transition-all"
+                    title="Edit question"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteQuestion(q._id)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 shadow-sm transition-all"
+                    title="Delete question"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+     {activeTab === 'questions' && questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && !(formData.subCategory === 'Cognitive ability') && (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
@@ -2603,7 +2984,7 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
       </div>
     )}
 
-    {activeTab === 'questions' && !questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'psychometric' && formData.subCategory === 'FIRO-B') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && (
+    {activeTab === 'questions' && !questionsLoading && !(formData.category === 'personality' && formData.subCategory === 'Big5') && !(formData.category === 'psychometric' && formData.subCategory === 'DISC') && !(formData.category === 'psychometric' && formData.subCategory === 'MBTI') && !(formData.category === 'psychometric' && formData.subCategory === 'Hogan') && !(formData.category === 'psychometric' && formData.subCategory === 'FIRO-B') && !(formData.category === 'professional' && formData.subCategory === 'PCLA') && !(formData.subCategory === 'ECTI') && !(formData.subCategory === 'Cognitive ability') && (
   <div className="space-y-6">
   {/* Add New Question */}
  <div className="bg-gray-50 rounded-lg p-4">
@@ -2660,6 +3041,22 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  <label className="block text-sm text-gray-700 ">Options</label>
  {newQuestion.options.map((option, index) => (
  <div key={index} className="flex items-center gap-2">
+ {option.image && (
+   <img 
+     src={option.image.startsWith('http') ? option.image : `/${option.image}`} 
+     alt="" 
+     className="h-8 w-8 object-contain rounded border border-gray-200 bg-white p-0.5" 
+   />
+ )}
+ <label className="cursor-pointer text-gray-500 hover:text-indigo-600" title="Upload Option Image">
+   <Image className="w-4 h-4" />
+   <input
+     type="file"
+     accept="image/*"
+     className="hidden"
+     onChange={(e) => handleOptionImageUploadNew(e, index)}
+   />
+ </label>
  <input
  type="text"
  value={option.text}

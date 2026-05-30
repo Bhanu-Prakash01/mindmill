@@ -240,6 +240,116 @@ const generateOceanPentagonSvg = (scores) => {
  */
 const ringOffset = (pct) => Math.round(201 - (201 * Math.min(pct, 100)) / 100);
 
+/**
+ * Generate a 5-axis radar SVG for Cognitive Ability (VR, NR, LR, CT, WM).
+ * Pentagon vertices: top(-90) - VR, top-right(-18) - NR, bottom-right(54) - LR,
+ * bottom-left(126) - CT, top-left(198) - WM
+ */
+const generateCognitiveRadarSvg = (scores) => {
+  const cx = 100, cy = 105, r = 80;
+  const angles = [-90, -18, 54, 126, 198];
+  const keys = ['VR', 'NR', 'LR', 'CT', 'WM'];
+  const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899'];
+  const labels = ['VR', 'NR', 'LR', 'CT', 'WM'];
+
+  const toXY = (angle, pct) => {
+    const rad = (angle * Math.PI) / 180;
+    const dist = r * (pct / 100);
+    return { x: cx + dist * Math.cos(rad), y: cy + dist * Math.sin(rad) };
+  };
+
+  const gridLines = [20, 40, 60, 80, 100].map(pct => {
+    const pts = angles.map(a => { const p = toXY(a, pct); return `${p.x},${p.y}`; }).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="1"/>`;
+  }).join('');
+
+  const axisLines = angles.map(a => {
+    const end = toXY(a, 100);
+    return `<line x1="${cx}" y1="${cy}" x2="${end.x}" y2="${end.y}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>`;
+  }).join('');
+
+  const polyPoints = keys.map((k, i) => {
+    const p = toXY(angles[i], scores[k] || 0);
+    return `${p.x},${p.y}`;
+  }).join(' ');
+
+  const dots = keys.map((k, i) => {
+    const p = toXY(angles[i], scores[k] || 0);
+    const lab = toXY(angles[i], 116);
+    return `<circle cx="${p.x}" cy="${p.y}" r="4" fill="${colors[i]}"/>
+            <text x="${lab.x}" y="${lab.y}" text-anchor="middle" dominant-baseline="central"
+                  font-family="DM Sans, Inter, sans-serif" font-size="11" font-weight="700"
+                  fill="${colors[i]}">${labels[i]}</text>`;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="210" height="210" viewBox="0 0 210 210">
+  ${gridLines}
+  ${axisLines}
+  <polygon points="${polyPoints}" fill="rgba(200,200,220,0.15)" stroke="rgba(255,255,255,0.95)" stroke-width="2.5" stroke-linejoin="round"/>
+  ${dots}
+</svg>`;
+};
+
+/**
+ * Get cognitive benchmark band info
+ */
+const getCognitiveBand = (cacs) => {
+  if (cacs >= 85) return { label: 'Exceptional Cognitive Agility', isExceptional: true, isStrong: false, isFunctional: false, isDeveloping: false, isSupport: false };
+  if (cacs >= 70) return { label: 'Strong Cognitive Capability', isExceptional: false, isStrong: true, isFunctional: false, isDeveloping: false, isSupport: false };
+  if (cacs >= 55) return { label: 'Functional Cognitive Effectiveness', isExceptional: false, isStrong: false, isFunctional: true, isDeveloping: false, isSupport: false };
+  if (cacs >= 40) return { label: 'Developing Analytical Capability', isExceptional: false, isStrong: false, isFunctional: false, isDeveloping: true, isSupport: false };
+  return { label: 'Needs Structured Development Support', isExceptional: false, isStrong: false, isFunctional: false, isDeveloping: false, isSupport: true };
+};
+
+/**
+ * Get color for a cognitive domain score
+ */
+const scoreColor = (score) => {
+  if (score >= 85) return '#8B5CF6';
+  if (score >= 70) return '#3B82F6';
+  if (score >= 55) return '#10B981';
+  if (score >= 40) return '#F59E0B';
+  return '#EF4444';
+};
+
+/**
+ * Get cognitive domain description based on score
+ */
+const domainDescription = (dimension, score) => {
+  const descs = {
+    vr: {
+      high: 'Demonstrates strong verbal capability — able to interpret written information accurately, grasp conceptual relationships, and communicate reasoning with clarity.',
+      mid: 'Shows functional verbal reasoning skills with adequate comprehension and conceptual association ability. Further development in analytical reading is beneficial.',
+      low: 'May benefit from structured practice in reading comprehension, vocabulary building, and interpreting written information under time constraints.',
+    },
+    nr: {
+      high: 'Exhibits strong numerical fluency — comfortable with quantitative data, percentages, ratios, and analytical calculations. Well-suited for data-driven roles.',
+      mid: 'Displays functional numerical reasoning with adequate quantitative processing ability. Additional practice with complex calculations may improve performance.',
+      low: 'May experience difficulty with numerical data interpretation and quantitative problem-solving. Structured numerical practice is recommended.',
+    },
+    lr: {
+      high: 'Shows exceptional logical and abstract reasoning ability — excels at identifying patterns, relationships, and drawing rational conclusions from complex information.',
+      mid: 'Demonstrates functional logical reasoning capability with adequate pattern recognition and systematic thinking skills. Further development in complex problem-solving is valuable.',
+      low: 'May benefit from practicing structured problem-solving techniques and logical deduction exercises to strengthen analytical thinking.',
+    },
+    ct: {
+      high: 'Demonstrates mature critical thinking capability — evaluates information objectively, identifies assumptions, and makes balanced, well-reasoned decisions.',
+      mid: 'Shows moderate critical thinking skills with room to strengthen objective evaluation and assumption analysis. Practice scenario-based decision-making.',
+      low: 'May rely heavily on assumptions or reactive decisions. Structured critical thinking exercises and scenario analysis are recommended for development.',
+    },
+    wm: {
+      high: 'Exhibits excellent working memory and attention to detail — retains and processes information efficiently, maintains accuracy across sequential tasks.',
+      mid: 'Shows adequate working memory capacity with reasonable information retention. Structured note-taking and repetition strategies may enhance performance.',
+      low: 'May experience challenges with information retention under pressure. Memory reinforcement exercises and structured learning approaches are recommended.',
+    },
+  };
+
+  const d = descs[dimension] || descs.vr;
+  if (score >= 70) return d.high;
+  if (score >= 50) return d.mid;
+  return d.low;
+};
+
 // ─────────────────────────────────────────────────────────────────
 // PDF GENERATION
 // ─────────────────────────────────────────────────────────────────
@@ -1646,6 +1756,157 @@ const generateEctiReportPdf = async (report, testTaker, options = {}) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// COGNITIVE ABILITY REPORT
+// ─────────────────────────────────────────────────────────────────
+
+const generateCognitiveReportPdf = async (report, testTaker, options = {}) => {
+  try {
+    const reportObj = report?.toObject ? report.toObject() : report;
+    const attempt = reportObj.attempt || testTaker;
+
+    // Extract dimension scores from attempt.dimensionScores
+    // Format: { vr: { score: 4, count: 5 }, nr: { score: 3, count: 5 }, ... }
+    const dimScores = attempt?.dimensionScores || {};
+
+    const calcPct = (key) => {
+      const d = dimScores[key];
+      return d && d.count > 0 ? Math.round((d.score / d.count) * 100) : 0;
+    };
+
+    const vrScore = calcPct('vr') || calcPct('Verbal') || 0;
+    const nrScore = calcPct('nr') || calcPct('Numerical') || 0;
+    const lrScore = calcPct('lr') || calcPct('Logical') || 0;
+    const ctScore = calcPct('ct') || calcPct('Critical') || 0;
+    const wmScore = calcPct('wm') || calcPct('Memory') || calcPct('Working') || 0;
+
+    // CACS = (VR × 0.20) + (NR × 0.20) + (LR × 0.25) + (CT × 0.20) + (WM × 0.15)
+    const cacs = Math.round(
+      (vrScore * 0.20) + (nrScore * 0.20) + (lrScore * 0.25) + (ctScore * 0.20) + (wmScore * 0.15)
+    );
+
+    const activeDimensions = [vrScore, nrScore, lrScore, ctScore, wmScore].filter(s => s > 0);
+    const domainAverage = activeDimensions.length > 0
+      ? Math.round(activeDimensions.reduce((a, b) => a + b, 0) / activeDimensions.length)
+      : 0;
+
+    const totalQuestions = attempt?.totalQuestions || attempt?.answers?.length || 0;
+    const answeredQuestions = attempt?.answeredQuestions || attempt?.answers?.filter(a => a.selectedOption != null)?.length || 0;
+    const accuracy = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+
+    const band = getCognitiveBand(cacs);
+
+    const vrWeighted = Math.round(vrScore * 0.20);
+    const nrWeighted = Math.round(nrScore * 0.20);
+    const lrWeighted = Math.round(lrScore * 0.25);
+    const ctWeighted = Math.round(ctScore * 0.20);
+    const wmWeighted = Math.round(wmScore * 0.15);
+
+    const scores = { VR: vrScore, NR: nrScore, LR: lrScore, CT: ctScore, WM: wmScore };
+
+    // Build strengths and development areas based on scores
+    const domainNames = {
+      vr: 'Verbal & Analytical Reasoning',
+      nr: 'Numerical & Data Reasoning',
+      lr: 'Logical & Abstract Reasoning',
+      ct: 'Critical Thinking & Judgement',
+      wm: 'Working Memory & Attention',
+    };
+
+    const domainKeys = ['vr', 'nr', 'lr', 'ct', 'wm'];
+    const domainScores = { vr: vrScore, nr: nrScore, lr: lrScore, ct: ctScore, wm: wmScore };
+
+    const strengths = domainKeys
+      .filter(k => domainScores[k] >= 70)
+      .map(k => `Strong ${domainNames[k]} — scored ${domainScores[k]}%, indicating well-developed capability in this cognitive domain.`);
+
+    const developmentAreas = domainKeys
+      .filter(k => domainScores[k] < 55 && domainScores[k] > 0)
+      .map(k => `Developing ${domainNames[k]} — scored ${domainScores[k]}%. Targeted practice and structured exercises can help strengthen this area.`);
+
+    if (strengths.length === 0) strengths.push('Balanced performance across assessed domains with no single standout strength.');
+    if (developmentAreas.length === 0 && cacs < 85) developmentAreas.push('Consistent performance across domains. Focus on maintaining cognitive agility through diverse mental challenges.');
+
+    // Sort strengths/development by score
+    strengths.sort((a, b) => b.localeCompare(a));
+    developmentAreas.sort((a, b) => b.localeCompare(a));
+
+    // Summary
+    const summary = `${testTaker?.name || 'The candidate'} achieved a Cognitive Ability Composite Score (CACS) of ${cacs}/100, which falls in the "${band.label}" range. ` +
+      `The assessment evaluated cognitive performance across ${activeDimensions.length} key domains. ` +
+      `The highest performing domain was ${domainKeys.filter(k => domainScores[k] >= 70).map(k => domainNames[k]).join(', ') || 'not specified'}. ` +
+      `Overall, this profile suggests ${band.label === 'Exceptional Cognitive Agility' ? 'exceptional cognitive adaptability and analytical capability suitable for complex, fast-paced environments.' :
+        band.label === 'Strong Cognitive Capability' ? 'strong workplace cognitive capability with effective analytical and problem-solving skills well-suited for professional environments.' :
+        band.label === 'Functional Cognitive Effectiveness' ? 'functional cognitive effectiveness with capability to handle standard workplace analytical tasks. Further development can enhance performance.' :
+        band.label === 'Developing Analytical Capability' ? 'developing analytical capability. Structured cognitive development and practice can significantly strengthen performance.' :
+        'an opportunity for structured cognitive development. Targeted exercises and learning interventions are recommended to build capability.'}`;
+
+    const assessmentName = getReportAssessmentName(report, 'cognitive');
+
+    const templateData = {
+      candidateName: esc(testTaker?.name || 'N/A'),
+      candidateEmail: esc(testTaker?.email || 'N/A'),
+      assessmentDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      assessmentName: esc(assessmentName),
+
+      cacs,
+      accuracy,
+      totalQuestions,
+      answeredQuestions,
+      domainAverage,
+      domainCount: activeDimensions.length,
+      cacsBand: band.label,
+      summary: esc(summary),
+      domainInterpretation: esc(
+        `The candidate's cognitive profile shows ${strengths.length > 0 ? 'strengths in ' + strengths.length + ' domain(s)' : 'a balanced distribution across domains'}. ` +
+        `Verbal Reasoning (${vrScore}%), Numerical Reasoning (${nrScore}%), Logical Reasoning (${lrScore}%), Critical Thinking (${ctScore}%), and Working Memory (${wmScore}%) ` +
+        `combine to produce a CACS of ${cacs}/100. ${band.label === 'Exceptional Cognitive Agility' ? 'This indicates exceptional cognitive versatility, suitable for complex problem-solving and strategic roles.' :
+          band.label === 'Strong Cognitive Capability' ? 'This indicates solid cognitive capability suitable for most professional environments.' :
+          'This indicates potential for further cognitive development through structured practice and learning interventions.'}`
+      ),
+
+      vrScore, nrScore, lrScore, ctScore, wmScore,
+      vrColor: scoreColor(vrScore), nrColor: scoreColor(nrScore), lrColor: scoreColor(lrScore),
+      ctColor: scoreColor(ctScore), wmColor: scoreColor(wmScore),
+      vrWeighted: `${vrWeighted} (${vrScore}×0.20)`, nrWeighted: `${nrWeighted} (${nrScore}×0.20)`,
+      lrWeighted: `${lrWeighted} (${lrScore}×0.25)`, ctWeighted: `${ctWeighted} (${ctScore}×0.20)`,
+      wmWeighted: `${wmWeighted} (${wmScore}×0.15)`,
+
+      vrDescription: esc(domainDescription('vr', vrScore)),
+      nrDescription: esc(domainDescription('nr', nrScore)),
+      lrDescription: esc(domainDescription('lr', lrScore)),
+      ctDescription: esc(domainDescription('ct', ctScore)),
+      wmDescription: esc(domainDescription('wm', wmScore)),
+
+      ...band,
+      strengths,
+      developmentAreas,
+      hasRecommendations: false,
+      recommendations: [],
+      hasRoleMapping: true,
+      roleMapping: [
+        { role: 'Leadership', focus: 'Critical Thinking & Problem Solving' },
+        { role: 'Sales', focus: 'Verbal & Adaptive Reasoning' },
+        { role: 'Finance', focus: 'Numerical & Logical Accuracy' },
+        { role: 'Operations', focus: 'Problem Solving & Cognitive Stability' },
+        { role: 'Technical Roles', focus: 'Abstract & Logical Reasoning' },
+        { role: 'Customer Service', focus: 'Verbal & Situational Judgement' },
+      ],
+
+      radarSvg: generateCognitiveRadarSvg(scores),
+
+      ...getAttemptMetrics(testTaker),
+    };
+
+    const template = readTemplate('cognitive-comprehensive.html');
+    const html = render(template, templateData);
+    return await generatePdfFromHtml(html);
+  } catch (err) {
+    console.error('Cognitive PDF generation error:', err);
+    throw err;
+  }
+};
+
 module.exports = {
   generatePdfFromHtml,
   generateDiscReportPdf,
@@ -1658,6 +1919,7 @@ module.exports = {
   generateSjtReportPdf,
   generatePclaReportPdf,
   generateEctiReportPdf,
+  generateCognitiveReportPdf,
   savePdfToDisk,
   getCachedPdf,
   deleteCachedPdfs,

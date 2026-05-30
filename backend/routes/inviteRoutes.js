@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
-const { isAdmin } = require('../middleware/roleMiddleware');
+const { isAdmin, isSameOrganization } = require('../middleware/roleMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 const {
   createInvite,
@@ -41,7 +41,7 @@ router.get('/export', exportInvites);
 router.get('/', getInvites);
 
 // Get invite stats (admin only - org-wide)
-router.get('/stats', isAdmin, getInviteStats);
+router.get('/stats', isAdmin, isSameOrganization, getInviteStats);
 
 // Get my invite stats (user - their own invites only)
 router.get('/my-stats', getMyInviteStats);

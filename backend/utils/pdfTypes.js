@@ -16,6 +16,7 @@ const AssessmentType = {
   SJT: 'sjt',
   PCLA: 'pcla',
   ECTI: 'ecti',
+  COGNITIVE: 'cognitive',
 };
 
 /** @readonly @type {AssessmentType[]} */
@@ -77,6 +78,7 @@ const getAssessmentDisplayName = (type) => {
     sjt: 'Situational Judgement',
     pcla: 'Coachability & Learning Agility',
     ecti: 'Executive Critical Thinking Index',
+    cognitive: 'Cognitive Ability Composite Assessment',
   };
   return names[type] || type.toUpperCase();
 };

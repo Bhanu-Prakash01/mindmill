@@ -17,6 +17,86 @@ import {
 } from 'lucide-react';
 
 const TakeTest = () => {
+  // ── Markdown-aware question text renderer ──────────────────────────
+  const renderQuestionText = (text) => {
+    if (!text) return null;
+    const sections = text.split(/\n\n/);
+    return sections.map((section, sIdx) => {
+      const lines = section.split('\n');
+      const tableLines = lines.filter(l => l.trim().startsWith('|') && l.trim().endsWith('|'));
+      const isTable = tableLines.length >= 2;
+
+      if (isTable) {
+        const parseCell = (cell) => {
+          // handle **bold**
+          const parts = cell.split(/(\*\*.*?\*\*)/);
+          return parts.map((p, i) =>
+            p.startsWith('**') && p.endsWith('**')
+              ? <strong key={i}>{p.slice(2, -2)}</strong>
+              : p
+          );
+        };
+
+        const isSeparator = (line) => /^[|:\-\s]+$/.test(line.replace(/\|/g, ''));
+        const allTableLines = tableLines;
+        const headerCells = allTableLines[0].split('|').map(c => c.trim()).filter(Boolean);
+        const dataRows = allTableLines
+          .slice(1)
+          .filter(row => !isSeparator(row))
+          .map(row => row.split('|').map(c => c.trim()).filter(Boolean));
+
+        return (
+          <div key={sIdx} className="my-4 overflow-x-auto rounded-lg border border-indigo-100 shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead>
+                <tr className="bg-indigo-50">
+                  {headerCells.map((cell, i) => (
+                    <th
+                      key={i}
+                      className="px-4 py-2.5 text-left font-semibold text-indigo-800 whitespace-nowrap"
+                    >
+                      {parseCell(cell)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {dataRows.map((row, rIdx) => (
+                  <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    {row.map((cell, cIdx) => (
+                      <td
+                        key={cIdx}
+                        className="px-4 py-2 text-gray-800 whitespace-nowrap"
+                      >
+                        {parseCell(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      // Regular paragraph — render **bold** inline
+      const renderInline = (str) => {
+        const parts = str.split(/(\*\*.*?\*\*)/);
+        return parts.map((p, i) =>
+          p.startsWith('**') && p.endsWith('**')
+            ? <strong key={i}>{p.slice(2, -2)}</strong>
+            : p
+        );
+      };
+
+      return (
+        <p key={sIdx} className={sIdx > 0 ? 'mt-3 text-gray-800' : 'text-gray-800'}>
+          {renderInline(section)}
+        </p>
+      );
+    });
+  };
+
   const { id, token, attemptId: urlAttemptId, orgSlug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -588,9 +668,19 @@ if (!document.fullscreenElement) {
  </button>
  </div>
 
- <h2 className="text-lg font-medium text-gray-900 mb-6">
- {question.questionText}
- </h2>
+  <h2 className="text-lg font-medium text-gray-900 mb-6 leading-relaxed">
+  {renderQuestionText(question.questionText)}
+  </h2>
+
+ {question.questionImage && (
+    <div className="mb-6 flex justify-start">
+      <img 
+        src={question.questionImage.startsWith('http') ? question.questionImage : `/${question.questionImage}`} 
+        alt="Question visualization" 
+        className="max-h-64 sm:max-h-80 w-auto object-contain rounded-xl border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow duration-200" 
+      />
+    </div>
+  )}
 
  {/* MCQ Options */}
  {question.type === 'mcq' && (
@@ -615,6 +705,13 @@ if (!document.fullscreenElement) {
  <CheckCircle className="w-4 h-4 text-white" />
  )}
  </div>
+  {option.image && (
+  <img 
+    src={option.image.startsWith('http') ? option.image : `/${option.image}`} 
+    alt="" 
+    className="h-16 w-auto max-w-[200px] object-contain rounded-md border border-gray-200 bg-white p-2" 
+  />
+  )}
  <span className="text-gray-900 ">{option.text}</span>
  </div>
  </button>

@@ -15,6 +15,7 @@ const {
   generateSjtReportPdf,
   generatePclaReportPdf,
   generateEctiReportPdf,
+  generateCognitiveReportPdf,
   getCachedPdf,
   savePdfToDisk,
 } = require('./pdfService');
@@ -231,6 +232,14 @@ const downloadPdf = async (report, testTaker, assessmentType, downloadType) => {
 
     case AssessmentType.ECTI:
       pdfBuffer = await generateEctiReportPdf(report, testTaker);
+      break;
+
+    case AssessmentType.COGNITIVE:
+      if (isComprehensive) {
+        pdfBuffer = await generateCognitiveReportPdf(report, testTaker);
+      } else {
+        pdfBuffer = await generateQuickSummaryPdf('cognitive', report, testTaker);
+      }
       break;
       
     default:

@@ -336,6 +336,7 @@ const generateReportPdf = async (report, testTaker, type) => {
     
     if (reportType === 'disc') return AssessmentType.DISC;
     if (reportType === 'ecti') return AssessmentType.ECTI;
+    if (reportType === 'cognitive' || reportType === 'cognitive-ability') return AssessmentType.COGNITIVE;
     if (reportType === 'big5' || reportType === 'bigfive') return AssessmentType.BIG5;
     if (reportType === 'firo' || reportType === 'firo-b' || reportType === 'firo_b') return AssessmentType.FIRO;
     if (reportType === 'mbti') return AssessmentType.MBTI;
@@ -359,6 +360,7 @@ const generateReportPdf = async (report, testTaker, type) => {
     if (lowerCat === 'mbti') return AssessmentType.MBTI;
     if (lowerCat === 'hogan' || lowerCat === 'personality') return AssessmentType.HOGAN;
     if (lowerCat === 'ecti') return AssessmentType.ECTI;
+    if (lowerCat === 'cognitive' || lowerCat === 'cognitive ability') return AssessmentType.COGNITIVE;
     
     console.log('[PDF] Decision: Defaulting to FIRO');
     return AssessmentType.FIRO;
