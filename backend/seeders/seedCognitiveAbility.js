@@ -64,13 +64,17 @@ const seedCognitiveAbility = async () => {
     const savedQuestions = [];
     let orderCounter = 1;
     for (const q of rawQuestions) {
+      const options = q.options.map(opt => ({
+        ...opt,
+        score: opt.isCorrect ? 1 : 0
+      }));
       const newQuestion = new Question({
         assessment: assessment._id,
         questionText: q.text,
         questionImage: q.questionImage || null,
         type: q.type,
         dimension: q.dimension,
-        options: q.options,
+        options,
         order: orderCounter++
       });
       await newQuestion.save();

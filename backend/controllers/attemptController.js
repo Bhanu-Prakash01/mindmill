@@ -545,11 +545,12 @@ const assessment = await Assessment.findById(attempt.assessment).populate('quest
 
     // Track dimension scores for psychometric assessments
     if (question.dimension) {
-      if (!dimensionScores[question.dimension]) {
-        dimensionScores[question.dimension] = { score: 0, count: 0 };
+      const dim = question.dimension.toLowerCase().trim();
+      if (!dimensionScores[dim]) {
+        dimensionScores[dim] = { score: 0, count: 0 };
       }
-      dimensionScores[question.dimension].score += answer.marksObtained;
-      dimensionScores[question.dimension].count += 1;
+      dimensionScores[dim].score += answer.marksObtained;
+      dimensionScores[dim].count += 1;
     }
   });
 

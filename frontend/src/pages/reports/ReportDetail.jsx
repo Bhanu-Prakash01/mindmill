@@ -27,6 +27,8 @@ const ReportDetail = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [shareEmail, setShareEmail] = useState('');
   const [shareExpiresIn, setShareExpiresIn] = useState(30);
   const [sharing, setSharing] = useState(false);
@@ -45,6 +47,20 @@ const ReportDetail = () => {
       toast.error('Failed to load report');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownload = async (type) => {
+    setDownloading(true);
+    try {
+      await reportService.downloadReport(id, type);
+      setShowDownloadModal(false);
+      toast.success('Report downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      toast.error('Failed to download report');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -220,6 +236,13 @@ const ReportDetail = () => {
               {report.visibleToUser ? 'Visible' : 'Hidden'}
             </button>
           )}
+          <button
+            onClick={() => setShowDownloadModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download
+          </button>
           <button
             onClick={() => { setShowShareModal(true); setShareEmail(report?.testTakerEmail || report?.user?.email || ''); }}
             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -411,6 +434,48 @@ const ReportDetail = () => {
           )}
         </div>
       </div>
+
+      {/* Download Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Download Report</h2>
+            <p className="text-sm text-gray-500 mb-6">Choose a format for your PDF download.</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleDownload('comprehensive')}
+                disabled={downloading}
+                className="w-full flex items-center gap-4 px-4 py-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-900">Comprehensive Report</div>
+                  <div className="text-xs text-gray-500">Full analysis with charts and detailed insights</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleDownload('summary')}
+                disabled={downloading}
+                className="w-full flex items-center gap-4 px-4 py-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-900">Summary Report</div>
+                  <div className="text-xs text-gray-500">Concise overview with key scores</div>
+                </div>
+              </button>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="w-full px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal */}
       {showShareModal && (

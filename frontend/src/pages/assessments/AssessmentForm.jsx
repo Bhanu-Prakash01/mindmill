@@ -663,6 +663,22 @@ const handleOptionImageUploadNew = async (e, index) => {
   }
 };
 
+const handleQuestionImageUploadNew = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast.warning('Please select an image file');
+  if (file.size > 5 * 1024 * 1024) return toast.warning('Image must be less than 5MB');
+  try {
+    const result = await assessmentService.uploadQuestionImage(file);
+    if (result.success) {
+      setNewQuestion({ ...newQuestion, questionImage: result.data.imageUrl });
+      toast.success('Question image uploaded successfully');
+    }
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to upload question image');
+  }
+};
+
 const handleInlineEditSave = async () => {
   if (!editFormData || !editingId) return;
   if (isEditing) {
@@ -2990,51 +3006,66 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  <div className="bg-gray-50 rounded-lg p-4">
   <h3 className="text-sm font-medium text-gray-900 mb-4">{newQuestion._editId ? 'Edit Question' : 'Add New Question'}</h3>
  <div className="space-y-4">
- <div>
- <label className="block text-sm text-gray-700 mb-1">Question Text</label>
- <textarea
- value={newQuestion.questionText}
- onChange={(e) => setNewQuestion({ ...newQuestion, questionText: e.target.value })}
- rows={2}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
- placeholder="Enter your question"
- />
- </div>
+  <div>
+  <label className="block text-sm text-gray-700 mb-1">Question Text</label>
+  <div className="flex gap-2">
+    <textarea
+    value={newQuestion.questionText}
+    onChange={(e) => setNewQuestion({ ...newQuestion, questionText: e.target.value })}
+    rows={2}
+    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
+    placeholder="Enter your question"
+    />
+    <label className="flex-shrink-0 cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors self-start mt-0.5" title="Upload Question Image">
+      <Image className="w-4 h-4" />
+      <span className="text-xs">Image</span>
+      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleQuestionImageUploadNew(e)} />
+    </label>
+  </div>
+  {newQuestion.questionImage && (
+    <div className="mt-2 relative inline-block">
+      <img src={newQuestion.questionImage.startsWith('http') ? newQuestion.questionImage : `/${newQuestion.questionImage}`} alt="" className="h-20 object-contain rounded border border-gray-200 bg-white p-1" />
+      <button onClick={() => setNewQuestion({ ...newQuestion, questionImage: '' })} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
+    </div>
+  )}
+  </div>
 
- <div className="grid grid-cols-3 gap-4">
- <div>
- <label className="block text-sm text-gray-700 mb-1">Type</label>
- <select
- value={newQuestion.type}
- onChange={(e) => setNewQuestion({ ...newQuestion, type: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
- >
- <option value="mcq">Multiple Choice</option>
- <option value="text">Text Answer</option>
- <option value="rating">Rating Scale</option>
- </select>
- </div>
- <div>
- <label className="block text-sm text-gray-700 mb-1">Dimension</label>
- <input
- type="text"
- value={newQuestion.dimension}
- onChange={(e) => setNewQuestion({ ...newQuestion, dimension: e.target.value })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
- placeholder="e.g., Dominance"
- />
- </div>
- <div>
- <label className="block text-sm text-gray-700 mb-1">Marks</label>
- <input
- type="number"
- value={newQuestion.marks}
- onChange={(e) => setNewQuestion({ ...newQuestion, marks: parseInt(e.target.value) || 1 })}
- className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
- min="1"
- />
- </div>
- </div>
+  <div className="grid grid-cols-3 gap-4">
+  <div>
+  <label className="block text-sm text-gray-700 mb-1">Type</label>
+  <select
+  value={newQuestion.type}
+  onChange={(e) => setNewQuestion({ ...newQuestion, type: e.target.value })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
+  >
+  <option value="mcq">Multiple Choice</option>
+  <option value="text">Text Answer</option>
+  <option value="rating">Rating Scale</option>
+  </select>
+  </div>
+  {formData.category !== 'aptitude' && (
+  <div>
+  <label className="block text-sm text-gray-700 mb-1">Dimension</label>
+  <input
+  type="text"
+  value={newQuestion.dimension}
+  onChange={(e) => setNewQuestion({ ...newQuestion, dimension: e.target.value })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
+  placeholder="e.g., Dominance"
+  />
+  </div>
+  )}
+  <div>
+  <label className="block text-sm text-gray-700 mb-1">Marks</label>
+  <input
+  type="number"
+  value={newQuestion.marks}
+  onChange={(e) => setNewQuestion({ ...newQuestion, marks: parseInt(e.target.value) || 1 })}
+  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
+  min="1"
+  />
+  </div>
+  </div>
 
  {newQuestion.type === 'mcq' && (
  <div className="space-y-2">
@@ -3064,13 +3095,15 @@ className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray
  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
  placeholder={`Option ${index + 1}`}
  />
- <input
- type="number"
- value={option.score}
- onChange={(e) => updateOption(index, 'score', parseInt(e.target.value) || 0)}
- className="w-20 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 "
- placeholder="Score"
- />
+  <label className="inline-flex items-center gap-1.5 cursor-pointer px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-indigo-300 transition-colors">
+    <input
+      type="checkbox"
+      checked={option.isCorrect}
+      onChange={(e) => updateOption(index, 'isCorrect', e.target.checked)}
+      className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+    />
+    <span className="text-xs font-medium">Correct</span>
+  </label>
  <button
  onClick={() => removeOption(index)}
  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"

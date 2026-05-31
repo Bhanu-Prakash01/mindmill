@@ -397,6 +397,7 @@ if (!document.fullscreenElement) {
       const params = new URLSearchParams({
         assessment: assessment?.title || 'Assessment',
         type: assessment?.category || 'standard',
+        attemptId: attempt._id,
         attempted: percentAttempted.toString(),
         answered: answeredCount.toString(),
         total: totalQuestions.toString(),

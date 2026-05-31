@@ -172,7 +172,7 @@ function calculateScore(attempt, assessment) {
   const breakdown = {};
 
   // Situational Judgement (ESJI): category = 'situational'
-  if (category === 'situational' || subCategory === 'Situational Judgement') {
+  if (category === 'situational' || (subCategory || '').toLowerCase() === 'situational judgement') {
     // Use stored SJT results from the scoring service if available
     if (attempt.sjtResults && attempt.sjtResults.situationalIndex !== undefined) {
       const r = attempt.sjtResults;
@@ -220,7 +220,7 @@ function calculateScore(attempt, assessment) {
     }
   }
   // Cognitive Reasoning: category = 'cognitive'
-  else if (category === 'cognitive' && subCategory === 'Cognitive ability') {
+  else if (category === 'cognitive' && (subCategory || '').toLowerCase() === 'cognitive ability') {
     const dimensionScores = {
       vr: { score: 0, max: 0, attempts: 0 },
       nr: { score: 0, max: 0, attempts: 0 },
@@ -237,10 +237,10 @@ function calculateScore(attempt, assessment) {
       if (!question || question.type !== 'mcq') return;
 
       const selectedOption = answer.selectedOption;
-      const dimension = question.dimension?.toLowerCase() || 'lr';
+      const rawDimension = (question.dimension || 'lr').toString().toLowerCase().trim();
+      const dimension = dimensionScores[rawDimension] ? rawDimension : 'lr';
       const options = question.options || [];
 
-      dimensionScores[dimension] = dimensionScores[dimension] || { score: 0, max: 0, attempts: 0 };
       dimensionScores[dimension].max += 1;
 
       if (selectedOption !== null && selectedOption !== undefined) {
@@ -279,7 +279,7 @@ function calculateScore(attempt, assessment) {
     breakdown.maxScore = 100;
     breakdown.type = 'Cognitive ability';
   }
-  else if (category === 'cognitive' || subCategory === 'Reasoning') {
+  else if (category === 'cognitive' || (subCategory || '').toLowerCase() === 'reasoning') {
     // Count by type (logical/numerical/verbal), max 15
     const dimensionScores = {
       logical: { score: 0, max: 0 },

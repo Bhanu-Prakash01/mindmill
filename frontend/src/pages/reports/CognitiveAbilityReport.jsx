@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { reportService } from '../../services/reportService';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell
 } from 'recharts';
-import { Brain, Clock, ShieldCheck, Zap, ArrowLeft, Target, Award, Download, Printer } from 'lucide-react';
+import { Brain, Clock, ShieldCheck, Zap, ArrowLeft, Target, Award, Download, Printer, FileText } from 'lucide-react';
 
 const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'];
 
@@ -18,6 +19,29 @@ const CognitiveAbilityReport = () => {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [reportId, setReportId] = useState(null);
+
+  // ── Print handler ──────────────────────────────────────────────────────────
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // ── PDF download handler ──────────────────────────────────────────────────
+  const handleDownload = async (type) => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await reportService.downloadReport(reportId, type);
+      setShowDownloadModal(false);
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      alert(err.message || 'Failed to download PDF. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -39,6 +63,7 @@ const CognitiveAbilityReport = () => {
             timeSpent: result.timeSpentSeconds || 0,
           },
         });
+        setReportId(result.reportId);
       } catch (err) {
         console.error('Error fetching report:', err);
         setError('Failed to load report data');
@@ -102,8 +127,16 @@ const CognitiveAbilityReport = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 font-sans">
+      {/* Print Stylesheet */}
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          .print\\:break-inside-avoid { break-inside: avoid; }
+        }
+      `}</style>
       {/* Top Navbar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 no-print">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -118,11 +151,28 @@ const CognitiveAbilityReport = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <button
+              onClick={handlePrint}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <Printer className="w-4 h-4" /> Print
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-              <Download className="w-4 h-4" /> Download PDF
+            <button
+              onClick={() => setShowDownloadModal(true)}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {downloading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Generating…
+                </>
+              ) : (
+                <><Download className="w-4 h-4" /> Download PDF</>
+              )}
             </button>
           </div>
         </div>
@@ -285,6 +335,48 @@ const CognitiveAbilityReport = () => {
         </div>
 
       </div>
+
+      {/* Download Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Download Report</h2>
+            <p className="text-sm text-gray-500 mb-6">Choose a format for your PDF download.</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleDownload('comprehensive')}
+                disabled={downloading}
+                className="w-full flex items-center gap-4 px-4 py-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-900">Comprehensive Report</div>
+                  <div className="text-xs text-gray-500">Full analysis with charts and detailed insights</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleDownload('summary')}
+                disabled={downloading}
+                className="w-full flex items-center gap-4 px-4 py-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-900">Summary Report</div>
+                  <div className="text-xs text-gray-500">Concise overview with key scores</div>
+                </div>
+              </button>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="w-full px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

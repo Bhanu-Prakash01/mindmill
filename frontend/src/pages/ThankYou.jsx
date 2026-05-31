@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Building2, ArrowRight, Sparkles, PartyPopper, Clock, Target } from 'lucide-react';
+import { CheckCircle, Building2, ArrowRight, Sparkles, PartyPopper, Clock, Target, FileText } from 'lucide-react';
 
 const ThankYou = () => {
   const navigate = useNavigate();
@@ -55,6 +55,10 @@ const ThankYou = () => {
   };
 
   const showStats = attemptedPercent && totalQuestions && answeredCount;
+
+  const attemptId = searchParams.get('attemptId') || '';
+  const cognitiveTypes = ['cognitive'];
+  const hasReport = attemptId && cognitiveTypes.includes(assessmentType);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
@@ -176,6 +180,16 @@ const ThankYou = () => {
 
         {/* Actions */}
         <div className="space-y-3">
+          {hasReport && (
+            <button
+              onClick={() => navigate(`/reports/cognitive-ability/${attemptId}`)}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 font-semibold text-sm"
+            >
+              <FileText className="w-4 h-4" />
+              View Your Report
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
           {orgSlug && (
             <button
               onClick={() => navigate(`/org/${orgSlug}`)}

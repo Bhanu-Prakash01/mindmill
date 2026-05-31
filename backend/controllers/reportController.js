@@ -352,6 +352,7 @@ const generateReportPdf = async (report, testTaker, type) => {
     
     if (reportType === 'standard') {
       if (lowerCat === 'hogan' || lowerCat === 'personality') return AssessmentType.HOGAN;
+      if (lowerCat === 'cognitive' || lowerCat === 'cognitive ability') return AssessmentType.COGNITIVE;
     }
     
     if (lowerCat === 'disc') return AssessmentType.DISC;
