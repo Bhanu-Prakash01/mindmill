@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { reportService } from '../../services';
+import api from '../../services/api';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell
@@ -23,8 +23,22 @@ const CognitiveAbilityReport = () => {
     const fetchReport = async () => {
       try {
         setLoading(true);
-        const response = await reportService.getReportData(attemptId);
-        setReportData(response.data);
+        const response = await api.get(`/attempts/${attemptId}/simple-results`);
+        const result = response.data?.data;
+        if (!result) {
+          setError('Report data not found');
+          return;
+        }
+        setReportData({
+          report: {
+            breakdown: result.breakdown,
+            generatedAt: result.completedAt,
+          },
+          testTaker: result.testTaker,
+          attempt: {
+            timeSpent: result.timeSpentSeconds || 0,
+          },
+        });
       } catch (err) {
         console.error('Error fetching report:', err);
         setError('Failed to load report data');

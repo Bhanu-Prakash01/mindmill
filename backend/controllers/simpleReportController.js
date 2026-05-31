@@ -70,6 +70,7 @@ const getSimpleResults = asyncHandler(async (req, res) => {
         subCategory: assessment.subCategory
       },
       timeSpent: timeSpentFormatted,
+      timeSpentSeconds: timeSpentSeconds,
       completedAt: attempt.completedAt
     }
   });
