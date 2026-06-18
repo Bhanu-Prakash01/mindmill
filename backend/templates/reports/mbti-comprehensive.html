@@ -54,8 +54,7 @@
     /* ── PAGE SHELL ──────────────────────────────────── */
     .page {
       width: 210mm;
-      height: 297mm;
-      overflow: hidden;
+      min-height: 297mm;
       position: relative;
       background: #fff;
       page-break-after: always;
@@ -86,7 +85,7 @@
     .inner-page {
       display: flex;
       flex-direction: column;
-      height: 297mm;
+      min-height: 297mm;
     }
 
     .ph {
@@ -217,7 +216,7 @@
     /* ── COVER ───────────────────────────────────────── */
     .cover {
       background: var(--navy);
-      height: 297mm;
+      min-height: 297mm;
       display: flex;
       flex-direction: column;
     }
@@ -822,7 +821,7 @@
         <div class="cv-orb cv-orb-2"></div>
 
         <div class="cv-logo-row">
-          <div class="cv-logo" style="display:flex;align-items:center;gap:6px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:22px;">{{/if}}Mind<span>Mil</span></div>
+          <div class="cv-logo" style="display:flex;align-items:center;gap:6px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMil" style="height:22px;">{{/if}}Mind<span>Mil</span></div>
           <div class="cv-tag">Personality Assessment Series</div>
         </div>
 
@@ -884,7 +883,7 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMil" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
         <span class="ph-title">{{assessmentName}}</span>
       </div>
@@ -1031,7 +1030,7 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMil" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
         <span class="ph-title">{{assessmentName}}</span>
       </div>
@@ -1113,7 +1112,7 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMil" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
         <span class="ph-title">{{assessmentName}}</span>
       </div>
@@ -1195,7 +1194,7 @@
   <div class="page inner-page">
     <div class="ph">
       <div class="ph-left">
-        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMill" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
+        <span class="ph-logo" style="display:flex;align-items:center;gap:4px;">{{#if logoBase64}}<img src="{{logoBase64}}" alt="MindMil" style="height:13px;">{{/if}}Mind<span>Mil</span></span>
         <div class="ph-sep"></div>
         <span class="ph-title">{{assessmentName}}</span>
       </div>

@@ -51,8 +51,7 @@
     /* ── PAGE SHELL ──────────────────────────────────── */
     .page {
       width: 210mm;
-      height: 297mm;
-      overflow: hidden;
+      min-height: 297mm;
       position: relative;
       background: #fff;
       page-break-after: always;
@@ -217,7 +216,7 @@
     /* ── COVER ───────────────────────────────────────── */
     .cover {
       background: var(--navy);
-      height: 297mm;
+      min-height: 297mm;
       display: flex;
       flex-direction: column;
     }

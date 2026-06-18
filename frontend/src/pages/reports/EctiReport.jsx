@@ -64,6 +64,7 @@ const EctiReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   useEffect(() => { fetchResults(); }, [attemptId]);
 
@@ -80,12 +81,13 @@ const EctiReport = () => {
     } finally { setLoading(false); }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (type) => {
     if (!data?.report) return toast.error('No report available');
     try {
+      setDownloadModalOpen(false);
       setDownloading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`/api/reports/${data.report}/download?type=comprehensive`, {
+      const res = await axios.get(`/api/reports/${data.report}/download?type=${type}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}, responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -154,7 +156,7 @@ const EctiReport = () => {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-gray-600 hover:text-slate-900 font-semibold">
           <ArrowLeft className="w-5 h-5" /> Back
         </button>
-        <button onClick={handleDownload} disabled={downloading} className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 text-sm font-semibold">
+        <button onClick={() => setDownloadModalOpen(true)} disabled={downloading} className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 text-sm font-semibold">
           {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Export Executive PDF
         </button>
@@ -406,6 +408,52 @@ const EctiReport = () => {
         </div>
       </div>
 
+      {/* Download Modal */}
+      {downloadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setDownloadModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Download Report</h3>
+              <p className="text-sm text-gray-500 mb-6">Select the level of detail for the PDF report.</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleDownload('comprehensive')}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all text-left"
+                >
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Comprehensive Report (AI)</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">Full deep dive with psychometric narrative, insights, and development roadmap.</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleDownload('summary')}
+                  className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all text-left"
+                >
+                  <div className="p-2 bg-gray-100 text-gray-600 rounded-lg shrink-0">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Summary Report</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">Concise overview with dimension scores and key insights.</div>
+                  </div>
+                </button>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setDownloadModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

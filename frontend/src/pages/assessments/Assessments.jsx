@@ -381,10 +381,10 @@ const Assessments = () => {
                   onClick={() => setUnlockModal({ show: true, assessment })}>
                   <Lock className="w-7 h-7 text-gray-400 mb-2" />
                   <p className="text-base font-bold text-gray-800 mb-1 text-center">
-                    {meta.inspiredBy || assessment.title}
+                    {assessment.title}
                   </p>
                   <p className="text-xs text-gray-500 mb-1 text-center line-clamp-2">
-                    {assessment.description || meta.description || 'No description'}
+                    {assessment.description || 'No description'}
                   </p>
                   <div className="flex items-center gap-1 text-sm text-amber-600 font-medium mb-3">
                     <Coins className="w-4 h-4" />
@@ -395,7 +395,7 @@ const Assessments = () => {
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                   >
                     <Unlock className="w-4 h-4" />
-Unlock Assessment
+                    Unlock Assessment
                   </button>
                 </div>
               )}

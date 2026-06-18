@@ -525,8 +525,7 @@ const registerFreeTrial = asyncHandler(async (req, res) => {
   const assessment = await Assessment.findOne({
     _id: selectedAssessmentId,
     isActive: true,
-    isPublished: true,
-    organization: null
+    isPublished: true
   });
   if (!assessment) {
     throw new ApiError(404, 'Selected assessment not found or unavailable');

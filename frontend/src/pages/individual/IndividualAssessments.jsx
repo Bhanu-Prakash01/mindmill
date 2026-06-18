@@ -212,10 +212,6 @@ const IndividualAssessments = () => {
                   {assessment.title}
                 </h3>
 
-                {assessment.subCategory && (
-                  <p className="text-xs italic text-gray-500 mb-2">{assessment.subCategory}</p>
-                )}
-
                 {/* Description with See More/Less */}
                 <div className="mb-3 flex-1 flex flex-col">
                   <div className="cursor-pointer group">

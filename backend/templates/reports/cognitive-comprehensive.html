@@ -31,7 +31,7 @@
     }
 
     .page {
-      width: 210mm; height: 297mm; overflow: hidden;
+      width: 210mm; min-height: 297mm;
       position: relative; background: #fff;
       page-break-after: always; break-after: page;
     }
@@ -44,7 +44,7 @@
     }
 
     /* ── COVER ─────────────────────────────────────────── */
-    .cover { background: var(--navy); display: flex; flex-direction: column; height: 297mm; }
+    .cover { background: var(--navy); display: flex; flex-direction: column; min-height: 297mm; }
     .cover-accent-bar { height: 5px; background: linear-gradient(135deg, #8B5CF6, #A78BFA); }
     .cover-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 44px 52px 36px; position: relative; overflow: hidden; }
     .cover-diagonal { position: absolute; top: 0; right: 0; width: 42%; height: 100%; background: linear-gradient(135deg, #8B5CF6, #A78BFA); opacity: 0.08; clip-path: polygon(25% 0, 100% 0, 100% 100%, 0% 100%); }
@@ -72,7 +72,7 @@
     .cb-value { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); margin-top: 2px; }
 
     /* ── INNER PAGES ───────────────────────────────────── */
-    .inner { padding: 36px 44px; height: 297mm; display: flex; flex-direction: column; }
+    .inner { padding: 36px 44px; min-height: 297mm; display: flex; flex-direction: column; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
     .ph-title { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--navy); }
     .ph-page { font-size: 9px; font-weight: 600; color: var(--muted); letter-spacing: 1.5px; }

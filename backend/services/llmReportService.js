@@ -1,11 +1,12 @@
-const Groq = require('groq-sdk');
+const OpenAI = require('openai');
 
-// Initialize Groq client
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+// Initialize OpenRouter client (OpenAI-compatible)
+const openai = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
 });
 
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash';
 
 // ─────────────────────────────────────────────────────────────────
 // STATIC LOOKUP TABLES  (no tokens wasted on these)
@@ -112,7 +113,7 @@ const BIG5_TRAITS = {
 // ─────────────────────────────────────────────────────────────────
 
 const callLLM = async (systemPrompt, userPrompt, maxTokens = 450) => {
-  const completion = await groq.chat.completions.create({
+  const completion = await openai.chat.completions.create({
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },

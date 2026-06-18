@@ -1,5 +1,4 @@
 const { Report, User } = require('../models');
-const { generateAIReport } = require('./llmReportService');
 
 async function generateHoganReport(attempt, assessment, results) {
   try {

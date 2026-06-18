@@ -55,8 +55,7 @@
     /* ── PAGE SHELL ─────────────────────────────────── */
     .page {
       width: 210mm;
-      height: 297mm;
-      overflow: hidden;
+      min-height: 297mm;
       position: relative;
       background: #fff;
       page-break-after: always;
@@ -88,7 +87,7 @@
       background: var(--navy);
       display: flex;
       flex-direction: column;
-      height: 297mm;
+      min-height: 297mm;
     }
 
     .cover-bar {
@@ -310,7 +309,7 @@
 
     /* ── INNER PAGE CHROME ──────────────────────────── */
     .inner-page {
-      height: 297mm;
+      min-height: 297mm;
       display: flex;
       flex-direction: column;
     }
